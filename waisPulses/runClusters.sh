@@ -17,17 +17,17 @@ numWaisPulses=118799
 numEvents=$((numWaisPulses/256))
 
 if [ `hostname | cut -d"." -f1` == "anitaI" ]; then
-    startSeq = 0
-    stopSeq = 63
+    startSeq=0
+    stopSeq=63
 elif [ `hostname | cut -d"." -f1` == "anitaII" ]; then
-    startSeq = 64
-    stopSeq = 127
+    startSeq=64
+    stopSeq=127
 elif [ `hostname | cut -d"." -f1` == "anitaIII" ]; then
-    startSeq = 128
-    stopSeq = 191
+    startSeq=128
+    stopSeq=191
 elif [ `hostname | cut -d"." -f1` == "anitaIV" ]; then
-    startSeq = 192
-    stopSeq = 255
+    startSeq=192
+    stopSeq=255
 else
     echo "The server isn't an anita cluster server, so you shouldn't use this script"
     exit
