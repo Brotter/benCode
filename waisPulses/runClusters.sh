@@ -33,7 +33,7 @@ else
     exit
 fi
 
-for seq in `seq ${startSeq} ${stopSeq}`; do
-    ./waisNewCorrelator 330 360 $((numEvents*startSeq)) $((numEvents*(startSeq+1))) ${seq} & >> log/${seq}.log
+for i in `seq ${startSeq} ${stopSeq}`; do
+    ./waisNewCorrelator 330 360 $((numEvents*startSeq)) $((numEvents*(startSeq+1))) ${i} & >> log/${i}.log
 done
     
