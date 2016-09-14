@@ -221,13 +221,20 @@ int main(int argc, char** argv) {
     usefulGPS->getThetaAndPhiWaveWaisDivide(waisTheta,waisPhi);
     delete usefulGPS;
 
+    //these are in radians!
     waisTheta *= TMath::RadToDeg();
     waisPhi *= TMath::RadToDeg();
 
-    if (waisTheta < 0) waisTheta += 360;
-    if (waisPhi < 0) waisPhi += 360;
-    if (peakThetaDeg < 0) peakThetaDeg += 360;
-    if (peakPhiDeg < 0) peakPhiDeg += 360;
+    //try to get them to wrap correctly?
+    if (waisTheta < -180) waisTheta += 360;
+    if (waisPhi < -180) waisPhi += 360;
+    if (peakThetaDeg < -180) peakThetaDeg += 360;
+    if (peakPhiDeg < -180) peakPhiDeg += 360;
+
+    if (waisTheta > 180) waisTheta -= 360;
+    if (waisPhi > 180) waisPhi -= 360;
+    if (peakThetaDeg > 180) peakThetaDeg -= 360;
+    if (peakPhiDeg > 180) peakPhiDeg -= 360;
 
     outFile->cd();
     newCorrelatorTree->Fill();
