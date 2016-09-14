@@ -34,6 +34,6 @@ else
 fi
 
 for i in `seq ${startSeq} ${stopSeq}`; do
-    nice ./waisNewCorrelator 330 360 $((numEvents*startSeq)) $((numEvents*(startSeq+1))) ${i} 1>> log/${i}.log 2>&1 &
+    nice ./waisNewCorrelator 330 360 $((numEvents*startSeq)) $((numEvents*(startSeq+1))) ${i} 1> log/${i}.log 2>&1 &
 done
     

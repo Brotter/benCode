@@ -22,6 +22,7 @@
 #include "AntarcticaMapPlotter.h"
 #include "CrossCorrelator.h"
 #include "UsefulAdu5Pat.h"
+#include "AnitaConventions.h"
 
 using namespace std;
 
@@ -160,18 +161,25 @@ int main(int argc, char** argv) {
   //create the correlator object
   CrossCorrelator *correlator = new CrossCorrelator();
 
+  //notch it where I know the sats are I guess?
+  CrossCorrelator::SimpleNotch notch260("n260Notch", "260MHz Satellite Notch", 260 - 26, 260 + 26);
+  correlator->addNotch(notch260);
+
+  CrossCorrelator::SimpleNotch notch370("n370Notch", "370MHz Satellite Notch", 370 - 26, 370 + 26);
+  correlator->addNotch(notch370);
+
   //also we are working with horizontal polarization, so this is for ease
   AnitaPol::AnitaPol_t pol = AnitaPol::kHorizontal;
 
   //open the output file before making the tree
   name.str("");
-  name << "waisNewCorrelator" << postFix << ".root";
+  name << "rootFiles/waisNewCorrelator" << postFix << ".root";
   TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
 
   //save all the output data in a TTree to plot later
   TTree *newCorrelatorTree = new TTree("newCorrelatorTree","newCorrelatorTree");
   Double_t peakValue,peakPhiDeg,peakThetaDeg,lat,lon,alt,theta_adjustment_required,heading;
-  Int_t eventNumber;
+  Int_t eventNumber,returnValue;
   newCorrelatorTree->Branch("peakValue",&peakValue);
   newCorrelatorTree->Branch("peakPhiDeg",&peakPhiDeg);
   newCorrelatorTree->Branch("peakThetaDeg",&peakThetaDeg);
@@ -181,7 +189,7 @@ int main(int argc, char** argv) {
   newCorrelatorTree->Branch("theta_adjustment_required",&theta_adjustment_required);
   newCorrelatorTree->Branch("eventNumber",&eventNumber);
   newCorrelatorTree->Branch("heading",&heading);
-
+  newCorrelatorTree->Branch("returnValue",&returnValue);
 
   for (int entry=startEntry; entry<stopEntry; entry++) {
     if (entry%10 == 0) {
@@ -205,9 +213,9 @@ int main(int argc, char** argv) {
     delete mapHist;
     heading = gps->heading;
     UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
-    int returnValue = usefulGPS->traceBackToContinent(peakPhiDeg*TMath::DegToRad(),
-						      peakThetaDeg*TMath::DegToRad(),
-						      &lat,&lon,&alt,&theta_adjustment_required);
+    returnValue = usefulGPS->traceBackToContinent(peakPhiDeg*TMath::DegToRad(),
+						  -1*peakThetaDeg*TMath::DegToRad(),
+						  &lat,&lon,&alt,&theta_adjustment_required);
     delete usefulGPS;
     outFile->cd();
     newCorrelatorTree->Fill();
