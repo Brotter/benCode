@@ -19,13 +19,13 @@ numEvents=$((numWaisPulses/256))
 if [ `hostname | cut -d"." -f1` == "anitai" ]; then
     startSeq = 0
     stopSeq = 63
-if [ `hostname | cut -d"." -f1` == "anitaii" ]; then
+elif [ `hostname | cut -d"." -f1` == "anitaii" ]; then
     startSeq = 64
     stopSeq = 127
-if [ `hostname | cut -d"." -f1` == "anitaiii" ]; then
+elif [ `hostname | cut -d"." -f1` == "anitaiii" ]; then
     startSeq = 128
     stopSeq = 191
-if [ `hostname | cut -d"." -f1` == "anitaiv" ]; then
+elif [ `hostname | cut -d"." -f1` == "anitaiv" ]; then
     startSeq = 192
     stopSeq = 255
 fi
