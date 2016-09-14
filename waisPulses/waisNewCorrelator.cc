@@ -225,9 +225,9 @@ int main(int argc, char** argv) {
     waisPhi *= TMath::RadToDeg();
 
     if (waisTheta < 0) waisTheta += 360;
-    if (waisPhi < 0) waisTheta += 360;
-    if (peakThetaDeg < 0) waisTheta += 360;
-    if (peakPhiDeg < 0) waisTheta += 360;
+    if (waisPhi < 0) waisPhi += 360;
+    if (peakThetaDeg < 0) peakThetaDeg += 360;
+    if (peakPhiDeg < 0) peakPhiDeg += 360;
 
     outFile->cd();
     newCorrelatorTree->Fill();
