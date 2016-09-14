@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
   //okay lets start by grabbing the wais header files
   TChain *headTree = new TChain("headTree","headTree");  
   name.str("");
-  name << "/Users/brotter/Science/ANITA/ANITA3/anita16/benPrograms/waisPulses/waisHeadFile.root";
+  name << "waisHeadFile.root";
   headTree->Add(name.str().c_str());
   RawAnitaHeader *head = NULL;
   headTree->SetBranchAddress("header",&head);
@@ -131,12 +131,14 @@ int main(int argc, char** argv) {
   //Also grab the gps stuff for pointing
   TChain *eventTree = new TChain("eventTree","eventTree");  
   TChain *gpsTree = new TChain("adu5PatTree","adu5PatTree");
+  
+  char* dataDir = getenv("ANITA3_DATA");
   for (int i=startRun; i<stopRun; i++) {
     name.str("");
-    name << "/Volumes/ANITA3Data/root/run" << i << "/eventFile" << i << ".root";
+    name << dataDir << "run" << i << "/eventFile" << i << ".root";
     eventTree->Add(name.str().c_str());
     name.str("");
-    name << "/Volumes/ANITA3Data/root/run" << i << "/gpsEvent" << i << ".root";
+    name << dataDir << "run" << i << "/gpsEvent" << i << ".root";
     gpsTree->Add(name.str().c_str());
   }
   RawAnitaEvent *event = NULL;
