@@ -185,7 +185,7 @@ int main(int argc, char** argv) {
 
   for (int entry=startEntry; entry<stopEntry; entry++) {
     if (entry%10 == 0) {
-      cout << entry << " / " << stopEntry-startEntry << "\r";
+      cout << entry-startEntry << " / " << stopEntry-startEntry << "\r";
       fflush(stdout);
     }
 
