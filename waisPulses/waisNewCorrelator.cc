@@ -220,6 +220,15 @@ int main(int argc, char** argv) {
 						  &lat,&lon,&alt,&theta_adjustment_required);
     usefulGPS->getThetaAndPhiWaveWaisDivide(waisTheta,waisPhi);
     delete usefulGPS;
+
+    waisTheta *= TMath::RadToDeg();
+    waisPhi *= TMath::RadToDeg();
+
+    if (waisTheta < 0) waisTheta += 360;
+    if (waisPhi < 0) waisTheta += 360;
+    if (peakThetaDeg < 0) waisTheta += 360;
+    if (peakPhiDeg < 0) waisTheta += 360;
+
     outFile->cd();
     newCorrelatorTree->Fill();
     
