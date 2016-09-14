@@ -178,7 +178,7 @@ int main(int argc, char** argv) {
 
   //save all the output data in a TTree to plot later
   TTree *newCorrelatorTree = new TTree("newCorrelatorTree","newCorrelatorTree");
-  Double_t peakValue,peakPhiDeg,peakThetaDeg,lat,lon,alt,theta_adjustment_required,heading;
+  Double_t peakValue,peakPhiDeg,peakThetaDeg,lat,lon,alt,theta_adjustment_required,heading,waisTheta,waisPhi;
   Int_t eventNumber,returnValue;
   newCorrelatorTree->Branch("peakValue",&peakValue);
   newCorrelatorTree->Branch("peakPhiDeg",&peakPhiDeg);
@@ -190,6 +190,8 @@ int main(int argc, char** argv) {
   newCorrelatorTree->Branch("eventNumber",&eventNumber);
   newCorrelatorTree->Branch("heading",&heading);
   newCorrelatorTree->Branch("returnValue",&returnValue);
+  newCorrelatorTree->Branch("waisTheta",&waisTheta);
+  newCorrelatorTree->Branch("waisPhi",&waisPhi);
 
   for (int entry=startEntry; entry<stopEntry; entry++) {
     if (entry%10 == 0) {
@@ -216,6 +218,7 @@ int main(int argc, char** argv) {
     returnValue = usefulGPS->traceBackToContinent(peakPhiDeg*TMath::DegToRad(),
 						  -1*peakThetaDeg*TMath::DegToRad(),
 						  &lat,&lon,&alt,&theta_adjustment_required);
+    usefulGPS->getThetaAndPhiWaveWaisDivide(waisTheta,waisPhi);
     delete usefulGPS;
     outFile->cd();
     newCorrelatorTree->Fill();
