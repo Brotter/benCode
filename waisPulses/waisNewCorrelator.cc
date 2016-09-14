@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
     gpsTree->GetEntry(eventEntry);
 
     UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event,WaveCalType::kFull,head);
-    correlator->reconstructEvent(usefulEvent);
+    correlator->reconstructEvent(usefulEvent,1,1);
     
     TH2D *mapHist = correlator->getMap(AnitaPol::kHorizontal,peakValue,peakPhiDeg,peakThetaDeg);
     delete mapHist;
