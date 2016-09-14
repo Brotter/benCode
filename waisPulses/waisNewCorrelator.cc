@@ -33,12 +33,85 @@ using namespace std;
   or there is something much more pathalogical with her code?  Either way, if this works I can integrate it in
   to her code and re-run all the events with a more "modern" correlator
 
+  This takes FOREVER to run.  So what I want to do is set it up so it can do it run by run on the big servers.
+  That way I can get through all the events without having to wait as long at least.
+
+  So lets do:
+  argc=1:
+   argv[0] = scriptName (like it always will be)
+             otherwise will process all events in runs 330 to 360
+  argc=2:
+   argv[0] = same as above
+   argv[1] = single runNumber to work with (all events in that run)
+  argc=3:
+   argv[0] = save as above
+   argv[1] = runNumber to START at (all events in that run)
+   argv[2] = runNumber to STOP at (all events in that run too)
+  argc=4:
+   argv[0:2] = same as above
+   argv[3] =  number of entries to look at (over several runs!)
+  argc=5:
+   argv[0:2] = same as above
+   argv[3] = TChain entry number to start with
+   argv[4] = TChain entry number to stop with
+  argc=6:
+   argv[0:4] = same as above
+   argv[5] = special post-fix to add to output file name (since I have to batch run this)
+
  */
 
 
 int main(int argc, char** argv) {
 
   cout << "Hello!  Let us do some physics mate" << endl;
+
+  int startRun=330;
+  int stopRun =360;
+  int startEntry= 0;
+  int stopEntry = -1;
+  string postFix = "";
+
+  if (argc == 1) {
+    cout << "Using all events in runs 330 through 360" << endl;
+  }
+  else if (argc == 2) {
+    startRun = atoi(argv[1]);
+    stopRun  = atoi(argv[1])+1; 
+    cout << "Using only run " << startRun << endl;
+  }
+  
+  else if (argc == 3) {
+    startRun = atoi(argv[1]);
+    stopRun  = atoi(argv[2]); 
+    cout << "Using runs " << startRun << " through " << stopRun << endl;
+  }
+  else if (argc == 4) {
+    startRun = atoi(argv[1]);
+    stopRun  = atoi(argv[2]); 
+    stopEntry = atoi(argv[3]);
+    cout << "Using first " << stopEntry << " in runs " << startRun << " through " << stopRun << endl;
+  }
+  else if (argc == 5) {
+    startRun = atoi(argv[1]);
+    stopRun  = atoi(argv[2]); 
+    startEntry = atoi(argv[3]);
+    stopEntry = atoi(argv[4]);
+    cout << "Using event " << startEntry << " through " << stopEntry << " in runs " << startRun << " through " << stopRun << endl;
+  }
+  else if (argc == 6) {
+    startRun = atoi(argv[1]);
+    stopRun  = atoi(argv[2]); 
+    startEntry = atoi(argv[3]);
+    stopEntry = atoi(argv[4]);
+    postFix.assign(argv[5]);
+    postFix.insert(0,"_");
+    cout << "Using event " << startEntry << " through " << stopEntry << " in runs " << startRun << " through " << stopRun << " and naming the file with " << postFix << " at the end" << endl;
+  }
+  else {
+    cout << "Somehow you didn't input the correct number of parameters, which is hard" << endl;
+  }
+
+
 
   stringstream name;
   //okay lets start by grabbing the wais header files
@@ -58,7 +131,7 @@ int main(int argc, char** argv) {
   //Also grab the gps stuff for pointing
   TChain *eventTree = new TChain("eventTree","eventTree");  
   TChain *gpsTree = new TChain("adu5PatTree","adu5PatTree");
-  for (int i=330; i<354; i++) {
+  for (int i=startRun; i<stopRun; i++) {
     name.str("");
     name << "/Volumes/ANITA3Data/root/run" << i << "/eventFile" << i << ".root";
     eventTree->Add(name.str().c_str());
@@ -77,6 +150,7 @@ int main(int argc, char** argv) {
   cout << "There are " << gpsTree->GetEntries() << " gps events imported too." << endl;
 
   //I want to sort these by eventNumber, since most of the events aren't WAIS pulses
+  cout << "Building event index (this might take awhile)..." << endl;
   eventTree->BuildIndex("eventNumber");
   cout << "Event index built" << endl;
 
@@ -87,38 +161,60 @@ int main(int argc, char** argv) {
   //also we are working with horizontal polarization, so this is for ease
   AnitaPol::AnitaPol_t pol = AnitaPol::kHorizontal;
 
-  TH2D *pointingMap = new TH2D("pointingMap","pointingMap;lat;long",
-					     200,-82,-78,200,-119,-105);
+  //open the output file before making the tree
+  name.str("");
+  name << "waisNewCorrelator" << postFix << ".root";
+  TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
 
-  for (int entry=0; entry<1000; entry++) {
+  //save all the output data in a TTree to plot later
+  TTree *newCorrelatorTree = new TTree("newCorrelatorTree","newCorrelatorTree");
+  Double_t peakValue,peakPhiDeg,peakThetaDeg,lat,lon,alt,theta_adjustment_required,heading;
+  Int_t eventNumber;
+  newCorrelatorTree->Branch("peakValue",&peakValue);
+  newCorrelatorTree->Branch("peakPhiDeg",&peakPhiDeg);
+  newCorrelatorTree->Branch("peakThetaDeg",&peakThetaDeg);
+  newCorrelatorTree->Branch("lat",&lat);
+  newCorrelatorTree->Branch("lon",&lon);
+  newCorrelatorTree->Branch("alt",&alt);
+  newCorrelatorTree->Branch("theta_adjustment_required",&theta_adjustment_required);
+  newCorrelatorTree->Branch("eventNumber",&eventNumber);
+  newCorrelatorTree->Branch("heading",&heading);
+
+
+  for (int entry=startEntry; entry<stopEntry; entry++) {
+    if (entry%10 == 0) {
+      cout << entry << " / " << stopEntry-startEntry << "/r";
+      fflush(stdout);
+    }
+
     headTree->GetEntry(entry);
-    int eventEntry = eventTree->GetEntryNumberWithBestIndex(head->eventNumber);
+    if ((head->run < startRun) || (head->run > stopRun)) {
+      continue;
+    }
+    eventNumber = head->eventNumber;
+    int eventEntry = eventTree->GetEntryNumberWithBestIndex(eventNumber);
     eventTree->GetEntry(eventEntry);
     gpsTree->GetEntry(eventEntry);
 
     UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event,WaveCalType::kFull,head);
     correlator->reconstructEvent(usefulEvent);
     
-    
-    Double_t peakValue,peakPhiDeg,peakThetaDeg,lat,lon,alt,theta_adjustment_required;
     TH2D *mapHist = correlator->getMap(AnitaPol::kHorizontal,peakValue,peakPhiDeg,peakThetaDeg);
     delete mapHist;
+    heading = gps->heading;
     UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
     int returnValue = usefulGPS->traceBackToContinent(peakPhiDeg*TMath::DegToRad(),
 						      peakThetaDeg*TMath::DegToRad(),
 						      &lat,&lon,&alt,&theta_adjustment_required);
     delete usefulGPS;
-
-    cout << peakPhiDeg << " " << peakThetaDeg << " " << lat << " " << lon << " " << returnValue << endl;
-
-
-    if (returnValue==1) {
-      pointingMap->Fill(lat,lon); }
+    outFile->cd();
+    newCorrelatorTree->Fill();
+    
   }
-  
-  TFile *outFile = TFile::Open("waisNewCorrelator.root","recreate");
 
-  pointingMap->Write();
+  cout << "stored " << newCorrelatorTree->GetEntries() << " entries" << endl;
+  outFile->cd();
+  newCorrelatorTree->Write();
 
   outFile->Close();
 
