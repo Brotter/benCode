@@ -16,18 +16,21 @@ numWaisPulses=118799
 #There are 4 servers with 64 cores each, so 256 total
 numEvents=$((numWaisPulses/256))
 
-if [ `hostname | cut -d"." -f1` == "anitai" ]; then
+if [ `hostname | cut -d"." -f1` == "anitaI" ]; then
     startSeq = 0
     stopSeq = 63
-elif [ `hostname | cut -d"." -f1` == "anitaii" ]; then
+elif [ `hostname | cut -d"." -f1` == "anitaII" ]; then
     startSeq = 64
     stopSeq = 127
-elif [ `hostname | cut -d"." -f1` == "anitaiii" ]; then
+elif [ `hostname | cut -d"." -f1` == "anitaIII" ]; then
     startSeq = 128
     stopSeq = 191
-elif [ `hostname | cut -d"." -f1` == "anitaiv" ]; then
+elif [ `hostname | cut -d"." -f1` == "anitaIV" ]; then
     startSeq = 192
     stopSeq = 255
+else
+    echo "The server isn't an anita cluster server, so you shouldn't use this script"
+    exit
 fi
 
 for seq in `seq ${startSeq} ${stopSeq}`; do
