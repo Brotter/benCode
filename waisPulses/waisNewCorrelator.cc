@@ -116,21 +116,22 @@ int main(int argc, char** argv) {
 
   stringstream name;
   //okay lets start by grabbing the wais header files
-  TChain *headTree = new TChain("headTree","headTree");  
+  TChain *waisHeadTree = new TChain("headTree","headTree");  
   name.str("");
   name << "waisHeadFile.root";
-  headTree->Add(name.str().c_str());
-  RawAnitaHeader *head = NULL;
-  headTree->SetBranchAddress("header",&head);
+  waisHeadTree->Add(name.str().c_str());
+  RawAnitaHeader *waisHead = NULL;
+  waisHeadTree->SetBranchAddress("header",&waisHead);
 
-  int numEntries = headTree->GetEntries();
-  cout << "I found " << numEntries << " wais pulser entries using file:" << endl;
+  int numWaisEntries = waisHeadTree->GetEntries();
+  cout << "I found " << numWaisEntries << " wais pulser entries using file:" << endl;
   cout << name.str() << endl;
     
 
   //then we can grab all the event files for the WAIS range (runs 330 to 360 gets them all, though is wide)
   //Also grab the gps stuff for pointing
   TChain *eventTree = new TChain("eventTree","eventTree");  
+  TChain *headTree = new TChain("headTree","headTree");
   TChain *gpsTree = new TChain("adu5PatTree","adu5PatTree");
   
   char* dataDir = getenv("ANITA3_DATA");
@@ -139,22 +140,29 @@ int main(int argc, char** argv) {
     name << dataDir << "run" << i << "/eventFile" << i << ".root";
     eventTree->Add(name.str().c_str());
     name.str("");
+    name << dataDir << "run" << i << "/headFile" << i << ".root";
+    headTree->Add(name.str().c_str());
+    name.str("");
     name << dataDir << "run" << i << "/gpsEvent" << i << ".root";
     gpsTree->Add(name.str().c_str());
   }
+  int numEventEntries = eventTree->GetEntries();
   RawAnitaEvent *event = NULL;
   eventTree->SetBranchAddress("event",&event);
+  RawAnitaHeader *head = NULL;
+  headTree->SetBranchAddress("header",&head);
   Adu5Pat *gps = NULL;
   gpsTree->SetBranchAddress("pat",&gps);
 
   
   //Figure out how many events we are dealing with
-  cout << "There are " << eventTree->GetEntries() << " events imported too." << endl;
+  cout << "There are " << numEventEntries << " events imported too." << endl;
   cout << "There are " << gpsTree->GetEntries() << " gps events imported too." << endl;
 
   //I want to sort these by eventNumber, since most of the events aren't WAIS pulses
   cout << "Building event index (this might take awhile)..." << endl;
-  eventTree->BuildIndex("eventNumber");
+  //  eventTree->BuildIndex("eventNumber");
+  waisHeadTree->BuildIndex("eventNumber");
   cout << "Event index built" << endl;
 
 
@@ -193,22 +201,29 @@ int main(int argc, char** argv) {
   newCorrelatorTree->Branch("waisTheta",&waisTheta);
   newCorrelatorTree->Branch("waisPhi",&waisPhi);
 
-  for (int entry=startEntry; entry<stopEntry; entry++) {
+  for (int entry=0; entry<numEventEntries; entry++) {
     if (entry%10 == 0) {
-      cout << entry-startEntry << " / " << stopEntry-startEntry << "\r";
+      cout << entry << " / " << numEventEntries << "\r";
       fflush(stdout);
     }
 
+    eventTree->GetEntry(entry);
     headTree->GetEntry(entry);
-    if ((head->run < startRun) || (head->run > stopRun)) {
+    eventNumber = head->eventNumber;
+    //calibrating requires doing ALL the events IN ORDER, so I need to do this even though I don't use most
+    //once I generate all the CalibratedAnitaEvent.root files I don't have to do this
+    UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event,WaveCalType::kFull,head);
+
+    //if the eventNumber isn't in the waisTree, just move on
+    int waisEntry = waisHeadTree->GetEntryNumberWithIndex(eventNumber);
+    if (waisEntry==-1) {
+      delete usefulEvent;
       continue;
     }
-    eventNumber = head->eventNumber;
-    int eventEntry = eventTree->GetEntryNumberWithBestIndex(eventNumber);
-    eventTree->GetEntry(eventEntry);
-    gpsTree->GetEntry(eventEntry);
 
-    UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event,WaveCalType::kFull,head);
+    //Otherwise do what you were doing before!
+    waisHeadTree->GetEntry(waisEntry);
+
     correlator->reconstructEvent(usefulEvent,1,1);
     
     TH2D *mapHist = correlator->getMap(AnitaPol::kHorizontal,peakValue,peakPhiDeg,peakThetaDeg);
