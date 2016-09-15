@@ -234,8 +234,15 @@ int main(int argc, char** argv) {
 
     correlator->reconstructEvent(usefulEvent,1,1);
     
-    TH2D *mapHist = correlator->getMap(AnitaPol::kHorizontal,peakValue,peakPhiDeg,peakThetaDeg);
-    delete mapHist;
+    //Get the actual map (I don't need to do this! it only returns the course map and I want the fine map)
+    //    TH2D *mapHist = correlator->getMap(AnitaPol::kHorizontal,peakValue,peakPhiDeg,peakThetaDeg);
+    //    delete mapHist;
+
+    //get the peak phi bin
+    peakValue = correlator->fineMapPeakValues[0][0];
+    peakPhiDeg = correlator->fineMapPeakPhiDegs[0][0];
+    peakThetaDeg = correlator->fineMapPeakThetaDegs[0][0];
+
     heading = gps->heading;
     UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
     returnValue = usefulGPS->traceBackToContinent(peakPhiDeg*TMath::DegToRad(),
