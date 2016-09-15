@@ -68,8 +68,8 @@ int main(int argc, char** argv) {
 
   int startRun=330;
   int stopRun =360;
-  int startEntry= 0;
-  int stopEntry = -1;
+  int startWaisEntry= 0;
+  int stopWaisEntry = -1;
   string postFix = "";
 
   if (argc == 1) {
@@ -89,24 +89,24 @@ int main(int argc, char** argv) {
   else if (argc == 4) {
     startRun = atoi(argv[1]);
     stopRun  = atoi(argv[2]); 
-    stopEntry = atoi(argv[3]);
-    cout << "Using first " << stopEntry << " in runs " << startRun << " through " << stopRun << endl;
+    stopWaisEntry = atoi(argv[3]);
+    cout << "Using first " << stopWaisEntry << " in runs " << startRun << " through " << stopRun << endl;
   }
   else if (argc == 5) {
     startRun = atoi(argv[1]);
     stopRun  = atoi(argv[2]); 
-    startEntry = atoi(argv[3]);
-    stopEntry = atoi(argv[4]);
-    cout << "Using event " << startEntry << " through " << stopEntry << " in runs " << startRun << " through " << stopRun << endl;
+    startWaisEntry = atoi(argv[3]);
+    stopWaisEntry = atoi(argv[4]);
+    cout << "Using event " << startWaisEntry << " through " << stopWaisEntry << " in runs " << startRun << " through " << stopRun << endl;
   }
   else if (argc == 6) {
     startRun = atoi(argv[1]);
     stopRun  = atoi(argv[2]); 
-    startEntry = atoi(argv[3]);
-    stopEntry = atoi(argv[4]);
+    startWaisEntry = atoi(argv[3]);
+    stopWaisEntry = atoi(argv[4]);
     postFix.assign(argv[5]);
     postFix.insert(0,"_");
-    cout << "Using event " << startEntry << " through " << stopEntry << " in runs " << startRun << " through " << stopRun << " and naming the file with " << postFix << " at the end" << endl;
+    cout << "Using event " << startWaisEntry << " through " << stopWaisEntry << " in runs " << startRun << " through " << stopRun << " and naming the file with " << postFix << " at the end" << endl;
   }
   else {
     cout << "Somehow you didn't input the correct number of parameters, which is hard" << endl;
@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
 
   //I want to sort these by eventNumber, since most of the events aren't WAIS pulses
   cout << "Building event index (this might take awhile)..." << endl;
-  //  eventTree->BuildIndex("eventNumber");
+  headTree->BuildIndex("eventNumber");
   waisHeadTree->BuildIndex("eventNumber");
   cout << "Event index built" << endl;
 
@@ -201,7 +201,14 @@ int main(int argc, char** argv) {
   newCorrelatorTree->Branch("waisTheta",&waisTheta);
   newCorrelatorTree->Branch("waisPhi",&waisPhi);
 
-  for (int entry=0; entry<numEventEntries; entry++) {
+  waisHeadTree->GetEntry(startWaisEntry);
+  int firstWaisEventNumber = waisHead->eventNumber;
+  int startEntry = headTree->GetEntryNumberWithIndex(firstWaisEventNumber);
+  waisHeadTree->GetEntry(stopWaisEntry);
+  int lastWaisEventNumber = waisHead->eventNumber;
+  int stopEntry = headTree->GetEntryNumberWithIndex(lastWaisEventNumber);
+
+  for (int entry=startEntry; entry<stopEntry; entry++) {
     if (entry%10 == 0) {
       cout << entry << " / " << numEventEntries << "\r";
       fflush(stdout);
