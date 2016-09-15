@@ -16,6 +16,7 @@
 #include "TF1.h"
 //anita
 #include "RawAnitaEvent.h"
+#include "CalibratedAnitaEvent.h"
 #include "RawAnitaHeader.h"
 #include "UsefulAnitaEvent.h"
 #include "Adu5Pat.h"
@@ -137,7 +138,7 @@ int main(int argc, char** argv) {
   char* dataDir = getenv("ANITA3_DATA");
   for (int i=startRun; i<stopRun; i++) {
     name.str("");
-    name << dataDir << "run" << i << "/eventFile" << i << ".root";
+    name << dataDir << "run" << i << "/calEventFile" << i << ".root";
     eventTree->Add(name.str().c_str());
     name.str("");
     name << dataDir << "run" << i << "/headFile" << i << ".root";
@@ -147,7 +148,8 @@ int main(int argc, char** argv) {
     gpsTree->Add(name.str().c_str());
   }
   int numEventEntries = eventTree->GetEntries();
-  RawAnitaEvent *event = NULL;
+  //  RawAnitaEvent *event = NULL;
+  CalibratedAnitaEvent *event = NULL;
   eventTree->SetBranchAddress("event",&event);
   RawAnitaHeader *head = NULL;
   headTree->SetBranchAddress("header",&head);
@@ -219,7 +221,8 @@ int main(int argc, char** argv) {
     eventNumber = head->eventNumber;
     //calibrating requires doing ALL the events IN ORDER, so I need to do this even though I don't use most
     //once I generate all the CalibratedAnitaEvent.root files I don't have to do this
-    UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event,WaveCalType::kFull,head);
+    //    UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event,WaveCalType::kFull,head);
+    UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event);
 
     //if the eventNumber isn't in the waisTree, just move on
     int waisEntry = waisHeadTree->GetEntryNumberWithIndex(eventNumber);
