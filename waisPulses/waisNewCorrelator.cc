@@ -203,53 +203,46 @@ int main(int argc, char** argv) {
   newCorrelatorTree->Branch("waisTheta",&waisTheta);
   newCorrelatorTree->Branch("waisPhi",&waisPhi);
 
-  waisHeadTree->GetEntry(startWaisEntry);
-  int firstWaisEventNumber = waisHead->eventNumber;
-  int startEntry = headTree->GetEntryNumberWithIndex(firstWaisEventNumber);
-  waisHeadTree->GetEntry(stopWaisEntry);
-  int lastWaisEventNumber = waisHead->eventNumber;
-  int stopEntry = headTree->GetEntryNumberWithIndex(lastWaisEventNumber);
 
-  for (int entry=startEntry; entry<stopEntry; entry++) {
+
+  for (int entry=startWaisEntry; entry<stopWaisEntry; entry++) {
     if (entry%10 == 0) {
-      cout << entry << " / " << stopEntry-startEntry << "\r";
+      cout << entry-startWaisEntry << " / " << stopWaisEntry-startWaisEntry << "\r";
       fflush(stdout);
     }
 
-    eventTree->GetEntry(entry);
-    headTree->GetEntry(entry);
-    eventNumber = head->eventNumber;
-    //calibrating requires doing ALL the events IN ORDER, so I need to do this even though I don't use most
-    //once I generate all the CalibratedAnitaEvent.root files I don't have to do this
-    //    UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event,WaveCalType::kFull,head);
-    UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event);
+    //get the wais header and its event number
+    waisHeadTree->GetEntry(entry);
+    eventNumber = waisHead->eventNumber;
+    int eventEntry = eventTree->GetEntryNumberWithIndex(eventNumber);
 
-    //if the eventNumber isn't in the waisTree, just move on
-    int waisEntry = waisHeadTree->GetEntryNumberWithIndex(eventNumber);
-    if (waisEntry==-1) {
-      delete usefulEvent;
-      continue;
-    }
-
-    //Otherwise do what you were doing before!
-    waisHeadTree->GetEntry(waisEntry);
+    //find the actual events with that info
+    eventTree->GetEntry(eventEntry);
+    headTree->GetEntry(eventEntry);
     gpsTree->GetEntry(entry);
 
+    //calibrating requires doing ALL the events IN ORDER, so I need to do this even though I don't use most
+    //once I generate all the CalibratedAnitaEvent.root files I don't have to do this
+    //UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event,WaveCalType::kFull,head);
+    UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event);
+
     correlator->reconstructEvent(usefulEvent,1,1);
-    
+
+    delete usefulEvent;
+
     //Get the actual map (I don't need to do this! it only returns the course map and I want the fine map)
     //    TH2D *mapHist = correlator->getMap(AnitaPol::kHorizontal,peakValue,peakPhiDeg,peakThetaDeg);
     //    delete mapHist;
 
-    //get the peak phi bin
+    //get the peak bins.  Theta is inverted for ben's stuff (-==down)
     peakValue = correlator->fineMapPeakValues[0][0];
     peakPhiDeg = correlator->fineMapPeakPhiDegs[0][0];
-    peakThetaDeg = correlator->fineMapPeakThetaDegs[0][0];
+    peakThetaDeg = -1.*correlator->fineMapPeakThetaDegs[0][0];
 
     heading = gps->heading;
     UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
     returnValue = usefulGPS->traceBackToContinent(peakPhiDeg*TMath::DegToRad(),
-						  -1*peakThetaDeg*TMath::DegToRad(),
+						  peakThetaDeg*TMath::DegToRad(),
 						  &lat,&lon,&alt,&theta_adjustment_required);
     usefulGPS->getThetaAndPhiWaveWaisDivide(waisTheta,waisPhi);
     delete usefulGPS;
