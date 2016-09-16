@@ -219,7 +219,7 @@ int main(int argc, char** argv) {
     //find the actual events with that info
     eventTree->GetEntry(eventEntry);
     headTree->GetEntry(eventEntry);
-    gpsTree->GetEntry(entry);
+    gpsTree->GetEntry(eventEntry);
 
     //calibrating requires doing ALL the events IN ORDER, so I need to do this even though I don't use most
     //once I generate all the CalibratedAnitaEvent.root files I don't have to do this
@@ -235,12 +235,12 @@ int main(int argc, char** argv) {
     //get the peak bins.  Theta is inverted for ben's stuff (-==down)
     peakValue = correlator->fineMapPeakValues[0][0];
     peakPhiDeg = correlator->fineMapPeakPhiDegs[0][0];
-    peakThetaDeg = -1.*correlator->fineMapPeakThetaDegs[0][0];
+    peakThetaDeg = correlator->fineMapPeakThetaDegs[0][0];
 
     heading = gps->heading;
     UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
     returnValue = usefulGPS->traceBackToContinent(peakPhiDeg*TMath::DegToRad(),
-						  peakThetaDeg*TMath::DegToRad(),
+						  -1*peakThetaDeg*TMath::DegToRad(),
 						  &lat,&lon,&alt,&theta_adjustment_required);
     usefulGPS->getThetaAndPhiWaveWaisDivide(waisTheta,waisPhi);
 

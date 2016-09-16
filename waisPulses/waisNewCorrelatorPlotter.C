@@ -12,7 +12,7 @@
 
   cout << "number of entries: " << newCorrelatorTree->GetEntries() << endl;
 
-  newCorrelatorTree->Draw("peakThetaDeg:peakPhiDeg-heading","","colz");
+  newCorrelatorTree->Draw("peakThetaDeg-waisTheta:peakPhiDeg-waisPhi","","colz");
 
   return;
 
