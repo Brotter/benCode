@@ -214,7 +214,7 @@ int main(int argc, char** argv) {
     //get the wais header and its event number
     waisHeadTree->GetEntry(entry);
     eventNumber = waisHead->eventNumber;
-    int eventEntry = eventTree->GetEntryNumberWithIndex(eventNumber);
+    int eventEntry = headTree->GetEntryNumberWithIndex(eventNumber);
 
     //find the actual events with that info
     eventTree->GetEntry(eventEntry);
@@ -227,8 +227,6 @@ int main(int argc, char** argv) {
     UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event);
 
     correlator->reconstructEvent(usefulEvent,1,1);
-
-    delete usefulEvent;
 
     //Get the actual map (I don't need to do this! it only returns the course map and I want the fine map)
     //    TH2D *mapHist = correlator->getMap(AnitaPol::kHorizontal,peakValue,peakPhiDeg,peakThetaDeg);
@@ -245,7 +243,11 @@ int main(int argc, char** argv) {
 						  peakThetaDeg*TMath::DegToRad(),
 						  &lat,&lon,&alt,&theta_adjustment_required);
     usefulGPS->getThetaAndPhiWaveWaisDivide(waisTheta,waisPhi);
+
+    //Got what I wanted, done with those classes
     delete usefulGPS;
+    delete usefulEvent;
+
 
     //these are in radians!
     waisTheta *= TMath::RadToDeg();
