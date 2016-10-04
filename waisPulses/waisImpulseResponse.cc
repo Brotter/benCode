@@ -40,6 +40,7 @@ using namespace std;
 
   no arguments: do all the events
   two arguments: first=startWaisEntry second=lastWaisEntry
+  three arguments: first=startWaisEntry second=lastWaisEntry third=fileName
 
  */
 
@@ -59,6 +60,11 @@ int main(int argc, char** argv) {
     startEntry = atoi(argv[1]);
     stopEntry = atoi(argv[0]);
     cout << "Using subset of WAIS Pulse events" << endl;
+  }
+  else if (argc==4) {
+    startEntry = atoi(argv[1]);
+    stopEntry = atoi(argv[0]);
+    cout << "Using subset of WAIS Pulse events with output file name " << argv[2] << endl;
   }
   else {
     cout << "Who knows what the hell you are doing" << endl;
@@ -192,7 +198,18 @@ int main(int argc, char** argv) {
     
   }
 
-  TFile *outFile = TFile::Open("waisImpulseResponse.root","recreate");
+  
+  name.str("");
+  if (argc!=4) {
+    name << "waisImpulseResponse.root";
+  }
+  else {
+    name << argv[3];
+  }
+      
+
+
+  TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
   for (int phi=0; phi<16; phi++) {
     name.str("");
     name << "phi" << phi;
