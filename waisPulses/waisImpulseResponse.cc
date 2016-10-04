@@ -57,13 +57,13 @@ int main(int argc, char** argv) {
     cout << "Using all WAIS Pulser events" << endl;
   }
   else if (argc==3) {
-    startEntry = atoi(argv[2]);
-    stopEntry = atoi(argv[1]);
+    startEntry = atoi(argv[1]);
+    stopEntry = atoi(argv[2]);
     cout << "Using subset of WAIS Pulse events (" << startEntry << " to " << stopEntry << ")"  << endl;
   }
   else if (argc==4) {
-    startEntry = atoi(argv[2]);
-    stopEntry = atoi(argv[1]);
+    startEntry = atoi(argv[1]);
+    stopEntry = atoi(argv[2]);
     cout << "Using subset of WAIS Pulse events (" << startEntry << " to " << stopEntry << ")  with output file name " << argv[3] << endl;
   }
   else {
