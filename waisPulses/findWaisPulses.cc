@@ -46,17 +46,19 @@ int main(int argc, char** argv) {
   TChain *eventTree = new TChain("eventTree","eventTree");
   //I also need the gps files to know where the heck ANITA is!
   TChain *patTree = new TChain("adu5PatTree","adu5PatTree");  
+
+  char* dataDir = getenv("ANITA3_DATA");
   for (int runNum=330; runNum<331; runNum++) {
     name.str("");
-    name << "/Volumes/ANITA3Data/root/run" << runNum << "/headFile" << runNum << ".root";
+    name << dataDir << "run" << runNum << "/headFile" << runNum << ".root";
     headTree->Add(name.str().c_str());
 
     name.str("");
-    name << "/Volumes/ANITA3Data/root/run" << runNum << "/calEventFile" << runNum << ".root";
+    name << dataDir << "run" << runNum << "/calEventFile" << runNum << ".root";
     eventTree->Add(name.str().c_str());
 
     name.str("");
-    name << "/Volumes/ANITA3Data/root/run" << runNum << "/gpsEvent" << runNum << ".root";
+    name << dataDir << "run" << runNum << "/gpsEvent" << runNum << ".root";
     patTree->Add(name.str().c_str());
   }
 
