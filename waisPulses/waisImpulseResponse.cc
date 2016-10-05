@@ -82,6 +82,13 @@ int main(int argc, char** argv) {
   RawAnitaHeader *waisHead = NULL;
   waisHeadTree->SetBranchAddress("header",&waisHead);
 
+  TChain *calEventTree = new TChain("eventTree","eventTree");
+  name.str("");
+  name << "calEventFileWais.root";
+  calEventTree->Add(name.str().c_str());
+  CalibratedAnitaEvent *calEvent = NULL;
+  calEventTree->SetBranchAddress("event",&calEvent);
+
   int numWaisEntries = waisHeadTree->GetEntries();
   cout << "I found " << numWaisEntries << " wais pulser entries using file:" << endl;
   cout << name.str() << endl;
@@ -92,7 +99,7 @@ int main(int argc, char** argv) {
     
 
   //I made calibrated event files so this is a good place to use them!
-  TChain *eventTree = new TChain("eventTree","eventTree");  
+  //  TChain *eventTree = new TChain("eventTree","eventTree");  
   TChain *gpsTree = new TChain("adu5PatTree","adu5PatTree");
   
 
@@ -101,17 +108,17 @@ int main(int argc, char** argv) {
 
   char* dataDir = getenv("ANITA3_DATA");
   for (int i=startRun; i<stopRun; i++) {
-    name.str("");
-    name << dataDir << "run" << i << "/calEventFile" << i << ".root";
-    eventTree->Add(name.str().c_str());
+    //    name.str("");
+    //    name << dataDir << "run" << i << "/calEventFile" << i << ".root";
+    //    eventTree->Add(name.str().c_str());
     name.str("");
     name << dataDir << "run" << i << "/gpsEvent" << i << ".root";
     gpsTree->Add(name.str().c_str());
   }
-  int numEventEntries = eventTree->GetEntries();
+  int numEventEntries = calEventTree->GetEntries();
   //  RawAnitaEvent *event = NULL;
-  CalibratedAnitaEvent *event = NULL;
-  eventTree->SetBranchAddress("event",&event);
+  //  CalibratedAnitaEvent *event = NULL;
+  //  eventTree->SetBranchAddress("event",&event);
   Adu5Pat *gps = NULL;
   gpsTree->SetBranchAddress("pat",&gps);
 
@@ -129,80 +136,111 @@ int main(int argc, char** argv) {
   //I want to sort these by eventNumber, since most of the events aren't WAIS pulses
   cout << "Building gps/event index (this might take awhile)..." << endl;
   gpsTree->BuildIndex("eventNumber");
-  eventTree->BuildIndex("eventNumber");
+  //  eventTree->BuildIndex("eventNumber");
   cout << "GPS/event index built" << endl;
 
 
   //array of TGraphs to store all the impulse responses?
   TGraph *impulseResponses[NUM_PHI];
 
+  
+  //Lets get an impulse response template for things to correlate to...
+  TGraph *templateResponse = new TGraph("~/Science/ANITA/ANITA3/benCode/analysis/impulseResponse/integratedTF/autoPlots/A3ImpulseResponse/09BV.txt");
+  //and make that the default for all the graphs (I'll subtract it at the end I guess?)
+  for (int phi=0; phi<16; phi++) {
+    impulseResponses[phi] = new TGraph(*templateResponse);
+  }
 
+  
   double waisTheta,waisPhi;
 
 
-  //To check if I've been in that phi sector already (which is stupid to initialize for some reason)
-  bool firstGraph[16];
+  //lets make a counter for each phi sector too
+  int counter[16];
   for (int phii=0; phii<16; phii++) {
-    firstGraph[phii] = true;
-    cout << firstGraph[phii];
+    counter[phii] = 0;
   }
-  cout << endl;
+
 
   for (int entry=startEntry; entry<stopEntry; entry++) {
-    if (entry%10 == 0) {
+    if (entry%1000 == 0) {
       cout << entry << " / " << numWaisEntries << "\r";
       fflush(stdout);
     }
 
     //get the wais header and its event number
     waisHeadTree->GetEntry(entry);
+    calEventTree->GetEntry(entry);
     int eventNumber = waisHead->eventNumber;
-    int eventEntry = eventTree->GetEntryNumberWithIndex(eventNumber);
+    //    int eventEntry = eventTree->GetEntryNumberWithIndex(eventNumber);
+    int gpsEntry = gpsTree->GetEntryNumberWithIndex(eventNumber);
 
     //find the actual events with that info
-    eventTree->GetEntry(eventEntry);
-    gpsTree->GetEntry(eventEntry);
+    //    eventTree->GetEntry(eventEntry);
+    gpsTree->GetEntry(gpsEntry);
 
     //get the calibrated event
-    UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(event);
+    UsefulAnitaEvent *usefulEvent = new UsefulAnitaEvent(calEvent);
 
+    //and the gps
     UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
     usefulGPS->getThetaAndPhiWaveWaisDivide(waisTheta,waisPhi);
 
-    int phi = int((waisPhi*TMath::RadToDeg())/22.5);
+    
+    //which phi sector is it in?  well the gps "front" is phi sector 2 so maybe like this
+    int phi = int((waisPhi*TMath::RadToDeg())/22.5)+2;
+    if (phi>=16) phi -= 16;    
+
     for (int ringi=0; (AnitaRing::AnitaRing_t)ringi != AnitaRing::kNotARing; ringi++) {
       AnitaRing::AnitaRing_t ring = (AnitaRing::AnitaRing_t)ringi;
       
-      TGraph *currGraph = usefulEvent->getGraph(ring,phi,AnitaPol::kHorizontal);
+      //I want to get the interpolated graph (impulse response is at 0.1ps)
+      TGraph *currRawGraph = usefulEvent->getGraph(ring,phi,AnitaPol::kHorizontal);
+      TGraph *currGraph = FFTtools::getInterpolatedGraph(currRawGraph,0.1);
+      delete currRawGraph;
 
-      if (firstGraph[phi]) {
+      //if it is the first pulse in the phi
+      /*
+      if (counter[phi] == 0) {
 	cout << "FirstGraph! " << entry << " " << waisHead->eventNumber << " " << waisPhi << " " << phi << endl;
 	impulseResponses[phi] = new TGraph(*currGraph);
-	firstGraph[phi] = false;
-      }
-      else {
-	cout << entry << " " << waisHead->eventNumber << " " << waisPhi << " " << phi << endl;
-	TGraph *grToCorrelate[2];
-	grToCorrelate[0] = new TGraph(*currGraph);
-	grToCorrelate[1] = new TGraph(*impulseResponses[phi]);
-	TGraph *correlated = FFTtools::correlateAndAverage(2,grToCorrelate);
-	impulseResponses[phi] = new TGraph(*correlated);
-	delete correlated;
-	delete grToCorrelate[0];
-	delete grToCorrelate[1];
       }
 
+      //otherwise sum them (with the previous weighted by how many there are in there)
+      else {
+      */
+	//	cout << entry << " " << waisHead->eventNumber << " " << waisPhi << " " << phi << endl;
+      TGraph *grToCorrelate[2];
+      grToCorrelate[0] = new TGraph(*impulseResponses[phi]);
+      grToCorrelate[1] = new TGraph(*currGraph);
+
+      for (int i=0; i<grToCorrelate[1]->GetN(); i++) {
+	grToCorrelate[1]->GetY()[i] /= counter[phi]+1;
+      }
+      TGraph *correlated = FFTtools::correlateAndAverage(2,grToCorrelate);
+      impulseResponses[phi] = new TGraph(*correlated);
+      delete correlated;
+      delete grToCorrelate[0];
+      delete grToCorrelate[1];
+      //    }
 
       delete currGraph;
+      counter[phi]++;
+    
+    } //end ring loop
 
-    }
+
 
     //Got what I wanted, done with those classes
     delete usefulGPS;
     delete usefulEvent;
     
 
-    
+  } //end entry loop
+
+
+  for (int phii=0; phii<16; phii++) {
+    cout << phii << " saw " << counter[phii] << " pulses" << endl;
   }
 
   
@@ -217,7 +255,7 @@ int main(int argc, char** argv) {
 
 
   for (int phi=0; phi<16; phi++) {
-    if (firstGraph[phi]) {
+    if (counter[phi] == 0 ) {
       cout << "never got a graph for phi: " << phi << endl;
       continue;
     }		   
