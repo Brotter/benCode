@@ -120,6 +120,12 @@ int main(int argc, char** argv) {
   cout << "There are " << numEventEntries << " events imported too." << endl;
   cout << "There are " << gpsTree->GetEntries() << " gps events imported too." << endl;
 
+  if (numEventEntries==0 || gpsTree->GetEntries()==0 || numWaisEntries==0) {
+    cout << "My input root data files are missing!  I didn't find anything to work with! Exiting..." << endl;
+    return -1;
+  }
+
+
   //I want to sort these by eventNumber, since most of the events aren't WAIS pulses
   cout << "Building gps/event index (this might take awhile)..." << endl;
   gpsTree->BuildIndex("eventNumber");
@@ -170,11 +176,12 @@ int main(int argc, char** argv) {
       TGraph *currGraph = usefulEvent->getGraph(ring,phi,AnitaPol::kHorizontal);
 
       if (firstGraph[phi]) {
-	cout << "FirstGraph! " << entry << " " << waisPhi << " " << phi << endl;
+	cout << "FirstGraph! " << entry << " " << waisHead->eventNumber << " " << waisPhi << " " << phi << endl;
 	impulseResponses[phi] = new TGraph(*currGraph);
 	firstGraph[phi] = false;
       }
       else {
+	cout << entry << " " << waisHead->eventNumber << " " << waisPhi << " " << phi << endl;
 	TGraph *grToCorrelate[2];
 	grToCorrelate[0] = new TGraph(*currGraph);
 	grToCorrelate[1] = new TGraph(*impulseResponses[phi]);
@@ -206,11 +213,14 @@ int main(int argc, char** argv) {
   else {
     name << argv[3];
   }
-      
-
-
   TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
+
+
   for (int phi=0; phi<16; phi++) {
+    if (firstGraph[phi]) {
+      cout << "never got a graph for phi: " << phi << endl;
+      continue;
+    }		   
     name.str("");
     name << "phi" << phi;
     impulseResponses[phi]->SetName(name.str().c_str());
