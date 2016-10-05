@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
   TChain *patTree = new TChain("adu5PatTree","adu5PatTree");  
 
   char* dataDir = getenv("ANITA3_DATA");
-  for (int runNum=330; runNum<331; runNum++) {
+  for (int runNum=330; runNum<360; runNum++) {
     name.str("");
     name << dataDir << "run" << runNum << "/headFile" << runNum << ".root";
     headTree->Add(name.str().c_str());
