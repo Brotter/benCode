@@ -34,6 +34,7 @@
 #include "Analyzer.h" 
 #include "WaveformCombiner.h"
 #include "AnitaDataset.h"
+#include "BlindDataset.h"
 
 using namespace std;
 
@@ -77,7 +78,8 @@ int main(int argc, char** argv) {
   }
 
 
-  AnitaDataset *data = new AnitaDataset(runNum);
+  //AnitaDataset *data = new AnitaDataset(runNum);
+  BlindDataset *data = new BlindDataset(runNum,true);
 
   int numEntries = data->N();
   cout << "number of entries in run:" << numEntries << endl;
