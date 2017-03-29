@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
   }
 
 
-  //AnitaDataset *data = new AnitaDataset(runNum);
+  //  AnitaDataset *data = new AnitaDataset(runNum);
   BlindDataset *data = new BlindDataset(runNum,true);
 
   int numEntries = data->N();
@@ -106,25 +106,25 @@ int main(int argc, char** argv) {
   //  TFile *filterOutFile = TFile::Open(name.str().c_str(),"recreate"); 
   //  FilterStrategy strategy(filterOutFile);
   //  without a debug file
-  FilterStrategy strategy;
+  FilterStrategy *strategy = new FilterStrategy();
   //Add the actual Filters
   //  with the sine subtract alghorithm
   FilterOperation *sineSub = new UCorrelator::SineSubtractFilter();
 
-  strategy.addOperation(sineSub);
+  strategy->addOperation(sineSub);
   //  with abby's list of filtering
   //  UCorrelator::applyAbbysFilterStrategy(&strategy);
 
 
 
   //and a configuration for the analysis
-  UCorrelator::AnalysisConfig config; 
+  UCorrelator::AnalysisConfig *config = new UCorrelator::AnalysisConfig(); 
   //set the response to my "single" response
-  config.response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseIndividualBRotter;
-  //  config.response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseSingleBRotter;
+  config->response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseIndividualBRotter;
+  //config.response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseSingleBRotter;
 
   //and create an analyzer object
-  UCorrelator::Analyzer *analyzer = new UCorrelator::Analyzer(&config,true); ;
+  UCorrelator::Analyzer *analyzer = new UCorrelator::Analyzer(config,true); ;
   
   
   //and get the "averaged" impulse response as the template"
@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
   TGraph *grTemplate = new TGraph(name.str().c_str());
 
   //and add a thing to store whatever it finds
-  Double_t templateValue;
+  Double_t templateValue = 0;
   outTree->Branch("templateValue",&templateValue);
 
 
@@ -155,13 +155,14 @@ int main(int argc, char** argv) {
     data->getEntry(entry);
     
     //1) calibrate and then filter the event and get a FilteredAnitaEvent back
-    FilteredAnitaEvent *filteredEvent = new FilteredAnitaEvent(data->useful(), &strategy, data->gps(), data->header());
+    FilteredAnitaEvent *filteredEvent = new FilteredAnitaEvent(data->useful(), strategy, data->gps(), data->header());
 
     //clear the eventSummary so that I can fill it up with the analyzer
     eventSummary->zeroInternals();
     //2) then analyze the filtered event!
+    cout << filteredEvent << endl;
     analyzer->analyze(filteredEvent, eventSummary); 
-
+    delete filteredEvent;
 
     //Lets figure out which was the trigger (H=0, V=1, also defaults to H)
     AnitaPol::AnitaPol_t whichTrig =  (AnitaPol::AnitaPol_t)eventSummary->flags.isVPolTrigger;
@@ -178,7 +179,7 @@ int main(int argc, char** argv) {
     outFile->cd();
     outTree->Fill();
 
-    //    analyzer->clearInteractiveMemory();
+    analyzer->clearInteractiveMemory();
   }
 
 
