@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
   UCorrelator::AnalysisConfig *config = new UCorrelator::AnalysisConfig(); 
   //set the response to my "single" response
   //  config->response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseIndividualBRotter;
-  config.response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseSingleBRotter;
+  config->response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseSingleBRotter;
 
   //and create an analyzer object
   UCorrelator::Analyzer *analyzer = new UCorrelator::Analyzer(config,true); ;
