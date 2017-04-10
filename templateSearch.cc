@@ -54,6 +54,9 @@ using namespace std;
 int main(int argc, char** argv) {
 
 
+  FFTtools::loadWisdom("/home/brotter/macros/fftWisdom.dat");
+
+
   int runNum;
   string outFileName;
   int lenEntries = -1;
@@ -190,6 +193,8 @@ int main(int argc, char** argv) {
   delete eventSummary;
 
   //  cout << "Physics complete!  See ya later buddy :)" << endl;
+
+  FFTtools::saveWisdom("/home/brotter/macros/fftWisdom.dat");
 
   return 1;
   
