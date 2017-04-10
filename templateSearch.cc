@@ -137,8 +137,10 @@ int main(int argc, char** argv) {
   TGraph *grTemplate = new TGraph(name.str().c_str());
 
   //and add a thing to store whatever it finds
-  Double_t templateValue = 0;
-  outTree->Branch("templateValue",&templateValue);
+  Double_t templateValueV = 0;
+  Double_t templateValueH = 0;
+  outTree->Branch("templateValueV",&templateValueV);
+  outTree->Branch("templateValueH",&templateValueH);
 
 
   //**loop through entries
@@ -167,14 +169,18 @@ int main(int argc, char** argv) {
     analyzer->analyze(filteredEvent, eventSummary); 
     delete filteredEvent;
 
-    //Lets figure out which was the trigger (H=0, V=1, also defaults to H)
-    AnitaPol::AnitaPol_t whichTrig =  (AnitaPol::AnitaPol_t)eventSummary->flags.isVPolTrigger;
-
-    const TGraphAligned *coherentAligned = analyzer->getCoherent(whichTrig,0)->even();
+    //(H=0, V=1)
+    const TGraphAligned *coherentAligned = analyzer->getCoherent(AnitaPol::kHorizontal,0)->even();
     TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
     TGraph *grCorr = FFTtools::getNormalisedCorrelationGraph(grTemplate,coherent);
-    templateValue = TMath::Abs(TMath::MaxElement(grCorr->GetN(),grCorr->GetY()));
-
+    templateValueH = TMath::Abs(TMath::MaxElement(grCorr->GetN(),grCorr->GetY()));
+    delete coherent;
+    delete grCorr;
+    
+    coherentAligned = analyzer->getCoherent(AnitaPol::kVertical,0)->even();
+    coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
+    grCorr = FFTtools::getNormalisedCorrelationGraph(grTemplate,coherent);
+    templateValueV = TMath::Abs(TMath::MaxElement(grCorr->GetN(),grCorr->GetY()));
     delete coherent;
     delete grCorr;
 
