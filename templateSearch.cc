@@ -169,7 +169,7 @@ int main(int argc, char** argv) {
 
     const TGraphAligned *coherentAligned = analyzer->getCoherent(whichTrig,0)->even();
     TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
-    TGraph *grCorr = FFTtools::getCorrelationGraph(grTemplate,coherent);
+    TGraph *grCorr = FFTtools::getNormalisedCorrelationGraph(grTemplate,coherent);
     templateValue = TMath::Abs(TMath::MaxElement(grCorr->GetN(),grCorr->GetY()));
 
     delete coherent;
