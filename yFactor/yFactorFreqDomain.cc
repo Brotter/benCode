@@ -212,7 +212,7 @@ int main(int argc, char** argv) {
     name << "surf" << surf << "Chan" << chan << "_" << calType;
     TH2D *currHist = new TH2D(name.str().c_str(),name.str().c_str(),recoLen/2. + 1,0,1301, 201,-100,100);
     name << "_lin";
-    TH2D *currHistLin = new TH2D(name.str().c_str(),name.str().c_str(),recoLen/2. + 1, 0,1301,1e3,0,200);
+    TH2D *currHistLin = new TH2D(name.str().c_str(),name.str().c_str(),recoLen/2. + 1, 0,1301,250,0,100);
 
     name.str("");
     name << "surf" << surf << "Chan" << chan << "_" << calType;
@@ -241,9 +241,13 @@ int main(int argc, char** argv) {
     delete hRMS;
 
   }
+  cout << "Done with loop" << endl;
 
-  outFile->Write();
+  
+  outFile->Close();
+  cout << "Closed output file" << endl;
 
+  cout << "Writing wisdom" << endl;
   FFTtools::saveWisdom("/Users/brotter/macros/fftWisdom.dat");
 
   cout << "done" << endl;
