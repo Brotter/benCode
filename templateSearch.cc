@@ -54,9 +54,10 @@ using namespace std;
 int main(int argc, char** argv) {
 
 
-  FFTtools::loadWisdom("/home/brotter/macros/fftWisdom.dat");
+  //  FFTtools::loadWisdom("/home/brotter/macros/fftWisdom.dat");
+  FFTtools::loadWisdom("/Users/brotter/macros/fftWisdom.dat");
 
-
+                                                                                                 
   int runNum;
   string outFileName;
   int lenEntries = -1;
@@ -82,7 +83,7 @@ int main(int argc, char** argv) {
 
 
   //  AnitaDataset *data = new AnitaDataset(runNum);
-  BlindDataset *data = new BlindDataset(runNum,true);
+  AnitaDataset *data = new AnitaDataset(runNum,true);
 
   int numEntries = data->N();
   cout << "number of entries in run:" << numEntries << endl;
@@ -165,7 +166,6 @@ int main(int argc, char** argv) {
     //clear the eventSummary so that I can fill it up with the analyzer
     eventSummary->zeroInternals();
     //2) then analyze the filtered event!
-    cout << filteredEvent << endl;
     analyzer->analyze(filteredEvent, eventSummary); 
     delete filteredEvent;
 
@@ -200,7 +200,7 @@ int main(int argc, char** argv) {
 
   //  cout << "Physics complete!  See ya later buddy :)" << endl;
 
-  FFTtools::saveWisdom("/home/brotter/macros/fftWisdom.dat");
+  FFTtools::saveWisdom("/Users/brotter/macros/fftWisdom.dat");
 
   return 1;
   
