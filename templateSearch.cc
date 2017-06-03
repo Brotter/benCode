@@ -103,9 +103,11 @@ double *getCorrelationFromFFT(int length,const FFTWComplex *theFFT1, const FFTWC
 
 int main(int argc, char** argv) {
 
-
-  //  FFTtools::loadWisdom("/home/brotter/macros/fftWisdom.dat");
-  FFTtools::loadWisdom("/Users/brotter/macros/fftWisdom.dat");
+  char* homeDir = getenv("HOME");
+  stringstream wisdomDir;
+  wisdomDir.str("");
+  wisdomDir << homeDir << "/macros/fftWisdom.dat";
+  FFTtools::loadWisdom(wisdomDir.str().c_str());
 
                                                                                                  
   int runNum;
