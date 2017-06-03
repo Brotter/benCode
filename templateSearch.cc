@@ -275,7 +275,7 @@ int main(int argc, char** argv) {
 
   //  cout << "Physics complete!  See ya later buddy :)" << endl;
 
-  FFTtools::saveWisdom("/Users/brotter/macros/fftWisdom.dat");
+  FFTtools::saveWisdom(wisdomDir.str().c_str());
 
   return 1;
   
