@@ -23,6 +23,7 @@
 #include "Adu5Pat.h"
 #include "CalibratedAnitaEvent.h"
 #include "UsefulAnitaEvent.h"
+#include "FFTtools.h"
 
 //cosmin's stuff
 #include "AnitaEventSummary.h"
@@ -35,6 +36,8 @@
 #include "WaveformCombiner.h"
 #include "AnitaDataset.h"
 #include "BlindDataset.h"
+
+#include "ProgressBar.h"
 
 using namespace std;
 
@@ -49,6 +52,53 @@ using namespace std;
   Also switch over to the DataSet type format, which makes everything go real quickly.
 
  */
+
+
+TGraph *normalizeWaveform(TGraph *inGraph) {
+  
+  TGraph *outGraph = (TGraph*)inGraph->Clone();
+  
+  //normalize it ( as seen in macros/testTemplate.C )
+  double waveSum = 0;
+  for (int pt=0; pt<outGraph->GetN(); pt++) waveSum += pow(outGraph->GetY()[pt],2);
+  for (int pt=0; pt<outGraph->GetN(); pt++) outGraph->GetY()[pt] /= TMath::Sqrt(waveSum / (outGraph->GetN()/4));
+
+  return outGraph;
+
+}
+
+
+
+
+double *getCorrelationFromFFT(int length,const FFTWComplex *theFFT1, const FFTWComplex *theFFT2) 
+{
+
+
+    int newLength=(length/2)+1;
+//     cout << "newLength " << newLength << endl;
+    FFTWComplex *tempStep = new FFTWComplex [newLength];
+    int no2=length>>1;
+    for(int i=0;i<newLength;i++) {
+	double reFFT1=theFFT1[i].re;
+	double imFFT1=theFFT1[i].im;
+	double reFFT2=theFFT2[i].re;
+	double imFFT2=theFFT2[i].im;
+
+	//Real part of output 
+	tempStep[i].re=(reFFT1*reFFT2+imFFT1*imFFT2)/double(no2/2);
+	//Imaginary part of output 
+	tempStep[i].im=(imFFT1*reFFT2-reFFT1*imFFT2)/double(no2/2);
+    }
+//    cout << "finished messing around" << endl;
+    double *theOutput=FFTtools::doInvFFT(length,tempStep);
+//    cout << "got inverse" << endl;
+    delete [] tempStep;
+    return theOutput;
+
+}
+
+
+  
 
 
 int main(int argc, char** argv) {
@@ -114,8 +164,8 @@ int main(int argc, char** argv) {
   //Add the actual Filters
   //  with the sine subtract alghorithm
   FilterOperation *sineSub = new UCorrelator::SineSubtractFilter();
-
   strategy->addOperation(sineSub);
+
   //  with abby's list of filtering
   //  UCorrelator::applyAbbysFilterStrategy(&strategy);
 
@@ -132,10 +182,22 @@ int main(int argc, char** argv) {
   
   
   //and get the "averaged" impulse response as the template"
+  int length = 2048;
   char* templateDir = getenv("ANITA_UTIL_INSTALL_DIR");
   name.str("");
-  name << templateDir << "/share/UCorrelator/responses/SingleBRotter/all.imp";
-  TGraph *grTemplate = new TGraph(name.str().c_str());
+  name << templateDir << "/share/AnitaAnalysisFramework/responses/SingleBRotter/all.imp";
+  TGraph *grTemplateRaw = new TGraph(name.str().c_str());
+  //waveforms are normally a little over 1024 so lets pad to 2048 (defined in length above)
+  TGraph *grTemplatePadded = FFTtools::padWaveToLength(grTemplateRaw,length);
+  delete grTemplateRaw;
+  //and normalize it
+  TGraph *grTemplate = normalizeWaveform(grTemplatePadded);
+  delete grTemplatePadded;
+
+  //and get the FFT of it as well, since we don't want to do this every single event
+  FFTWComplex *theTemplateFFT=FFTtools::doFFT(length,grTemplate->GetY());
+  delete grTemplate;
+
 
   //and add a thing to store whatever it finds
   Double_t templateValueV = 0;
@@ -152,9 +214,10 @@ int main(int argc, char** argv) {
 
   cout << "templateSearch(): starting event loop" << endl;
 
-  for (int entry=0; entry<lenEntries; entry++) {
+  Acclaim::ProgressBar p(lenEntries);
+  for (Long64_t entry=0; entry<lenEntries; entry++) {
     //    if (entry%1==0) {
-    cout << entry << "/" << lenEntries << "(" << entryIndex << ")" << endl;
+    //    cout << entry << "/" << lenEntries << "(" << entryIndex << ")" << endl;
     fflush(stdout);
     //    }
     //get all the pointers set right
@@ -170,24 +233,34 @@ int main(int argc, char** argv) {
     delete filteredEvent;
 
     //(H=0, V=1)
-    const TGraphAligned *coherentAligned = analyzer->getCoherent(AnitaPol::kHorizontal,0)->even();
-    TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
-    TGraph *grCorr = FFTtools::getNormalisedCorrelationGraph(grTemplate,coherent);
-    templateValueH = TMath::Abs(TMath::MaxElement(grCorr->GetN(),grCorr->GetY()));
-    delete coherent;
-    delete grCorr;
-    
-    coherentAligned = analyzer->getCoherent(AnitaPol::kVertical,0)->even();
-    coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
-    grCorr = FFTtools::getNormalisedCorrelationGraph(grTemplate,coherent);
-    templateValueV = TMath::Abs(TMath::MaxElement(grCorr->GetN(),grCorr->GetY()));
-    delete coherent;
-    delete grCorr;
+    //pull the peak coherence graph out of the analyzer so we can compare it vs the template
+    for (int poli=0; poli<2; poli++) {
+      const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0)->even();
+      TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
+      //make sure it is the same length as the template
+      TGraph *coherent2 = FFTtools::padWaveToLength(coherent,length);
+      delete coherent;
+      //normalize it
+      TGraph *normCoherent = normalizeWaveform(coherent2);
+      delete coherent2;
+      FFTWComplex *coherentFFT=FFTtools::doFFT(length,normCoherent->GetY());
+      delete normCoherent;
 
+      double *dCorr = getCorrelationFromFFT(length,theTemplateFFT,coherentFFT);
+      double max = TMath::MaxElement(length,dCorr);
+      double min = TMath::Abs(TMath::MinElement(length,dCorr));
+
+      if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal ) templateValueH = TMath::Max(max,min);
+      if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) templateValueV = TMath::Max(max,min);
+      delete[] coherentFFT;
+      delete[] dCorr;
+
+      p.inc(entry, lenEntries);
+    }    
 
     outFile->cd();
     outTree->Fill();
-
+    
     analyzer->clearInteractiveMemory();
   }
 
