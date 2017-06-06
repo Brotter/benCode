@@ -1,13 +1,13 @@
 
 
-void loadAll(string date = "03.28.17_18h"){
+void loadAll(string date = "06.05.17_14h"){
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
   
   gROOT->ProcessLine(".x setupProof.C");
 
   stringstream name;
-  for (int run=130; run<213; run++) {
+  for (int run=130; run<433; run++) {
     if ( (run==130) || (run==144) || (run==150) || (run==186) || (run==198) )continue;
     name.str("");
     //    name << "/home/brotter/nfsShared/results/templateSearch/" << date << "/" << run << ".root";
@@ -21,3 +21,5 @@ void loadAll(string date = "03.28.17_18h"){
   return;
 
 }
+
+

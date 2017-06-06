@@ -16,6 +16,7 @@
 #include "TMarker.h" 
 #include "TStyle.h" 
 #include "TCanvas.h"
+#include "TStopwatch.h"
 //anita
 #include "RawAnitaEvent.h"
 #include "RawAnitaHeader.h"
@@ -137,7 +138,7 @@ int main(int argc, char** argv) {
   //  Create the dataset:
   //    AnitaDataset (int run, bool decimated = false, WaveCalType::WaveCalType_t cal = WaveCalType::kDefault, 
   //                  DataDirectory dir = ANITA_ROOT_DATA , BlindingStrategy strat = AnitaDataset::kDefault);
-  AnitaDataset *data = new AnitaDataset(runNum,false);
+  AnitaDataset *data = new AnitaDataset(runNum,true);
   data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
 
 
@@ -233,11 +234,14 @@ int main(int argc, char** argv) {
   cout << "templateSearch(): starting event loop" << endl;
 
   Acclaim::ProgressBar p(lenEntries);
+  TStopwatch watch; //!< ROOT's stopwatch class, used to time the progress since object construction
+  watch.Start(kTRUE);
   for (Long64_t entry=0; entry<lenEntries; entry++) {
-    //    if (entry%1==0) {
-    //    cout << entry << "/" << lenEntries << "(" << entryIndex << ")" << endl;
+    if (entry%10==0) {
+    cout << entry << "/" << lenEntries << "(" << Int_t(watch.RealTime()) << " secs)" << "\r";
+    watch.Continue();
     fflush(stdout);
-    //    }
+        }
     //get all the pointers set right
     data->getEntry(entry);
     
@@ -273,23 +277,25 @@ int main(int argc, char** argv) {
       delete[] coherentFFT;
       delete[] dCorr;
 
-      p.inc(entry, lenEntries);
+      //      p.inc(entry, lenEntries);
     }    
 
     outFile->cd();
     outTree->Fill();
-    
+    //  outTree->FlushBaskets(); //maybe will make writing at the end faster?
+
     analyzer->clearInteractiveMemory();
   }
 
 
   outFile->cd();
+  cout << "Writing out to file..." << endl;
   outTree->Write();
   outFile->Close();
 
   delete eventSummary;
 
-  //  cout << "Physics complete!  See ya later buddy :)" << endl;
+  cout << "Physics complete!  See ya later buddy :)" << endl;
 
   FFTtools::saveWisdom(wisdomDir.str().c_str());
 
