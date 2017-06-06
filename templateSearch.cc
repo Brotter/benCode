@@ -134,8 +134,13 @@ int main(int argc, char** argv) {
   }
 
 
-  //  AnitaDataset *data = new AnitaDataset(runNum);
-  AnitaDataset *data = new AnitaDataset(runNum,true);
+  //  Create the dataset:
+  //    AnitaDataset (int run, bool decimated = false, WaveCalType::WaveCalType_t cal = WaveCalType::kDefault, 
+  //                  DataDirectory dir = ANITA_ROOT_DATA , BlindingStrategy strat = AnitaDataset::kDefault);
+  AnitaDataset *data = new AnitaDataset(runNum,false);
+  data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
+
+
 
   int numEntries = data->N();
   cout << "number of entries in run:" << numEntries << endl;
@@ -163,10 +168,21 @@ int main(int argc, char** argv) {
   //  FilterStrategy strategy(filterOutFile);
   //  without a debug file
   FilterStrategy *strategy = new FilterStrategy();
-  //Add the actual Filters
+
+  //Add the actual Filters (I don't think this was doing anything...)
   //  with the sine subtract alghorithm
-  FilterOperation *sineSub = new UCorrelator::SineSubtractFilter();
-  strategy->addOperation(sineSub);
+  //  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter();
+  //  sineSub->makeAdaptive();
+  //  strategy->addOperation(sineSub);
+  // I think it needed the following as an argument to makeAdaptive()? I dunno
+  //  UCorrelator::SpectrumAverageLoader *specAvgLoader = UCorrelator::SpectrumAverageLoader("/Users/brotter/anita16/benPrograms/templateSearch/UCorrelatorSpecAvgDir/");
+
+  
+  // This seems like it should work.
+  //add "adsinsub_2_5_13" (default in MagicDisplay)
+  //  UCorrelator::fillStrategyWithKey(strategy,"adsinsub_2_5_13");
+  
+
 
   //  with abby's list of filtering
   //  UCorrelator::applyAbbysFilterStrategy(&strategy);
