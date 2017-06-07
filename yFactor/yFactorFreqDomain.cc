@@ -109,10 +109,13 @@ int yFactorFreqDomain(int run, int surf, int chan, int maxEntries,
 
     UsefulAnitaEvent *useful = new UsefulAnitaEvent(data->calibrated());
 
-    hRMS->Fill(useful->rms[chanIndex]);
+    //    hRMS->Fill(useful->rms[chanIndex]); // this doesn't work!  Wrong values stored (by 2.5x low)
 
     TGraph *waveformRaw = useful->getGraphFromSurfAndChan(surf,chan);
     delete useful;
+
+    hRMS->Fill(waveformRaw->GetRMS(2));
+
     TGraph *waveform = FFTtools::getInterpolatedGraph(waveformRaw,1./2.6);
     delete waveformRaw;
     //      if (waveform->GetN() < recoLen) cout << "entry " << entry << " record length too low!" << "(" << waveform->GetN() << ")" << endl;

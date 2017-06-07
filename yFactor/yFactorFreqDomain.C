@@ -11,7 +11,7 @@ string fileNameGlob = "yFactorFreqDomain.root";
 
 TF1 *makeRiceFit() {
 
-  TF1 *riceFit = new TF1("riceFit","[3]^2 * (x) * TMath::Exp( -1*((x)^2 + [2]^2) / (2*[0]^2)) * TMath::BesselI0((x)*[2]/[0]^2)",0,100);
+  TF1 *riceFit = new TF1("riceFit","[2]^2 * (x) * TMath::Exp( -1*((x)^2 + [1]^2) / (2*[0]^2)) * TMath::BesselI0((x)*[1]/[0]^2)",0,100);
   riceFit->SetParameters(6.8,10,3);
   riceFit->SetParLimits(0,0,20);
   riceFit->SetParLimits(1,0,20);
@@ -136,7 +136,7 @@ void yFactor(int surf, int chan,
   TGraph *gLittle = histToMeanGraph(hLittle);
   double littleK = noneK*(1+pow(10.0 , 5.0/10.0));
 
-  //  cout << "noneK=" << noneK << " littleK=" << littleK << endl;
+  cout << "noneK=" << noneK << " littleK=" << littleK << endl;
 
   //output graphs
   TGraph *gSlope = new TGraph();
@@ -150,7 +150,7 @@ void yFactor(int surf, int chan,
   if (gGain==NULL) gGain = new TGraph();
   gGain->SetName("gGain");
   gGain->SetTitle("Gain; Frequency (MHz); Gain (dB)");
-  if (gGain==NULL) gNoiseT = new TGraph();
+  if (gNoiseT==NULL) gNoiseT = new TGraph();
   gNoiseT->SetName("gNoiseT");
   gNoiseT->SetTitle("Noise Temperature; Frequency (MHz); Noise Temperature (K)");
 
@@ -158,7 +158,7 @@ void yFactor(int surf, int chan,
   double binWidth = gLittle->GetXaxis()->GetBinWidth(0) * 1e6; //bin width in Hz
   double kBoltz = 1.38e-23; //boltzmann's constant (W*s)
 
-  //  cout << "binWidth=" << binWidth << endl;
+  cout << "binWidth=" << binWidth << endl;
 
   if ( gNone->GetN() != gLittle->GetN() ) cout << "WARNING: uh they don't have the same length" << endl;
   for (int pt=1; pt<gLittle->GetN(); pt++) {
@@ -173,7 +173,7 @@ void yFactor(int surf, int chan,
     double slope = (yHigh - yLow) / (littleK - noneK);
     double yInt = yLow - slope*noneK;
 
-    //    cout << pt << " " << binX << " " << yLow << " " << yHigh << " " << slope << " " << yInt << " " << Y << " " << T << endl;
+    cout << pt << " " << binX << " " << yLow << " " << yHigh << " " << slope << " " << yInt << " " << Y << " " << T << endl;
     
     gSlope->SetPoint(pt,binX,slope);
     gYint->SetPoint(pt,binX,yInt);
@@ -203,7 +203,7 @@ void yFactor(int surf, int chan,
   gGain->GetYaxis()->SetRangeUser(40,60);
   gNoiseT->GetYaxis()->SetRangeUser(0,300);
 
-  if (showPlots && savePlots) {
+  if (showPlots || savePlots) {
     TCanvas *c1 = new TCanvas("c1","c1",1000,600);
     c1->Divide(3);
     TVirtualPad *pad1 = c1->cd(1);
@@ -272,9 +272,9 @@ void plotMean(int surf, int chan, int bin, int calInt=0, string fileName=fileNam
 
   name.str("");
   name << "surf" << surf << "Chan" << chan << "_" << calType << "_lin";
-  TH2D *hBig = (TH2D*)inFile->Get(name.str().c_str());
+  TH2D *myHist = (TH2D*)inFile->Get(name.str().c_str());
 
-  TH1D *projection = hBig->ProjectionY("projection",bin+1,bin+1);
+  TH1D *projection = myHist->ProjectionY("projection",bin+1,bin+1);
 
   TCanvas *c1 = new TCanvas("c1","c1",1000,600);
 
@@ -286,7 +286,6 @@ void plotMean(int surf, int chan, int bin, int calInt=0, string fileName=fileNam
   //  cout << "peak: " << riceFit->GetMaximumX() << endl;
   projection->Draw();
   riceFit->Draw("same");
-  
   
 
 
@@ -368,7 +367,7 @@ void compAll() {
 			   lenGGain,0,TMath::MaxElement(lenGGain,gNoiseTCurr->GetX()), 96,-0.5,95.5);
 
 	hGain2 = new TH2D("hGain2","ANITA3 gain from y-factor; Frequency (MHz); gain (dB)",
-			 lenGGain,0,TMath::MaxElement(lenGGain,gGainCurr->GetX()), 30,40,70);
+			 lenGGain,0,TMath::MaxElement(lenGGain,gGainCurr->GetX()), 30,50,80);
 
 	hNoiseT2 = new TH2D("hNoiseT2","ANITA3 noise figure from y-factor; Frequency (MHz); Noise Temperature (K)",
 			   lenGGain,0,TMath::MaxElement(lenGGain,gNoiseTCurr->GetX()),50,0,500);
@@ -376,9 +375,12 @@ void compAll() {
       }
 
       for (int pt=0; pt<lenGGain; pt++) {
+	//I think my normalization was off by sqrt(N)? It should be off by like N^2 though... but this makes the gain a reasonable number...  This is a bad way to do physics though.
+	double modGain = gGainCurr->GetY()[pt] + 10*TMath::Log10(TMath::Sqrt(230)); 
+
 	hGain->Fill(gGainCurr->GetX()[pt],surf*8+chan,gGainCurr->GetY()[pt]);
 	hNoiseT->Fill(gNoiseTCurr->GetX()[pt],surf*8+chan,gNoiseTCurr->GetY()[pt]);
-	hGain2->Fill(gGainCurr->GetX()[pt],gGainCurr->GetY()[pt]);
+	hGain2->Fill(gGainCurr->GetX()[pt],modGain);
 	hNoiseT2->Fill(gNoiseTCurr->GetX()[pt],gNoiseTCurr->GetY()[pt]);
       }
       
