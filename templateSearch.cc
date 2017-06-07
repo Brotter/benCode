@@ -99,7 +99,60 @@ double *getCorrelationFromFFT(int length,const FFTWComplex *theFFT1, const FFTWC
 }
 
 
+
+FFTWComplex* getImpulseResponseTemplate(int length) {
   
+  //and get the "averaged" impulse response as the template"
+  char* templateDir = getenv("ANITA_UTIL_INSTALL_DIR");
+  stringstream name;
+  name.str("");
+  name << templateDir << "/share/AnitaAnalysisFramework/responses/SingleBRotter/all.imp";
+  TGraph *grTemplateRaw = new TGraph(name.str().c_str());
+  //waveforms are normally a little over 1024 so lets pad to 2048 (defined in length above)
+  TGraph *grTemplatePadded = FFTtools::padWaveToLength(grTemplateRaw,length);
+  delete grTemplateRaw;
+  //and normalize it
+  TGraph *grTemplate = normalizeWaveform(grTemplatePadded);
+  delete grTemplatePadded;
+
+  //and get the FFT of it as well, since we don't want to do this every single event
+  FFTWComplex *theTemplateFFT=FFTtools::doFFT(length,grTemplate->GetY());
+  delete grTemplate;
+  
+  return theTemplateFFT;
+}
+
+
+
+FFTWComplex* getWaisTemplate(int length) {
+  
+  //and get the "averaged" impulse response as the template"
+  TFile *inFile = TFile::Open("/Users/brotter/anita16/benPrograms/waisPulses/waisImpulseResponse_wAngs.root");
+  TGraph *grTemplateRaw = (TGraph*)inFile->Get("wais01TH");
+  //the wais waveform is like N=2832, but most of it is dumb, so cut off the beginning
+  TGraph *grTemplateCut = new TGraph();
+  for (int pt=0; pt<grTemplateRaw->GetN(); pt++) {
+    if (grTemplateRaw->GetX()[pt] > 0) grTemplateCut->SetPoint(grTemplateCut->GetN(),grTemplateRaw->GetX()[pt],grTemplateRaw->GetY()[pt]);
+  }
+  inFile->Close();
+  //of course this way of doing it probably makes it too short :P
+  TGraph *grTemplatePadded = FFTtools::padWaveToLength(grTemplateCut,length);
+  delete grTemplateCut;
+  //and then normalize it
+  TGraph *grTemplate = normalizeWaveform(grTemplatePadded);
+  delete grTemplatePadded;
+
+  //and get the FFT of it as well, since we don't want to do this every single event
+  FFTWComplex *theTemplateFFT=FFTtools::doFFT(length,grTemplate->GetY());
+  delete grTemplate;
+  
+  return theTemplateFFT;
+}
+
+
+
+
+
 
 
 int main(int argc, char** argv) {
@@ -138,7 +191,7 @@ int main(int argc, char** argv) {
   //  Create the dataset:
   //    AnitaDataset (int run, bool decimated = false, WaveCalType::WaveCalType_t cal = WaveCalType::kDefault, 
   //                  DataDirectory dir = ANITA_ROOT_DATA , BlindingStrategy strat = AnitaDataset::kDefault);
-  AnitaDataset *data = new AnitaDataset(runNum,true);
+  AnitaDataset *data = new AnitaDataset(runNum,false);
   data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
 
 
@@ -181,7 +234,7 @@ int main(int argc, char** argv) {
   
   // This seems like it should work.
   //add "adsinsub_2_5_13" (default in MagicDisplay)
-  //  UCorrelator::fillStrategyWithKey(strategy,"adsinsub_2_5_13");
+  UCorrelator::fillStrategyWithKey(strategy,"sinsub_05_0");
   
 
 
@@ -199,30 +252,24 @@ int main(int argc, char** argv) {
   //and create an analyzer object
   UCorrelator::Analyzer *analyzer = new UCorrelator::Analyzer(config,true); ;
   
-  
-  //and get the "averaged" impulse response as the template"
+
+  //get the templates
   int length = 2048;
-  char* templateDir = getenv("ANITA_UTIL_INSTALL_DIR");
-  name.str("");
-  name << templateDir << "/share/AnitaAnalysisFramework/responses/SingleBRotter/all.imp";
-  TGraph *grTemplateRaw = new TGraph(name.str().c_str());
-  //waveforms are normally a little over 1024 so lets pad to 2048 (defined in length above)
-  TGraph *grTemplatePadded = FFTtools::padWaveToLength(grTemplateRaw,length);
-  delete grTemplateRaw;
-  //and normalize it
-  TGraph *grTemplate = normalizeWaveform(grTemplatePadded);
-  delete grTemplatePadded;
-
-  //and get the FFT of it as well, since we don't want to do this every single event
-  FFTWComplex *theTemplateFFT=FFTtools::doFFT(length,grTemplate->GetY());
-  delete grTemplate;
-
+  FFTWComplex *theTemplateFFT = getImpulseResponseTemplate(length);
+  FFTWComplex *theWaisTemplateFFT = getWaisTemplate(length);
 
   //and add a thing to store whatever it finds
   Double_t templateValueV = 0;
   Double_t templateValueH = 0;
   outTree->Branch("templateValueV",&templateValueV);
   outTree->Branch("templateValueH",&templateValueH);
+
+  //one for the WAIS template too
+  Double_t templateWaisV = 0;
+  Double_t templateWaisH = 0;
+  outTree->Branch("templateWaisV",&templateWaisV);
+  outTree->Branch("templateWaisH",&templateWaisH);
+  
 
 
   //**loop through entries
@@ -237,11 +284,16 @@ int main(int argc, char** argv) {
   TStopwatch watch; //!< ROOT's stopwatch class, used to time the progress since object construction
   watch.Start(kTRUE);
   for (Long64_t entry=0; entry<lenEntries; entry++) {
+
+    //little bit longer progress bar that normal (Acclaim's is good too but I want my OWN)
     if (entry%10==0) {
-    cout << entry << "/" << lenEntries << "(" << Int_t(watch.RealTime()) << " secs)" << "\r";
-    watch.Continue();
-    fflush(stdout);
-        }
+      int timeElapsed = watch.RealTime() +1; //+1 to prevent divide by zero error
+      watch.Continue();
+      cout << entry << "/" << lenEntries << " evs in " << timeElapsed << " secs ";
+      cout << "(" << float(entry)/timeElapsed << " ev/sec)                \r";
+      fflush(stdout);
+    }
+
     //get all the pointers set right
     data->getEntry(entry);
     
@@ -272,10 +324,21 @@ int main(int argc, char** argv) {
       double max = TMath::MaxElement(length,dCorr);
       double min = TMath::Abs(TMath::MinElement(length,dCorr));
 
-      if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal ) templateValueH = TMath::Max(max,min);
-      if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) templateValueV = TMath::Max(max,min);
+      double *dCorrWais = getCorrelationFromFFT(length,theWaisTemplateFFT,coherentFFT);
+      double maxWais = TMath::MaxElement(length,dCorrWais);
+      double minWais = TMath::Abs(TMath::MinElement(length,dCorrWais));
+
+      if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal ) {
+	templateValueH = TMath::Max(max,min);
+	templateWaisH = TMath::Max(maxWais,minWais);
+      }
+      if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
+	templateValueV = TMath::Max(max,min);
+	templateWaisH = TMath::Max(maxWais,minWais);
+      }
       delete[] coherentFFT;
       delete[] dCorr;
+      delete[] dCorrWais;
 
       //      p.inc(entry, lenEntries);
     }    
