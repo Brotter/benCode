@@ -234,7 +234,7 @@ int main(int argc, char** argv) {
   
   // This seems like it should work.
   //add "adsinsub_2_5_13" (default in MagicDisplay)
-  UCorrelator::fillStrategyWithKey(strategy,"sinsub_05_0");
+  //  UCorrelator::fillStrategyWithKey(strategy,"adsinsub_2_5_13");
   
 
 
@@ -334,7 +334,7 @@ int main(int argc, char** argv) {
       }
       if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
 	templateValueV = TMath::Max(max,min);
-	templateWaisH = TMath::Max(maxWais,minWais);
+	templateWaisV = TMath::Max(maxWais,minWais);
       }
       delete[] coherentFFT;
       delete[] dCorr;
