@@ -37,7 +37,7 @@
 #include "WaveformCombiner.h"
 #include "AnitaDataset.h"
 #include "BlindDataset.h"
-
+#include "SpectrumAverage.h"
 #include "ProgressBar.h"
 
 using namespace std;
@@ -224,17 +224,18 @@ int main(int argc, char** argv) {
   FilterStrategy *strategy = new FilterStrategy();
 
   //Add the actual Filters (I don't think this was doing anything...)
-  //  with the sine subtract alghorithm
-  //  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter();
-  //  sineSub->makeAdaptive();
-  //  strategy->addOperation(sineSub);
-  // I think it needed the following as an argument to makeAdaptive()? I dunno
-  //  UCorrelator::SpectrumAverageLoader *specAvgLoader = UCorrelator::SpectrumAverageLoader("/Users/brotter/anita16/benPrograms/templateSearch/UCorrelatorSpecAvgDir/");
+  //  with the sine subtract alghorithm (this is the complicated way to do it)
+  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(0.05,2);
+  char* specAvgDir = getenv("UCORRELATOR_SPECAVG_DIR");
+  const UCorrelator::SpectrumAverageLoader *specAvgLoader = new UCorrelator::SpectrumAverageLoader(specAvgDir);
+  cout << "specAvgLoader = " << specAvgLoader << endl;
+  sineSub->makeAdaptive(specAvgLoader);
+  strategy->addOperation(sineSub);
 
   
-  // This seems like it should work.
+  // This seems like it should work and is easier
   //add "adsinsub_2_5_13" (default in MagicDisplay)
-  //  UCorrelator::fillStrategyWithKey(strategy,"adsinsub_2_5_13");
+  //  UCorrelator::fillStrategyWithKey(strategy,"sinsub_05_1_ad_1");
   
 
 
