@@ -127,7 +127,7 @@ FFTWComplex* getImpulseResponseTemplate(int length) {
 FFTWComplex* getWaisTemplate(int length) {
   
   //and get the "averaged" impulse response as the template"
-  TFile *inFile = TFile::Open("/Users/brotter/anita16/benPrograms/waisPulses/waisImpulseResponse_wAngs.root");
+  TFile *inFile = TFile::Open("waisTemplate.root");
   TGraph *grTemplateRaw = (TGraph*)inFile->Get("wais01TH");
   //the wais waveform is like N=2832, but most of it is dumb, so cut off the beginning
   TGraph *grTemplateCut = new TGraph();
