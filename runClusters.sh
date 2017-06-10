@@ -19,7 +19,7 @@ if [ `hostname | cut -d"." -f1` == "anitaI" ]; then
     stopSeq=213
 elif [ `hostname | cut -d"." -f1` == "anitaII" ]; then
     startSeq=214
-    stopSeq=298
+    stopSeq=297
 elif [ `hostname | cut -d"." -f1` == "anitaIII" ]; then
     startSeq=298
     stopSeq=364

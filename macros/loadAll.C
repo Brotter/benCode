@@ -1,6 +1,6 @@
 
 
-void loadAll(string date = "06.06.17_13h"){
+void loadAll(string date = "06.07.17_17h"){
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
   

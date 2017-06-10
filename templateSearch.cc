@@ -223,20 +223,25 @@ int main(int argc, char** argv) {
   //  without a debug file
   FilterStrategy *strategy = new FilterStrategy();
 
-  //Add the actual Filters (I don't think this was doing anything...)
-  //  with the sine subtract alghorithm (this is the complicated way to do it)
-  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(0.05,2);
+
+  //the spectrum average is used for a couple of filters to make them sort of "adaptive"
   char* specAvgDir = getenv("UCORRELATOR_SPECAVG_DIR");
   const UCorrelator::SpectrumAverageLoader *specAvgLoader = new UCorrelator::SpectrumAverageLoader(specAvgDir);
-  cout << "specAvgLoader = " << specAvgLoader << endl;
-  sineSub->makeAdaptive(specAvgLoader);
-  strategy->addOperation(sineSub);
 
-  
+  //Sine subtract alghorithm (this is the complicated way to do it)
+  //  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(0.05,2);
+  //  sineSub->makeAdaptive(specAvgLoader);
+  //  strategy->addOperation(sineSub);
   // This seems like it should work and is easier
   //add "adsinsub_2_5_13" (default in MagicDisplay)
   //  UCorrelator::fillStrategyWithKey(strategy,"sinsub_05_1_ad_1");
   
+
+  //Brick wall filter, should be way faster
+  // UCorrelator::AdaptiveBrickWallFilter(const UCorrelator::SpectrumAverageLoader * spec, double thresh=2, bool fillNotch = true);  
+  // Don't fill in the noise because whats the point of that really
+  UCorrelator::AdaptiveBrickWallFilter *brickWall = new UCorrelator::AdaptiveBrickWallFilter(specAvgLoader,2,false);
+  strategy->addOperation(brickWall);
 
 
   //  with abby's list of filtering
@@ -284,11 +289,13 @@ int main(int argc, char** argv) {
   Acclaim::ProgressBar p(lenEntries);
   TStopwatch watch; //!< ROOT's stopwatch class, used to time the progress since object construction
   watch.Start(kTRUE);
+  int timeElapsed;
+
   for (Long64_t entry=0; entry<lenEntries; entry++) {
 
     //little bit longer progress bar that normal (Acclaim's is good too but I want my OWN)
     if (entry%10==0) {
-      int timeElapsed = watch.RealTime() +1; //+1 to prevent divide by zero error
+      timeElapsed = watch.RealTime() +1; //+1 to prevent divide by zero error
       watch.Continue();
       cout << entry << "/" << lenEntries << " evs in " << timeElapsed << " secs ";
       cout << "(" << float(entry)/timeElapsed << " ev/sec)                \r";
@@ -351,6 +358,8 @@ int main(int argc, char** argv) {
     analyzer->clearInteractiveMemory();
   }
 
+
+  cout << endl << "Final Processing Rate: " << float(lenEntries)/timeElapsed << "ev/sec" << endl;
 
   outFile->cd();
   cout << "Writing out to file..." << endl;
