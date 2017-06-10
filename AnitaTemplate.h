@@ -26,12 +26,10 @@ class AnitaTemplate
   {
   public:
     TemplateResults () { ; }
-    double templateValueH;
-    double templatePeakLocH;
-    double templateValueV;
-    double templatePeakLocV;
+    double templateValue[NUM_POLS];
+    double templatePeakLoc[NUM_POLS];
 
-    ClassDefNV(TemplateResults,12); 
+    ClassDefNV(TemplateResults,1); 
   };
 
 
@@ -46,14 +44,16 @@ class AnitaTemplate
   TemplateResults *generatedCRResults;
 
   void fillTemplates();
-  FFTWComplex* getImpulseResponseTemplate();  
-  FFTWComplex* getWaisTemplate();  
+  void getImpulseResponseTemplate();  
+  void getWaisTemplate();  
 
   
-  void fillTemplateResults(TemplateResults *theResults, FFTWComplex *theTemplateFFT, UCorrelator::Analyzer *analyzer);
+
+  void fillTemplateResults(UCorrelator::Analyzer *analyzer);
+
   TGraph *normalizeWaveform(TGraph *inGraph);
 
-
+  double calcTemplateValue(FFTWComplex* FFT1, FFTWComplex* FFT2);
   double* getCorrelationFromFFT(int length, const FFTWComplex *FFT1, const FFTWComplex *FFT2);
 
   void zeroInternals();
@@ -62,7 +62,7 @@ class AnitaTemplate
 
 
  private:
-  ClassDefNV(AnitaTemplate, 15); 
+  ClassDefNV(AnitaTemplate, 0); 
 
 };
 

@@ -8,7 +8,9 @@
  * Default constructor for ROOT
  */
 AnitaTemplate::AnitaTemplate(){
+  std::cout << "zeroing internals" << std::endl;
   zeroInternals();
+  std::cout << "filling template" << std::endl;
   fillTemplates();
 }
 
@@ -16,10 +18,10 @@ AnitaTemplate::AnitaTemplate(){
 void AnitaTemplate::zeroInternals(){
 
   
-  memset(waisResults,0,sizeof(TemplateResults)); 
-  memset(impulseResponseResults,0,sizeof(TemplateResults)); 
-  memset(measuredCRResults,0,sizeof(TemplateResults)); 
-  memset(generatedCRResults,0,sizeof(TemplateResults)); 
+  memset(&waisResults,0,sizeof(TemplateResults)); 
+  memset(&impulseResponseResults,0,sizeof(TemplateResults)); 
+  memset(&measuredCRResults,0,sizeof(TemplateResults)); 
+  memset(&generatedCRResults,0,sizeof(TemplateResults)); 
 
 
   return;
@@ -27,15 +29,30 @@ void AnitaTemplate::zeroInternals(){
 
 
 void AnitaTemplate::fillTemplates(){
-  waisTemplate = getWaisTemplate();
-  impulseResponseTemplate = getImpulseResponseTemplate();
+  std::cout << waisTemplate << std::endl;
+  getWaisTemplate();
+  std::cout << waisTemplate << std::endl;
+  getImpulseResponseTemplate();
+  std::cout << impulseResponseTemplate << std::endl;
 
   return;
 }
 
 
-void AnitaTemplate::fillTemplateResults(TemplateResults *theResults, FFTWComplex *theTemplateFFT, UCorrelator::Analyzer *analyzer) {
+double AnitaTemplate::calcTemplateValue(FFTWComplex *FFT1, FFTWComplex*FFT2){
+    double *dCorr = getCorrelationFromFFT(AnitaTemplate::templateLength,FFT1,FFT2);
+    double max = TMath::MaxElement(AnitaTemplate::templateLength,dCorr);
+    double min = TMath::Abs(TMath::MinElement(AnitaTemplate::templateLength,dCorr));
+    
+    return TMath::Max(max,min);
+}
+
+
+void AnitaTemplate::fillTemplateResults(UCorrelator::Analyzer *analyzer) {
+  //got to do this for each polarization
   for (int poli=0; poli<2; poli++) {
+
+    //get the coherently aligned waveform
     const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0)->even();
     TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
     //make sure it is the same length as the template
@@ -47,26 +64,16 @@ void AnitaTemplate::fillTemplateResults(TemplateResults *theResults, FFTWComplex
     FFTWComplex *coherentFFT=FFTtools::doFFT(AnitaTemplate::templateLength,normCoherent->GetY());
     delete normCoherent;
     
-    double *dCorr = getCorrelationFromFFT(AnitaTemplate::templateLength,theTemplateFFT,coherentFFT);
-    double max = TMath::MaxElement(AnitaTemplate::templateLength,dCorr);
-    double min = TMath::Abs(TMath::MinElement(AnitaTemplate::templateLength,dCorr));
-    
-    if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal ) {
-      theResults->templateValueH = TMath::Max(max,min);
-    }
-    if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
-      theResults->templateValueV = TMath::Max(max,min);
-    }
+    waisResults->templateValue[poli] = calcTemplateValue(waisTemplate,coherentFFT);
+    impulseResponseResults->templateValue[poli] = calcTemplateValue(impulseResponseTemplate,coherentFFT);
     
     delete[] coherentFFT;
-    delete[] dCorr;
   }
   return;
 }
 
 
-
-FFTWComplex* AnitaTemplate::getImpulseResponseTemplate() {
+void AnitaTemplate::getImpulseResponseTemplate() {
   
   //and get the "averaged" impulse response as the template"
   char* templateDir = getenv("ANITA_UTIL_INSTALL_DIR");
@@ -82,15 +89,14 @@ FFTWComplex* AnitaTemplate::getImpulseResponseTemplate() {
   delete grTemplatePadded;
   
   //and get the FFT of it as well, since we don't want to do this every single event
-  FFTWComplex *theTemplateFFT=FFTtools::doFFT(AnitaTemplate::templateLength,grTemplate->GetY());
-  delete grTemplate;
-  
-  return theTemplateFFT;
+  impulseResponseTemplate=FFTtools::doFFT(AnitaTemplate::templateLength,grTemplate->GetY());
+
+  return;
 }
 
 
 
-FFTWComplex* AnitaTemplate::getWaisTemplate() {
+void AnitaTemplate::getWaisTemplate() {
     
   //and get the "averaged" impulse response as the template"
   TFile *inFile = TFile::Open("waisTemplate.root");
@@ -109,10 +115,11 @@ FFTWComplex* AnitaTemplate::getWaisTemplate() {
   delete grTemplatePadded;
   
   //and get the FFT of it as well, since we don't want to do this every single event
-  FFTWComplex *theTemplateFFT=FFTtools::doFFT(AnitaTemplate::templateLength,grTemplate->GetY());
-  delete grTemplate;
-  
-  return theTemplateFFT;
+  std::cout << "hi" << std::endl;
+  waisTemplate=FFTtools::doFFT(AnitaTemplate::templateLength,grTemplate->GetY());
+
+
+  return;
 }
 
 

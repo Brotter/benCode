@@ -263,23 +263,10 @@ int main(int argc, char** argv) {
   
 
   //get the templates
-  int length = 2048;
-  FFTWComplex *theTemplateFFT = getImpulseResponseTemplate(length);
-  FFTWComplex *theWaisTemplateFFT = getWaisTemplate(length);
-
-  //and add a thing to store whatever it finds
-  Double_t templateValueV = 0;
-  Double_t templateValueH = 0;
-  outTree->Branch("templateValueV",&templateValueV);
-  outTree->Branch("templateValueH",&templateValueH);
-
-  //one for the WAIS template too
-  Double_t templateWaisV = 0;
-  Double_t templateWaisH = 0;
-  outTree->Branch("templateWaisV",&templateWaisV);
-  outTree->Branch("templateWaisH",&templateWaisH);
-  
-
+  cout << "Making template summary object" << endl;
+  AnitaTemplate *templateSummary = new AnitaTemplate::AnitaTemplate();
+  outTree->Branch("templateSummary",&templateSummary);
+  cout << "Made" << endl;
 
   //**loop through entries
   //option to have less entries! (-1 is the default, so in case you don't specify)
@@ -317,42 +304,7 @@ int main(int argc, char** argv) {
     analyzer->analyze(filteredEvent, eventSummary); 
     delete filteredEvent;
 
-    //(H=0, V=1)
-    //pull the peak coherence graph out of the analyzer so we can compare it vs the template
-    for (int poli=0; poli<2; poli++) {
-      const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0)->even();
-      TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
-      //make sure it is the same length as the template
-      TGraph *coherent2 = FFTtools::padWaveToLength(coherent,length);
-      delete coherent;
-      //normalize it
-      TGraph *normCoherent = normalizeWaveform(coherent2);
-      delete coherent2;
-      FFTWComplex *coherentFFT=FFTtools::doFFT(length,normCoherent->GetY());
-      delete normCoherent;
-
-      double *dCorr = getCorrelationFromFFT(length,theTemplateFFT,coherentFFT);
-      double max = TMath::MaxElement(length,dCorr);
-      double min = TMath::Abs(TMath::MinElement(length,dCorr));
-
-      double *dCorrWais = getCorrelationFromFFT(length,theWaisTemplateFFT,coherentFFT);
-      double maxWais = TMath::MaxElement(length,dCorrWais);
-      double minWais = TMath::Abs(TMath::MinElement(length,dCorrWais));
-
-      if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal ) {
-	templateValueH = TMath::Max(max,min);
-	templateWaisH = TMath::Max(maxWais,minWais);
-      }
-      if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
-	templateValueV = TMath::Max(max,min);
-	templateWaisV = TMath::Max(maxWais,minWais);
-      }
-      delete[] coherentFFT;
-      delete[] dCorr;
-      delete[] dCorrWais;
-
-      //      p.inc(entry, lenEntries);
-    }    
+    templateSummary->fillTemplateResults(analyzer);
 
     outFile->cd();
     outTree->Fill();
