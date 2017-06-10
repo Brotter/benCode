@@ -40,6 +40,9 @@
 #include "SpectrumAverage.h"
 #include "ProgressBar.h"
 
+//and the template stuff!
+#include "AnitaTemplate.h"
+
 using namespace std;
 
 /*

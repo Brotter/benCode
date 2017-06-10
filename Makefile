@@ -28,7 +28,10 @@ LDFLAGS	 +=-L$(ANITA_UTIL_INSTALL_DIR)/lib -lAnitaEvent -lRootFftwWrapper -lMath
 
 all: $(EXE)
 
-%: %.cc
+AnitaTemplate.o:
+	$(CXX) -c -fPIC AnitaTemplate.cxx $(CXXFLAGS) -o $@
+
+%: %.cc AnitaTemplate.o
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS) -lMinuit 
 
 #############################################################
