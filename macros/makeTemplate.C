@@ -217,6 +217,183 @@ void drawMeasured() {
   }
 
 
-
+  return;
 
 }
+
+
+
+
+TGraph *normalizeWaveform(TGraph *inGraph) {
+  // from templateSearch.cc!!!!  I need a library for this :P
+  TGraph *outGraph = (TGraph*)inGraph->Clone();
+  
+  //normalize it ( as seen in macros/testTemplate.C )
+  double waveSum = 0;
+  for (int pt=0; pt<outGraph->GetN(); pt++) waveSum += pow(outGraph->GetY()[pt],2);
+  for (int pt=0; pt<outGraph->GetN(); pt++) outGraph->GetY()[pt] /= TMath::Sqrt(waveSum / (outGraph->GetN()/4));
+
+  return outGraph;
+
+}
+
+
+void compTemplatesVsMeasured() {
+
+  stringstream name;
+  
+  
+  int length = 10000; //length of ZHAires waveforms
+
+  TFile *measFile = TFile::Open("measuredCR.root");
+  TGraph *measWaves[4];
+  for (int i=0; i<4; i++) {
+    name.str("");
+    name << "Wave" << i << "pol0";
+    TGraph* tempWave = (TGraph*)measFile->Get(name.str().c_str());
+    TGraph* paddedWave = FFTtools::padWaveToLength(tempWave,length);
+    measWaves[i] = normalizeWaveform(paddedWave);
+    delete paddedWave;
+  }
+
+
+  TFile *tempFile = TFile::Open("/Users/brotter/benCode/ZHAiresReader/convolveCRWithSigChain.root");
+  TGraph *templates[10];
+  for (int i=0; i<10; i++) {
+    int wave = i+13; //peak seems to be at around the 13th one, then by 23 it is basically zero
+    name.str("");
+    name << "wave" << wave;
+    TGraph* tempWave = (TGraph*)tempFile->Get(name.str().c_str());
+    templates[i] = normalizeWaveform(tempWave);
+    
+  }
+
+  for (int measi=0; measi<4; measi++) {
+    cout << "Measurement " << measi << " | ";
+    double peaks[10];
+    for (int tempi=0; tempi<10; tempi++) {
+      double *corr = FFTtools::getCorrelation(length,measWaves[measi]->GetY(),templates[tempi]->GetY());
+      double max = TMath::MaxElement(length,corr);
+      double min = TMath::MinElement(length,corr);
+      double peak = TMath::Max(max,-1.*min);
+      peaks[tempi] = peak;
+      cout << peak<< " ";
+    }
+    int peakLoc = TMath::LocMax(10,peaks);
+    double peak = TMath::MaxElement(10,peaks);
+    cout << " | max: " << peak << " @ " << peakLoc << endl;
+
+  }
+
+  TGraph* gIRraw = new TGraph("~/anita16/local/share/AnitaAnalysisFramework/responses/SingleBRotter/all.imp");
+  TGraph *gIR = FFTtools::padWaveToLength(gIRraw,length);
+  gIR->SetMarkerColor(kRed);
+  gIR->SetLineColor(kRed);
+  gIR->SetName("gIR");
+  gIR->SetTitle("Impulse Response");
+
+
+  cout << "Vs Impulse Response | ";
+  for (int measi=0; measi<4; measi++) {
+    double peaks[10];
+    double *corr = FFTtools::getCorrelation(length,measWaves[measi]->GetY(),gIR->GetY());
+    double max = TMath::MaxElement(length,corr);
+    double min = TMath::MinElement(length,corr);
+    double peak = TMath::Max(max,-1.*min);
+    cout << peak<< " ";
+  }
+  cout << endl;
+
+  return;
+
+}
+
+
+
+void measuredVsEachOther() {
+
+  stringstream name;
+
+  const int length = 2048; //length of saved measured waveforms
+
+  TFile *measFile = TFile::Open("measuredCR.root");
+  TGraph *measWaves[4];
+  for (int i=0; i<4; i++) {
+    name.str("");
+    name << "Wave" << i << "pol0";
+    TGraph* tempWave = (TGraph*)measFile->Get(name.str().c_str());
+    TGraph* paddedWave = FFTtools::padWaveToLength(tempWave,length);
+    measWaves[i] = normalizeWaveform(paddedWave);
+    delete paddedWave;
+  }
+
+
+  for (int measi=0; measi<4; measi++) {
+    cout << "Measurement " << measi << " | ";
+    for (int measj=0; measj<4; measj++) {
+      double *corr = FFTtools::getCorrelation(length,measWaves[measi]->GetY(),measWaves[measj]->GetY());
+      double max = TMath::MaxElement(length,corr);
+      double min = TMath::MinElement(length,corr);
+      double peak = TMath::Max(max,-1.*min);
+      cout << peak<< " ";
+    }
+    cout << endl;
+  }
+
+  return;
+
+}
+
+
+
+void chansVsEachOther() {
+
+  int length = 4096;
+
+  char* baseDir = getenv("ANITA_UTIL_INSTALL_DIR");
+
+  stringstream name;
+  TGraph *grChans[96];
+  for (int phi=0; phi<16; phi++) {
+    for (int ringi=0; ringi<3; ringi++) {
+      for (int poli=0; poli<2; poli++) {
+	//	int chanIndex = phi*6 + ringi*2 + poli;
+	int chanIndex = poli*48 + ringi*16 + phi;
+
+	AnitaRing::AnitaRing_t ring = (AnitaRing::AnitaRing_t)ringi;
+	AnitaPol::AnitaPol_t pol = (AnitaPol::AnitaPol_t)poli;
+	name.str("");
+	name << baseDir << "/share/UCorrelator/responses/IndividualBRotter/";
+	if (phi<9) name << "0";
+	name << phi+1 << AnitaRing::ringAsChar(ring) << AnitaPol::polAsChar(pol) << ".imp";
+	cout << chanIndex << " " << name.str() << endl;
+	TGraph* tempGraph = new TGraph(name.str().c_str());
+	TGraph *paddedGraph = FFTtools::padWaveToLength(tempGraph,4096);
+	grChans[chanIndex] = normalizeWaveform(paddedGraph);
+      }
+    }
+  }
+
+  TH1D *corrs = new TH1D("hCorrs","hCorrs",100,0,1);
+
+  TH2D *h2Corrs = new TH2D("h2Corrs","h2Corrs",96,-0.5,95.5,96,-0.5,95.5);
+
+  for (int i=0; i<96; i++) {
+    for (int j=0; j<96; j++) {
+      double *corr = FFTtools::getCorrelation(length,grChans[i]->GetY(),grChans[j]->GetY());
+	double max = TMath::MaxElement(length,corr);
+	double min = TMath::MinElement(length,corr);
+	double peak = TMath::Max(max,-1.*min);	
+	h2Corrs->Fill(i,j,peak);
+
+	if (j > i) corrs->Fill(peak);
+
+
+      }
+  }
+
+
+  h2Corrs->Draw("colz");
+
+}
+      
