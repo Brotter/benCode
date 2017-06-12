@@ -103,7 +103,7 @@ void makeMeasuredTemplate() {
       
       coherent[i][poli] = FFTtools::padWaveToLength(coherentRaw,2048);
       name.str("");
-      name << data[i]->header()->eventNumber << i;
+      name << data[i]->header()->eventNumber;
       if (poli) name << "H";
       else name << "V";
       coherent[i][poli]->SetTitle(name.str().c_str());
@@ -155,7 +155,7 @@ void drawMeasured() {
   gIR->SetMarkerColor(kRed);
   gIR->SetLineColor(kRed);
   gIR->SetName("gIR");
-
+  gIR->SetTitle("Impulse Response");
 
   stringstream name;
 
