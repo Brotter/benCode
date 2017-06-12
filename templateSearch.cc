@@ -321,10 +321,10 @@ int main(int argc, char** argv) {
   Double_t templateCRayV[numCRTemplates];
   Double_t templateCRayH[numCRTemplates];
   name.str("");
-  name << "templateCRayV/D[" << numCRTemplates << "]";
+  name << "templateCRayV[" << numCRTemplates << "]/D";
   outTree->Branch("templateCRayV",&templateCRayV,name.str().c_str());
   name.str("");
-  name << "templateCRayH/D[" << numCRTemplates << "]";
+  name << "templateCRayH[" << numCRTemplates << "]/D";
   outTree->Branch("templateCRayH",&templateCRayH,name.str().c_str());
     
     

@@ -268,6 +268,9 @@ void compTemplatesVsMeasured() {
     
   }
 
+
+  TH2D *hComp = new TH2D("hComp","correlation values",12,-0.5,11.5, 4,0,3.5);
+
   for (int measi=0; measi<4; measi++) {
     cout << "Measurement " << measi << " | ";
     double peaks[10];
@@ -278,6 +281,7 @@ void compTemplatesVsMeasured() {
       double peak = TMath::Max(max,-1.*min);
       peaks[tempi] = peak;
       cout << peak<< " ";
+      hComp->Fill(tempi,measi,peak);
     }
     int peakLoc = TMath::LocMax(10,peaks);
     double peak = TMath::MaxElement(10,peaks);
@@ -300,9 +304,12 @@ void compTemplatesVsMeasured() {
     double max = TMath::MaxElement(length,corr);
     double min = TMath::MinElement(length,corr);
     double peak = TMath::Max(max,-1.*min);
+    hComp->Fill(11,measi,peak);
     cout << peak<< " ";
   }
   cout << endl;
+
+  hComp->Draw("colz");
 
   return;
 
