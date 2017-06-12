@@ -40,9 +40,6 @@
 #include "SpectrumAverage.h"
 #include "ProgressBar.h"
 
-//and the template stuff!
-#include "AnitaTemplate.h"
-
 using namespace std;
 
 /*
@@ -125,8 +122,45 @@ FFTWComplex* getImpulseResponseTemplate(int length) {
   return theTemplateFFT;
 }
 
+void getCRTemplates(int length, const int numTemplates,FFTWComplex** theTemplates) {
+
+  stringstream name;
 
 
+  TFile *inFile = TFile::Open("/Users/brotter/benCode/ZHAiresReader/convolveCRWithSigChain.root");
+  
+  for (int i=0; i<numTemplates; i++) {
+    //want to get graphs 13 through 24 (like in makeTemplate.C)
+    int wave = i+13; //peak seems to be at around the 13th one, then by 23 it is basically zero
+    name.str("");
+    name << "wave" << wave;
+    TGraph *grTemplateRaw = (TGraph*)inFile->Get(name.str().c_str());
+    //waveforms are normally a little over 1024 so lets pad to 2048 (defined in length above)
+    TGraph *grTemplateCut = new TGraph();
+    for (int pt=0; pt<grTemplateRaw->GetN(); pt++) {
+      if (pt > 2000 && pt < 4000) {
+	grTemplateCut->SetPoint(grTemplateCut->GetN(),grTemplateRaw->GetX()[pt],grTemplateRaw->GetY()[pt]);
+      }
+    }
+    TGraph *grTemplatePadded = FFTtools::padWaveToLength(grTemplateCut,length);
+    delete grTemplateCut;
+    //and normalize it
+    TGraph *grTemplate = normalizeWaveform(grTemplatePadded);
+    delete grTemplatePadded;
+    
+    //and get the FFT of it as well, since we don't want to do this every single event
+    FFTWComplex *theTemplateFFT=FFTtools::doFFT(length,grTemplate->GetY());
+    delete grTemplate;
+    
+    theTemplates[i] = theTemplateFFT;
+  }
+
+  inFile->Close();
+
+  return;
+}
+
+    
 FFTWComplex* getWaisTemplate(int length) {
   
   //and get the "averaged" impulse response as the template"
@@ -194,7 +228,7 @@ int main(int argc, char** argv) {
   //  Create the dataset:
   //    AnitaDataset (int run, bool decimated = false, WaveCalType::WaveCalType_t cal = WaveCalType::kDefault, 
   //                  DataDirectory dir = ANITA_ROOT_DATA , BlindingStrategy strat = AnitaDataset::kDefault);
-  AnitaDataset *data = new AnitaDataset(runNum,true);
+  AnitaDataset *data = new AnitaDataset(runNum,false);
   data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
 
 
@@ -263,10 +297,37 @@ int main(int argc, char** argv) {
   
 
   //get the templates
-  cout << "Making template summary object" << endl;
-  AnitaTemplate *templateSummary = new AnitaTemplate::AnitaTemplate();
-  outTree->Branch("templateSummary",&templateSummary);
-  cout << "Made" << endl;
+  int length = 2048;
+  FFTWComplex *theTemplateFFT = getImpulseResponseTemplate(length);
+  FFTWComplex *theWaisTemplateFFT = getWaisTemplate(length);
+  const int numCRTemplates = 10;
+  FFTWComplex *theCRTemplates[numCRTemplates];
+  getCRTemplates(length,numCRTemplates,theCRTemplates);
+
+  //and add a thing to store whatever it finds
+  Double_t templateImpV = 0;
+  Double_t templateImpH = 0;
+  outTree->Branch("templateImpV",&templateImpV);
+  outTree->Branch("templateImpH",&templateImpH);
+
+  //one for the WAIS template too
+  Double_t templateWaisV = 0;
+  Double_t templateWaisH = 0;
+  outTree->Branch("templateWaisV",&templateWaisV);
+  outTree->Branch("templateWaisH",&templateWaisH);
+
+  //and for the bigger multi-coherence-angle one
+  Double_t templateCRayV[numCRTemplates];
+  Double_t templateCRayH[numCRTemplates];
+  name.str("");
+  name << "templateCRayV/D[" << numCRTemplates << "]";
+  outTree->Branch("templateCRayV",&templateCRayV,name.str().c_str());
+  name.str("");
+  name << "templateCRayH/D[" << numCRTemplates << "]";
+  outTree->Branch("templateCRayH",&templateCRayH,name.str().c_str());
+    
+    
+
 
   //**loop through entries
   //option to have less entries! (-1 is the default, so in case you don't specify)
@@ -304,7 +365,59 @@ int main(int argc, char** argv) {
     analyzer->analyze(filteredEvent, eventSummary); 
     delete filteredEvent;
 
-    templateSummary->fillTemplateResults(analyzer);
+    //(H=0, V=1)
+    //pull the peak coherence graph out of the analyzer so we can compare it vs the template
+    for (int poli=0; poli<2; poli++) {
+      const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0)->even();
+      TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
+      //make sure it is the same length as the template
+      TGraph *coherent2 = FFTtools::padWaveToLength(coherent,length);
+      delete coherent;
+      //normalize it
+      TGraph *normCoherent = normalizeWaveform(coherent2);
+      delete coherent2;
+      FFTWComplex *coherentFFT=FFTtools::doFFT(length,normCoherent->GetY());
+      delete normCoherent;
+
+      double *dCorr = getCorrelationFromFFT(length,theTemplateFFT,coherentFFT);
+      double max = TMath::MaxElement(length,dCorr);
+      double min = TMath::Abs(TMath::MinElement(length,dCorr));
+
+      double *dCorrWais = getCorrelationFromFFT(length,theWaisTemplateFFT,coherentFFT);
+      double maxWais = TMath::MaxElement(length,dCorrWais);
+      double minWais = TMath::Abs(TMath::MinElement(length,dCorrWais));
+
+      if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal ) {
+	templateImpH = TMath::Max(max,min);
+	templateWaisH = TMath::Max(maxWais,minWais);
+      }
+      if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
+	templateImpV = TMath::Max(max,min);
+	templateWaisV = TMath::Max(maxWais,minWais);
+      }
+
+      double maxCR[numCRTemplates];
+      double minCR[numCRTemplates];
+      for (int i=0; i<numCRTemplates; i++) {
+	double *dCorrCR = getCorrelationFromFFT(length,theCRTemplates[i],coherentFFT);
+	maxCR[i] = TMath::MaxElement(length,dCorrCR);
+	minCR[i] = TMath::Abs(TMath::MinElement(length,dCorrCR));
+	delete[] dCorrCR;
+	if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
+	  templateCRayV[i] = TMath::Max(maxCR[i],minCR[i]);
+	}
+	if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal )  {
+	  templateCRayH[i] = TMath::Max(maxCR[i],minCR[i]);
+	}
+      }
+      
+
+      delete[] coherentFFT;
+      delete[] dCorr;
+      delete[] dCorrWais;
+
+      //      p.inc(entry, lenEntries);
+    }  
 
     outFile->cd();
     outTree->Fill();
