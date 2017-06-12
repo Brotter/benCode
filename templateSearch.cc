@@ -127,7 +127,8 @@ void getCRTemplates(int length, const int numTemplates,FFTWComplex** theTemplate
   stringstream name;
 
 
-  TFile *inFile = TFile::Open("/Users/brotter/benCode/ZHAiresReader/convolveCRWithSigChain.root");
+  //  TFile *inFile = TFile::Open("/Users/brotter/benCode/ZHAiresReader/convolveCRWithSigChain.root");
+  TFile *inFile = TFile::Open("convolveCRWithSigChain.root");
   
   for (int i=0; i<numTemplates; i++) {
     //want to get graphs 13 through 24 (like in makeTemplate.C)
