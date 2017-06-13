@@ -269,7 +269,7 @@ void compTemplatesVsMeasured() {
   }
 
 
-  TH2D *hComp = new TH2D("hComp","correlation values",12,-0.5,11.5, 4,0,3.5);
+  TH2D *hComp = new TH2D("hComp","correlation values",13,-0.5,12.5, 4,0,3.5);
 
   for (int measi=0; measi<4; measi++) {
     cout << "Measurement " << measi << " | ";
@@ -297,9 +297,11 @@ void compTemplatesVsMeasured() {
   gIR->SetTitle("Impulse Response");
 
 
+
+
+
   cout << "Vs Impulse Response | ";
   for (int measi=0; measi<4; measi++) {
-    double peaks[10];
     double *corr = FFTtools::getCorrelation(length,measWaves[measi]->GetY(),gIR->GetY());
     double max = TMath::MaxElement(length,corr);
     double min = TMath::MinElement(length,corr);
@@ -309,6 +311,37 @@ void compTemplatesVsMeasured() {
   }
   cout << endl;
 
+
+  //wais template too
+  TFile *inFile = TFile::Open("waisTemplate.root");
+  TGraph *waisRaw = (TGraph*)inFile->Get("wais01TH");
+  //the wais waveform is like N=2832, but most of it is dumb, so cut off the beginning
+  TGraph *waisCut = new TGraph();
+  for (int pt=0; pt<waisRaw->GetN(); pt++) {
+    if (waisRaw->GetX()[pt] > 0) waisCut->SetPoint(waisCut->GetN(),waisRaw->GetX()[pt],waisRaw->GetY()[pt]);
+  }
+  inFile->Close();
+  //of course this way of doing it probably makes it too short :P
+  TGraph *waisPadded = FFTtools::padWaveToLength(waisCut,length);
+  delete waisCut;
+  //and then normalize it
+  TGraph *wais = normalizeWaveform(waisPadded);
+  delete waisPadded;
+
+
+  cout << "Vs Wais  | ";
+  for (int measi=0; measi<4; measi++) {
+    double *corr = FFTtools::getCorrelation(length,measWaves[measi]->GetY(),wais->GetY());
+    double max = TMath::MaxElement(length,corr);
+    double min = TMath::MinElement(length,corr);
+    double peak = TMath::Max(max,-1.*min);
+    hComp->Fill(12,measi,peak);
+    cout << peak<< " ";
+  }
+  cout << endl;
+  
+  
+  
   hComp->Draw("colz");
 
   return;
@@ -335,6 +368,8 @@ void measuredVsEachOther() {
   }
 
 
+  TH2D *hComp = new TH2D("hComp","BenS Cosmic Rays Correlation Values",4,-0.5,3.5, 4,-0.5,3.5);
+
   for (int measi=0; measi<4; measi++) {
     cout << "Measurement " << measi << " | ";
     for (int measj=0; measj<4; measj++) {
@@ -343,14 +378,57 @@ void measuredVsEachOther() {
       double min = TMath::MinElement(length,corr);
       double peak = TMath::Max(max,-1.*min);
       cout << peak<< " ";
+      hComp->Fill(measi,measj,peak);
     }
     cout << endl;
   }
+
+  hComp->Draw("colz");
 
   return;
 
 }
 
+
+void templatesVsEachOther() {
+
+  int length = 10000;
+
+  stringstream name;
+
+  TFile *tempFile = TFile::Open("/Users/brotter/benCode/ZHAiresReader/convolveCRWithSigChain.root");
+  TGraph *templates[10];
+  for (int i=0; i<10; i++) {
+    int wave = i+13; //peak seems to be at around the 13th one, then by 23 it is basically zero
+    name.str("");
+    name << "wave" << wave;
+    TGraph* tempWave = (TGraph*)tempFile->Get(name.str().c_str());
+    cout << tempWave->GetN() << endl;
+    templates[i] = normalizeWaveform(tempWave);
+    
+  }
+
+
+
+  TH2D *hComp = new TH2D("hComp","templates vs each other",10,-0.5,9.5, 10,-0.5,9.5);
+
+
+  for (int i=0; i<10; i++) {
+    for (int j=0; j<10; j++) {
+      double *corr = FFTtools::getCorrelation(length,templates[i]->GetY(),templates[j]->GetY());
+      double max = TMath::MaxElement(length,corr);
+      double min = TMath::MinElement(length,corr);
+      double peak = TMath::Max(max,-1.*min);	
+      hComp->Fill(i,j,peak);
+    }
+  }
+
+  hComp->Draw("colz");
+
+
+
+  return;
+}
 
 
 void chansVsEachOther() {
