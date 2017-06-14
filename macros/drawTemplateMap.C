@@ -4,7 +4,9 @@ void drawTemplateMap() {
 
   stringstream name;
 
-  string basedir = "/Volumes/ANITA3Data/bigAnalysisFiles/templateSearch/06.11.17_19h/";
+  //  string basedir = "/Volumes/ANITA3Data/bigAnalysisFiles/templateSearch/06.11.17_19h/";
+  string basedir = "~/nfsShared/results/templateSearch/06.11.17_19h/";
+
 
   TChain *summaryTree = new TChain("summaryTree");
   for (int run=130; run<440; run++) {
@@ -77,6 +79,15 @@ void drawTemplateMap() {
   }
 
   h2Maxes->Draw("colz");
+
+
+  TFile *outFile = TFile::Open("drawTemplateMap.root","recreate");
+  hWaterfall->Write();
+  hMaxes->Write();
+  hMaxLocs->Write();
+  hMaxVsLoc->Write();
+  h2Maxes->Write();
+  outFile->Close();
 
 }
       

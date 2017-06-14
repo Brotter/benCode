@@ -21,6 +21,70 @@ void makeCalculatedTemplate() {
 
 }
 
+TGraph *windowTemplate(TGraph *inGraph) {
+
+  /*
+
+    The noise after the waveform part is useless.  I need to window it to increase the correlation value
+
+    Find the peak of the hilbert envelope, then go 5ns before it (50pts) and then do a hamming maybe like 60 after it?
+
+   */
+
+  //the following are window config params, in POINTS (not nanoseconds)
+  const int upRampLen = 100; //how "long" the hamming should be (half period)
+  const int downRampLen = 400; //how "long" the hamming should be at the end (well close)
+
+  const int downRampLoc = 600; //how far after peak hilbert env to start tail hamming
+  const int upRampLoc = 50; //how far before peak hilbert to start hamming (well close)
+  
+
+  TGraph *hilbert = FFTtools::getHilbertEnvelope(inGraph);
+  
+  int peakHilbertLoc = TMath::LocMax(hilbert->GetN(),hilbert->GetY());
+	
+  int startLoc = peakHilbertLoc - upRampLoc;
+  int stopLoc  = peakHilbertLoc + downRampLoc;
+  
+  cout << "startLoc=" << startLoc << " stopLoc=" << stopLoc << endl;
+
+  bool debug = true;
+
+  TGraph *outGraph = new TGraph();
+  for (int pt=0; pt<inGraph->GetN(); pt++) {
+    if (pt < (startLoc-upRampLen)) {
+      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],0);
+      if (debug) cout << pt << " - 1" << endl;
+    }
+    else if (pt > (startLoc-upRampLen) && pt < startLoc ) {
+      int ptMod = pt - (startLoc-upRampLen);
+      double modValue = 0.5-(1+TMath::Cos(ptMod * ( TMath::Pi()/upRampLen ))/2.);
+      double value =  modValue * inGraph->GetY()[pt];
+      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],value);
+      if (debug) cout << pt << " - 2 - " << ptMod << " - " << modValue << endl;
+    }
+    else if (pt > startLoc && pt < stopLoc) {
+      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],inGraph->GetY()[pt]);
+      if (debug) cout << pt << " - 3" << endl;
+    }
+    else if (pt > stopLoc && pt < (stopLoc+downRampLen)) {
+      double ptMod = pt - stopLoc;
+      double modValue = (1+TMath::Cos(ptMod*( TMath::Pi()/downRampLen ))/2.) - 0.5;
+      double value = modValue * inGraph->GetY()[pt];
+      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],value);
+      if (debug) cout << pt << " - 4 - " << ptMod << " - " << modValue << endl;
+    }
+    else if (pt > stopLoc+downRampLen) {
+      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],0);
+      if (debug) cout << pt << " - 5" << endl;
+    }
+  }
+
+  return outGraph;
+
+}
+
+
 
 
 void makeMeasuredTemplate() {
@@ -36,6 +100,7 @@ void makeMeasuredTemplate() {
     a template
 
    */
+
 
   
   AnitaDataset *data[4];
@@ -92,6 +157,11 @@ void makeMeasuredTemplate() {
   stringstream name;
 
   TGraph *coherent[4][2];
+  TGraph *hilbert[4][2];
+
+
+  const int length = 2048;
+
   for (int i=0; i<4; i++) {
     FilteredAnitaEvent *filtEv = new FilteredAnitaEvent(data[i]->useful(), strategy, data[i]->gps(), data[i]->header());
     analyzer->analyze(filtEv, eventSummary); 
@@ -101,7 +171,10 @@ void makeMeasuredTemplate() {
       TGraph *coherentRaw = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
       //make sure it is the same length as the template
       
-      coherent[i][poli] = FFTtools::padWaveToLength(coherentRaw,2048);
+      TGraph *padded = FFTtools::padWaveToLength(coherentRaw,length);
+
+      coherent[i][poli] = windowTemplate(padded);
+      delete padded;
       name.str("");
       name << data[i]->header()->eventNumber;
       if (poli) name << "H";
@@ -111,6 +184,17 @@ void makeMeasuredTemplate() {
       name << "Wave" << i << "pol" << poli;
       coherent[i][poli]->SetName(name.str().c_str());
       delete coherentRaw;
+
+      hilbert[i][poli] = FFTtools::getHilbertEnvelope(coherent[i][poli]);
+
+      double peakHilbert = TMath::MaxElement(length,hilbert[i][poli]->GetY());
+      double peakHilbertLoc = TMath::LocMax(length,hilbert[i][poli]->GetY());
+	
+      cout << "wave" << i << " pol" << poli << " -> " << peakHilbert << " @ " << peakHilbertLoc << endl;
+
+      
+
+
     }
   }
 
@@ -120,19 +204,41 @@ void makeMeasuredTemplate() {
   c1->cd(1);
   coherent[0][0]->Draw("alp");
   c1->cd(2);
-  coherent[0][1]->Draw("alp");
+  hilbert[0][0]->Draw("alp");
   c1->cd(3);
   coherent[1][0]->Draw("alp");
   c1->cd(4);
-  coherent[1][1]->Draw("alp");
+  hilbert[1][0]->Draw("alp");
   c1->cd(5);
   coherent[2][0]->Draw("alp");
   c1->cd(6);
-  coherent[2][1]->Draw("alp");
+  hilbert[2][0]->Draw("alp");
   c1->cd(7);
   coherent[3][0]->Draw("alp");
   c1->cd(8);
+  hilbert[3][0]->Draw("alp");
+
+
+  
+  TCanvas *c2 = new TCanvas("c2","c2",800,600);
+  c2->Divide(2,4);
+  c2->cd(1);
+  coherent[0][1]->Draw("alp");
+  c2->cd(2);
+  hilbert[0][1]->Draw("alp");
+  c2->cd(3);
+  coherent[1][1]->Draw("alp");
+  c2->cd(4);
+  hilbert[1][1]->Draw("alp");
+  c2->cd(5);
+  coherent[2][1]->Draw("alp");
+  c2->cd(6);
+  hilbert[2][1]->Draw("alp");
+  c2->cd(7);
   coherent[3][1]->Draw("alp");
+  c2->cd(8);
+  hilbert[3][1]->Draw("alp");
+
 
   TFile *outFile = TFile::Open("measuredCR.root","recreate");
   for (int i=0; i<4; i++) {
@@ -271,6 +377,11 @@ void compTemplatesVsMeasured() {
 
   TH2D *hComp = new TH2D("hComp","correlation values",13,-0.5,12.5, 4,0,3.5);
 
+  double tempMean[10];
+  for (int i=0; i<10; i++) {
+    tempMean[i] = 0;
+  }
+
   for (int measi=0; measi<4; measi++) {
     cout << "Measurement " << measi << " | ";
     double peaks[10];
@@ -279,6 +390,7 @@ void compTemplatesVsMeasured() {
       double max = TMath::MaxElement(length,corr);
       double min = TMath::MinElement(length,corr);
       double peak = TMath::Max(max,-1.*min);
+      tempMean[tempi] += peak/4.;
       peaks[tempi] = peak;
       cout << peak<< " ";
       hComp->Fill(tempi,measi,peak);
@@ -287,6 +399,10 @@ void compTemplatesVsMeasured() {
     double peak = TMath::MaxElement(10,peaks);
     cout << " | max: " << peak << " @ " << peakLoc << endl;
 
+  }
+
+  for (int i=0; i<10; i++) {
+    cout << "temp " << i << " = " << tempMean[i] << endl;
   }
 
   TGraph* gIRraw = new TGraph("~/anita16/local/share/AnitaAnalysisFramework/responses/SingleBRotter/all.imp");
@@ -341,9 +457,9 @@ void compTemplatesVsMeasured() {
   cout << endl;
   
   
+  hComp->SetMarkerSize(1);
+  hComp->Draw("colzText");
   
-  hComp->Draw("colz");
-
   return;
 
 }
