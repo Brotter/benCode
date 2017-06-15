@@ -1,12 +1,19 @@
 #include "AnitaEventSummary.h"
 #include "AntarcticaMapPlotter.h"
 
-void antarcticaMap_fromCuts() {
+void antarcticaMap_fromCuts(string date="06.11.17_19h/") {
 
   
   TChain *summaryTree = new TChain("summaryTree");
 
-  summaryTree->Add("/Volumes/ANITA3Data/bigAnalysisFiles/templateSearch/06.05.17_14h/all.root");
+
+  char* resultsDir = getenv("ANITA3_RESULTSDIR");
+  stringstream name;
+  for (int run=130; run<440; run++) {
+    name.str("");
+    name << resultsDir << date << run << ".root";
+    summaryTree->Add(name.str().c_str());
+  }
   
   AnitaEventSummary *summary = NULL;
   summaryTree->SetBranchAddress("eventSummary",&summary);
