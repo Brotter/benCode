@@ -86,7 +86,9 @@ void searchTMVA()
 
 
 
-  cout << "Got : " << evalChain.GetEntries() << " entries " << endl;
+  cout << "Eval - Got : " << evalChain.GetEntries() << " entries " << endl;
+  cout << "Sig  - Got : " << signalChain.GetEntries() << " entries " << endl;
+  cout << "Back - Got : " << backChain.GetEntries() << " entries " << endl;
 
   /* Create our variable set */ 
   AnitaTMVA::MVAVarSet varset(4,vars,expr); 
