@@ -89,7 +89,7 @@ void searchTMVA()
   cout << "Got : " << evalChain.GetEntries() << " entries " << endl;
 
   /* Create our variable set */ 
-  AnitaTMVA::MVAVarSet varset(3,vars,expr); 
+  AnitaTMVA::MVAVarSet varset(4,vars,expr); 
 
 
   //set up the cuts
