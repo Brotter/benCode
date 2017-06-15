@@ -14,7 +14,7 @@
 
 /* These are the names of our branches */ 
  
-const char * vars[] = { "mapPeak","hilbertPeak","linPolFraction,template" }; 
+const char * vars[] = { "mapPeak","hilbertPeak","linPolFraction","template" }; 
 
 /* These are the expressions for our branches */ 
 const char * expr[] = {"peak.value[0][0]", "coherent.peakHilbert[0][0]",
@@ -96,6 +96,7 @@ void searchTMVA()
 
   //set up the cuts
   setupCuts();
+  cout << "set up cuts" << endl;
 
   /* We'll do everything in the same file here. */ 
   TFile *treeFile = TFile::Open("tmvaTrees.root","RECREATE"); 
