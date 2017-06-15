@@ -31,7 +31,7 @@ void antarcticaMap_fromCuts(string date="06.11.17_19h/") {
 
   int lenEntries = summaryTree->GetEntries();
   for (int entry=0; entry<lenEntries; entry++) {
-    if (entry % 1000 == 0) cout << entry << "/" << lenEntries << endl;
+    if (entry % 10000 == 0) cout << entry << "/" << lenEntries << endl;
     summaryTree->GetEntry(entry);
 
     if ( templateCRayH[5] > 0.5 
