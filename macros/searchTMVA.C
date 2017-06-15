@@ -60,7 +60,8 @@ void setupCuts() {
 void searchTMVA()
 {
 
-  string baseDir = "/Volumes/ANITA3Data/bigAnalysisFiles/templateSearch/06.11.17_19h/";
+  char* resultsDir = getenv("ANITA3_RESULTSDIR");
+  string date = "06.11.17_19h/";
 
   /* This is just a lazy way of loading the tree in this case, but you could also add multiple files trivially */ 
 
@@ -72,13 +73,13 @@ void searchTMVA()
   stringstream name;
   for (int run=340; run<350; run++) {
     name.str("");
-    name << baseDir << run << ".root";
+    name << resultsDir.str() << date << run << ".root";
     signalChain.Add(name.str().c_str());
     evalChain.Add(name.str().c_str());
   }
   for (int run=287; run<300; run++) {
     name.str("");
-    name << baseDir << run << ".root";
+    name << resultsDir.str() << date << run << ".root";
     backChain.Add(name.str().c_str()); 
     evalChain.Add(name.str().c_str());
   }
