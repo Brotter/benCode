@@ -31,7 +31,7 @@ void drawTemplateMap() {
 
   cout << "Found " << lenEntries << " entries" << endl;
   
-  TH2D *hWaterfall = new TH2D("hWaterfall","template correlation value waterfall",13,-0.5,12.5, lenEntries,0,lenEntries);
+  TH2D *hWaterfall = new TH2D("hWaterfall","template correlation value waterfall",13,-0.5,12.5, 1000,0,lenEntries);
 
   TH1D *hMaxes = new TH1D("hMaxes","maximum correlation values",100,0,1);
   TH1D *hMaxLocs = new TH1D("hMaxLocs","maximum correlation value templates",13,-0.5,12.5);
