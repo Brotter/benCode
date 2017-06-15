@@ -73,13 +73,13 @@ void searchTMVA()
   stringstream name;
   for (int run=340; run<350; run++) {
     name.str("");
-    name << resultsDir.str() << date << run << ".root";
+    name << resultsDir << date << run << ".root";
     signalChain.Add(name.str().c_str());
     evalChain.Add(name.str().c_str());
   }
   for (int run=287; run<300; run++) {
     name.str("");
-    name << resultsDir.str() << date << run << ".root";
+    name << resultsDir << date << run << ".root";
     backChain.Add(name.str().c_str()); 
     evalChain.Add(name.str().c_str());
   }
