@@ -10,9 +10,11 @@ void antarcticaMap_fromCuts() {
   
   AnitaEventSummary *summary = NULL;
   summaryTree->SetBranchAddress("eventSummary",&summary);
-  double templateValueH,templateValueV;
-  summaryTree->SetBranchAddress("templateValueH",&templateValueH);
-  summaryTree->SetBranchAddress("templateValueV",&templateValueV);
+  double templateCRayH[10];
+  double templateCRayV[10];
+
+  summaryTree->SetBranchAddress("templateCRayH",&templateCRayH);
+  summaryTree->SetBranchAddress("templateCRayV",&templateCRayV);
 
   summaryTree->BuildIndex("eventNumber");
 
@@ -25,7 +27,9 @@ void antarcticaMap_fromCuts() {
     if (entry % 1000 == 0) cout << entry << "/" << lenEntries << endl;
     summaryTree->GetEntry(entry);
 
-    if ( templateValueH > 0.7 && !summary->flags.isVPolTrigger && summary->flags.isRF ) {
+    if ( templateCRayH[5] > 0.5 
+	 && summary->peak[0][0].value > 0.06
+	 && summary->flags.isRF ) {
 
       double lat = summary->peak[0][0].latitude;
       double lon = summary->peak[0][0].longitude;

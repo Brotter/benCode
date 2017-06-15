@@ -14,12 +14,12 @@
 
 /* These are the names of our branches */ 
  
-const char * vars[] = { "mapPeak","hilbertPeak","linPolFraction","template" }; 
+const char * vars[] = { "mapPeak","hilbertPeak","linPolFraction"};//,"template" }; 
 
 /* These are the expressions for our branches */ 
 const char * expr[] = {"peak.value[0][0]", "coherent.peakHilbert[0][0]",
-		       "TMath::Sqrt(pow(coherent[0][0].Q,2) + pow(coherent[0][0].U,2) ) / coherent[0][0].I",
-		       "templateCRayH[5]"}; 
+		       "TMath::Sqrt(pow(coherent[0][0].Q,2) + pow(coherent[0][0].U,2) ) / coherent[0][0].I"};
+//		       "templateCRayH[5]"}; 
 
 /* These is our selection cuts.
  *
@@ -91,7 +91,7 @@ void searchTMVA()
   cout << "Back - Got : " << backChain.GetEntries() << " entries " << endl;
 
   /* Create our variable set */ 
-  AnitaTMVA::MVAVarSet varset(4,vars,expr); 
+  AnitaTMVA::MVAVarSet varset(3,vars,expr); 
 
 
   //set up the cuts
