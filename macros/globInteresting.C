@@ -64,6 +64,12 @@ void globInteresting(string date = "06.07.17_17h"){
 
     realTime = summary->realTime;
     eventNumber = summary->eventNumber;
+    
+    peakH = summary->peak[0][0];
+    peakV = summary->peak[1][0];
+
+    coherentH = summary->coherent[0][0];
+    coherentV = summary->coherent[1][0];
 
     outFile->cd();
     outTree->Fill();
