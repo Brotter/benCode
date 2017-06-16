@@ -24,8 +24,8 @@ void globInteresting(string date = "06.07.17_17h"){
 
   double templateCRayH[10];
   double templateCRayV[10];
-  summaryTree->SetBranchAddress("templateCRayH",&templateCRayH);
-  summaryTree->SetBranchAddress("templateCRayV",&templateCRayV);
+  summaryTree->SetBranchAddress("templateCRayH[10]",&templateCRayH);
+  summaryTree->SetBranchAddress("templateCRayV[10]",&templateCRayV);
   outTree->Branch("templateCRayH",&templateCRayH,"templateCRayH[10]/D");
   outTree->Branch("templateCRayV",&templateCRayV,"templateCRayV[10]/D");
 
