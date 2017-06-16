@@ -38,14 +38,10 @@ void globInteresting(string date = "06.07.17_17h"){
   outTree->Branch("ldb",&ldb);
 
   AnitaEventSummary::PointingHypothesis peakH,peakV;
-  summaryTree->SetBranchAddress("peak[0][0]",&peakH);
-  summaryTree->SetBranchAddress("peak[1][0]",&peakV);
   outTree->Branch("peakH",&peakH);
   outTree->Branch("peakV",&peakV);
 
   AnitaEventSummary::WaveformInfo coherentH,coherentV;
-  summaryTree->SetBranchAddress("coherent[0][0]",&coherentH);
-  summaryTree->SetBranchAddress("coherent[1][0]",&coherentV);
   outTree->Branch("coherentH",&coherentH);
   outTree->Branch("coherentV",&coherentV);
 
