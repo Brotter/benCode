@@ -1,6 +1,6 @@
 #include "AnitaEventSummary.h"
 
-void globInteresting(string date = "06.07.17_17h"){
+void globInteresting(string date = "06.11.17_19h"){
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
   
@@ -24,8 +24,8 @@ void globInteresting(string date = "06.07.17_17h"){
 
   double templateCRayH[10];
   double templateCRayV[10];
-  summaryTree->SetBranchAddress("templateCRayH[10]",&templateCRayH);
-  summaryTree->SetBranchAddress("templateCRayV[10]",&templateCRayV);
+  summaryTree->SetBranchAddress("templateCRayH",&templateCRayH);
+  summaryTree->SetBranchAddress("templateCRayV",&templateCRayV);
   outTree->Branch("templateCRayH",&templateCRayH,"templateCRayH[10]/D");
   outTree->Branch("templateCRayV",&templateCRayV,"templateCRayV[10]/D");
 
