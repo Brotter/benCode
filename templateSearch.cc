@@ -229,7 +229,7 @@ int main(int argc, char** argv) {
   //  Create the dataset:
   //    AnitaDataset (int run, bool decimated = false, WaveCalType::WaveCalType_t cal = WaveCalType::kDefault, 
   //                  DataDirectory dir = ANITA_ROOT_DATA , BlindingStrategy strat = AnitaDataset::kDefault);
-  AnitaDataset *data = new AnitaDataset(runNum,false);
+  AnitaDataset *data = new AnitaDataset(runNum,true);
   data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
 
 
@@ -357,6 +357,10 @@ int main(int argc, char** argv) {
     //get all the pointers set right
     data->getEntry(entry);
     
+    //0) If I'm going to re-run this again, I want to at least cut it in half
+    //    So no Vpol triggered events
+    if (!data->header()->l3TrigPatternH) continue;
+
     //1) calibrate and then filter the event and get a FilteredAnitaEvent back
     FilteredAnitaEvent *filteredEvent = new FilteredAnitaEvent(data->useful(), strategy, data->gps(), data->header());
 
