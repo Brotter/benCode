@@ -47,7 +47,8 @@ void drawOnAntarctica(string fileName="passingAwk.txt") {
 
   cout << "There are " << summaryTree->GetEntries() << " entries in the summary tree" << endl;
 
-  cout << "Building index...";
+  cout << "Building index..."; 
+  fflush(stdout);
   summaryTree->BuildIndex("eventNumber");
   cout << " done!" << endl;
 
@@ -64,7 +65,7 @@ void drawOnAntarctica(string fileName="passingAwk.txt") {
 
   for (int ev=0; ev<passingEvs->GetN(); ev++) {
     int summaryEntry = summaryTree->GetEntryNumberWithBestIndex(passingEvs->GetY()[ev]);
-    cout << "summaryEntry=" << summaryEntry << endl;
+    cout << ev << " summaryEntry=" << summaryEntry << endl;
     summaryTree->GetEntry(summaryEntry);
 
     double xEv,yEv;
@@ -72,7 +73,7 @@ void drawOnAntarctica(string fileName="passingAwk.txt") {
     double lonEv = summary->peak[0][0].longitude;
     cout << "event position: " << latEv << " , " << lonEv << endl;
     aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
-    gEv->SetPoint(0,xEv,yEv);
+    gEv->SetPoint(ev,xEv,yEv);
   }
 
   aMap->addTGraph("baseList","baseList");
