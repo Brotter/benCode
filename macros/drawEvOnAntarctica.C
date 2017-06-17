@@ -59,6 +59,8 @@ void drawOnAntarctica(string fileName="passingAwk.txt") {
   gEv->SetMarkerStyle(29); //29=star
   gEv->SetMarkerColor(kGreen);
 
+  TH2D *myHist = aMap->addHistogram("hist","hist",1000,1000);
+  
 
   TGraph *passingEvs = new TGraph(fileName.c_str(),"%lg %lg*");
   cout << "found " << passingEvs->GetN() << " passing events in " << fileName << endl;
@@ -74,6 +76,7 @@ void drawOnAntarctica(string fileName="passingAwk.txt") {
     cout << "event position: " << latEv << " , " << lonEv << endl;
     aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
     gEv->SetPoint(ev,xEv,yEv);
+    aMap->Fill(latEv,lonEv);
   }
 
   aMap->addTGraph("baseList","baseList");
