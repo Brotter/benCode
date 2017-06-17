@@ -103,6 +103,10 @@ void drawOnAntarctica(string fileName="passingAwk.txt") {
     gBaseList->SetPoint(entry,x,y);
   }
 
+  aMap->setCurrentHistogram("hist");
+  aMap->DrawHist("colz");
+
+  new TCanvas();
   aMap->setCurrentTGraph("event");
   aMap->DrawTGraph("pSame");
   gBaseList->Draw("pSame");
