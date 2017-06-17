@@ -288,13 +288,13 @@ void drawMeasured() {
     int max = TMath::MaxElement(waves[0]->GetN(),corr);
     int min = TMath::MinElement(waves[0]->GetN(),corr);
 
-    cout << maxLoc << " " << max << " " << minLoc << " " << min << endl;
+    //    cout << maxLoc << " " << max << " " << minLoc << " " << min << endl;
     if (max > -1*min) shifts[i] = maxLoc;
     else shifts[i] = minLoc;
     if (shifts[i] > waves[0]->GetN()/2.) shifts[i] -= waves[0]->GetN();
     delete[] corr;
     double dT = waves[i+1]->GetX()[1] - waves[i+1]->GetX()[0];
-    cout << shifts[i] << " " << dT << endl;
+    //    cout << shifts[i] << " " << dT << endl;
 
     for (int pt=0; pt<waves[i+1]->GetN(); pt++) {
       waves[i+1]->GetX()[pt] += shifts[i]*dT;
