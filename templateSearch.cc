@@ -303,7 +303,7 @@ int main(int argc, char** argv) {
   //  Create the dataset:
   //    AnitaDataset (int run, bool decimated = false, WaveCalType::WaveCalType_t cal = WaveCalType::kDefault, 
   //                  DataDirectory dir = ANITA_ROOT_DATA , BlindingStrategy strat = AnitaDataset::kDefault);
-  AnitaDataset *data = new AnitaDataset(runNum,true);
+  AnitaDataset *data = new AnitaDataset(runNum,false);
   data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
 
 
