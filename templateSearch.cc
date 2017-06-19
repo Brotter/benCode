@@ -191,6 +191,8 @@ FFTWComplex* getWaisTemplate(int length) {
 
 TGraph *windowTemplate(TGraph *inGraph) {
 
+  bool debug = false;
+
   /*
 
     The noise after the waveform part is useless.  I need to window it to increase the correlation value
@@ -215,15 +217,15 @@ TGraph *windowTemplate(TGraph *inGraph) {
   int stopLoc  = peakHilbertLoc + downRampLoc;
 
   if (stopLoc+downRampLen > inGraph->GetN()) {
-    cout << "****";
+    if (debug) cout << "****";
     int overrun = (stopLoc+downRampLen) - inGraph->GetN() + 1;
     startLoc -= overrun;
     stopLoc -= overrun;
   }
 
-  cout << "inGraph->GetN()=" << inGraph->GetN() << " startLoc=" << startLoc << " stopLoc=" << stopLoc;
+  if (debug) cout << "inGraph->GetN()=" << inGraph->GetN() << " startLoc=" << startLoc << " stopLoc=" << stopLoc;
 
-  bool debug = false;
+
 
   TGraph *outGraph = new TGraph();
   for (int pt=0; pt<inGraph->GetN(); pt++) {
@@ -255,7 +257,7 @@ TGraph *windowTemplate(TGraph *inGraph) {
     }
   }
 
-  cout << " outGraph->GetN()=" << outGraph->GetN() << endl;
+  if (debug) cout << " outGraph->GetN()=" << outGraph->GetN() << endl;
   return outGraph;
 
 }

@@ -23,8 +23,8 @@ TGraph *windowTemplate(TGraph *inGraph) {
 
 
   //the following are window config params, in POINTS (not nanoseconds)
-  const int upRampLen = 100; //how "long" the hamming should be (half period)
-  const int downRampLen = 400; //how "long" the hamming should be at the end (well close)
+  const int upRampLen = 50; //how "long" the hamming should be (half period)
+  const int downRampLen = 200; //how "long" the hamming should be at the end (well close)
 
   const int downRampLoc = 600; //how far after peak hilbert env to start tail hamming
   const int upRampLoc = 50; //how far before peak hilbert to start hamming (well close)
@@ -43,41 +43,44 @@ TGraph *windowTemplate(TGraph *inGraph) {
     stopLoc -= overrun;
   }
 
-  cout << "inGraph->GetN()=" << inGraph->GetN() << " startLoc=" << startLoc << " stopLoc=" << stopLoc;
+  bool debugPrint = false;
 
-  bool debug = false;
+
+  if (debugPrint) cout << "inGraph->GetN()=" << inGraph->GetN() << " startLoc=" << startLoc << " stopLoc=" << stopLoc;
+
 
   TGraph *outGraph = new TGraph();
   for (int pt=0; pt<inGraph->GetN(); pt++) {
     if (pt <= (startLoc-upRampLen)) {
       outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],0);
-      if (debug) cout << pt << " - 1" << endl;
+      if (debugPrint) cout << pt << " - 1 - x0" << endl;
     }
     else if (pt > (startLoc-upRampLen) && pt <= startLoc ) {
       int ptMod = pt - (startLoc-upRampLen);
       double modValue = 0.5-(TMath::Cos(ptMod * ( TMath::Pi()/upRampLen ))/2.);
       double value =  modValue * inGraph->GetY()[pt];
       outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],value);
-      if (debug) cout << pt << " - 2 - " << ptMod << " - " << modValue << endl;
+      if (debugPrint) cout << pt << " - 2 - " << ptMod << " - " << modValue << endl;
     }
     else if (pt > startLoc && pt <= stopLoc) {
       outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],inGraph->GetY()[pt]);
-      if (debug) cout << pt << " - 3" << endl;
+      if (debugPrint) cout << pt << " - 3 x1" << endl;
     }
     else if (pt > stopLoc && pt <= (stopLoc+downRampLen)) {
       double ptMod = pt - stopLoc;
       double modValue = (1+TMath::Cos(ptMod*( TMath::Pi()/downRampLen ))/2.) - 0.5;
       double value = modValue * inGraph->GetY()[pt];
       outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],value);
-      if (debug) cout << pt << " - 4 - " << ptMod << " - " << modValue << endl;
+      if (debugPrint) cout << pt << " - 4 - " << ptMod << " - " << modValue << endl;
     }
     else if (pt > stopLoc+downRampLen) {
       outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],0);
-      if (debug) cout << pt << " - 5" << endl;
+      if (debugPrint) cout << pt << " - 5 x0" << endl;
     }
   }
 
-  cout << " outGraph->GetN()=" << outGraph->GetN() << endl;
+  
+  if (debugPrint) cout << " outGraph->GetN()=" << outGraph->GetN() << endl;
   return outGraph;
 
 }
