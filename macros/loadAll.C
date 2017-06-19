@@ -1,6 +1,6 @@
 
 
-void loadAll(string date = "06.18.17_15h"){
+TChain* loadAll(string date = "06.18.17_15h"){
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
   
@@ -20,7 +20,7 @@ void loadAll(string date = "06.18.17_15h"){
 
   summaryTree->SetProof();
 
-  return;
+  return summaryTree;
 
 }
 

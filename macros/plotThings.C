@@ -4,7 +4,7 @@
 void plotThings() {
 
   
-  gROOT->ProcessLine(".x loadAll.C");
+  TChain* summarTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
   
   TH2D *noise = new TH2D("noise","noise",500,0,1,500,0,1);
   TH2D *wais = new TH2D("wais","wais",500,0,1,500,0,1);
