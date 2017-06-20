@@ -9,8 +9,10 @@ TChain* loadAll(string date = "06.18.17_22h"){
   char* resultsDir = getenv("ANITA3_RESULTSDIR");
 
   stringstream name;
-  for (int run=130; run<433; run++) {
-    if ( (run==130) || (run==144) || (run==150) || (run==186) || (run==198) )continue;
+  for (int run=130; run<440; run++) {
+    //dead runs for whatever reason
+    if ( ( run >= 214 && run <=222) || (run >= 257 && run<=263) ) continue;
+
     name.str("");
     name << resultsDir << date << "/" << run << ".root";
 
