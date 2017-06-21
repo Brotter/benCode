@@ -188,6 +188,25 @@ FFTWComplex* getWaisTemplate(int length) {
 }
 
 
+void entryToRun(int entry, int &runOut, int &startEntry) {
+
+  ifstream entriesPerRun("entriesPerRun.txt");
+  int run,entryLow,entryHigh,numEntries;
+  while (entriesPerRun >> run >> entryLow >> entryHigh >> numEntries) {
+    if (entry >= entryLow && entry<= entryHigh) {
+      runOut = run;
+      startEntry = entryLow;
+      break;
+    }
+  }
+
+
+  entriesPerRun.close();
+
+
+}
+
+
 
 TGraph *windowTemplate(TGraph *inGraph) {
 
@@ -212,6 +231,7 @@ TGraph *windowTemplate(TGraph *inGraph) {
 
   TGraph *hilbert = FFTtools::getHilbertEnvelope(inGraph);
   int peakHilbertLoc = TMath::LocMax(hilbert->GetN(),hilbert->GetY());
+  delete hilbert; //no memory leaks!
 
   int startLoc = peakHilbertLoc - upRampLoc;
   int stopLoc  = peakHilbertLoc + downRampLoc;
@@ -276,40 +296,22 @@ int main(int argc, char** argv) {
   FFTtools::loadWisdom(wisdomDir.str().c_str());
 
                                                                                                  
-  int runNum;
   string outFileName;
-  int lenEntries = -1;
+  int startEntry,endEntry,lenEntries;
 
-  if (argc==3) {
-    runNum = atoi(argv[1]);
-    outFileName = argv[2];
+  if (argc==4) {
+    outFileName = argv[1];
+    startEntry = atoi(argv[2]);
+    endEntry = atoi(argv[3]);
     cout << "Hello!  Let us do some physics mate" << endl;
-    cout << "Using run " << runNum << " and outfile " << outFileName << endl;
-  }
-  else if (argc==4) {
-    runNum = atoi(argv[1]);
-    outFileName = argv[2];
-    lenEntries = atoi(argv[3]);
-    cout << "Hello!  Let us do some physics mate" << endl;
-    cout << "Using run " << runNum << " and outfile " << outFileName << endl;
-    cout << "Only doing " << lenEntries << " of the first entries" << endl;
-  }
+    cout << "Doing entry " << startEntry << " to " << endEntry << endl;
+    lenEntries = endEntry - startEntry;
+    cout << "This will be a total of " << lenEntries << " events to process" << endl;
+    }
   else {
-    cout << "Usage: " << argv[0] << " [run] [output base filename] [opt: num entries]" << endl;
+    cout << "Usage: " << argv[0] << " [output base filename] [start entry] [end entry]" << endl;
     return -1;
   }
-
-
-  //  Create the dataset:
-  //    AnitaDataset (int run, bool decimated = false, WaveCalType::WaveCalType_t cal = WaveCalType::kDefault, 
-  //                  DataDirectory dir = ANITA_ROOT_DATA , BlindingStrategy strat = AnitaDataset::kDefault);
-  AnitaDataset *data = new AnitaDataset(runNum,false);
-  data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
-
-
-
-  int numEntries = data->N();
-  cout << "number of entries in run:" << numEntries << endl;
 
 
   stringstream name;
@@ -404,11 +406,19 @@ int main(int argc, char** argv) {
     
 
 
-  //**loop through entries
-  //option to have less entries! (-1 is the default, so in case you don't specify)
-  if (lenEntries == -1) lenEntries = numEntries;
+  
+  //find which run startEntry refers to
+  int startRun,startEntryInRun;
+  entryToRun(startEntry,startRun,startEntryInRun);
+  int entryToStartAt = startEntry - startEntryInRun;
+  cout << "startEntry " << startEntry << " starts " << entryToStartAt << " entries into run " << startRun << endl;
+  int runToGet = startRun;
 
-  int entryIndex=0;
+  int numEntries; //number of entries in current open run file
+  int completedRunEvs; //number of entries from previous runs
+
+  //make data storage object pointer for later
+  AnitaDataset *data = NULL;
 
   cout << "templateSearch(): starting event loop" << endl;
 
@@ -416,16 +426,34 @@ int main(int argc, char** argv) {
   TStopwatch watch; //!< ROOT's stopwatch class, used to time the progress since object construction
   watch.Start(kTRUE);
   int timeElapsed;
-
+  int totalTime;
   for (Long64_t entry=0; entry<lenEntries; entry++) {
 
+
     //little bit longer progress bar that normal (Acclaim's is good too but I want my OWN)
-    if (entry%10==0) {
-      timeElapsed = watch.RealTime() +1; //+1 to prevent divide by zero error
-      watch.Continue();
-      cout << entry << "/" << lenEntries << " evs in " << timeElapsed << " secs ";
-      cout << "(" << float(entry)/timeElapsed << " ev/sec)                \r";
+    const int refreshRate = 100;
+    if (entry%refreshRate==0) {
+      timeElapsed = watch.RealTime(); //+1 to prevent divide by zero error
+      watch.Start();
+      totalTime += timeElapsed;
+      cout << entry << "/" << lenEntries << " evs in " << totalTime << " secs ";
+      if (timeElapsed != 0) {
+	cout << float(entry)/totalTime << "ev/sec (" << float(refreshRate)/timeElapsed << " ev/sec instantaneous)";
+      }
+      cout << endl;
       fflush(stdout);
+    }
+
+    int entryToGet = entry + entryToStartAt - completedRunEvs;
+
+    if (entry == 0 || entryToGet > numEntries) {
+      if (data != NULL) delete data;
+      data = new AnitaDataset(runToGet,false);
+      data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
+      runToGet++;
+      completedRunEvs += numEntries;
+      numEntries = data->N();
+      if (entry != 0) entryToStartAt = 0; //startEntryInRun becomes zero after the first runswitch
     }
 
     //get all the pointers set right
@@ -508,7 +536,7 @@ int main(int argc, char** argv) {
   }
 
 
-  cout << endl << "Final Processing Rate: " << float(lenEntries)/timeElapsed << "ev/sec" << endl;
+  cout << endl << "Final Processing Rate: " << float(lenEntries)/totalTime << "ev/sec" << endl;
 
   outFile->cd();
   cout << "Writing out to file..." << endl;

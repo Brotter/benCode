@@ -15,23 +15,24 @@ mkdir ${sharedDir}
 mkdir ${sharedDir}"/log"
 
 if [ `hostname | cut -d"." -f1` == "anitaI" ]; then
-    startSeq=130
-    stopSeq=213
+    startCore=0
 elif [ `hostname | cut -d"." -f1` == "anitaII" ]; then
-    startSeq=214
-    stopSeq=297
+    startCore=64
 elif [ `hostname | cut -d"." -f1` == "anitaIII" ]; then
-    startSeq=298
-    stopSeq=364
+    startCore=128
 elif [ `hostname | cut -d"." -f1` == "anitaIV" ]; then
-    startSeq=365
-    stopSeq=439
+    startCore=192
 else
     echo "The server isn't an anita cluster server, so you shouldn't use this script"
     exit
 fi
 
-for run in `seq ${startSeq} ${stopSeq}`; do
-    nice -n 10 ./templateSearch ${run} ${sharedDir}/${run} 1> ${sharedDir}/log/${run}.log 2>&1 &
+numEntries=307151
+
+for localCore in `seq 0 63`; do
+    absoluteCore=localCore+startCore
+    startEntry=numEntries*(absoluteCore)
+    stopEntry=numEntries*(abosluteCore+1)
+    nice -n 10 ./templateSearch ${sharedDir}/${absoluteCore} ${startEntry} ${stopEntry} 1> ${sharedDir}/log/${absoluteCore}.log 2>&1 &
 done
     
