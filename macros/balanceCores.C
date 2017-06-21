@@ -58,7 +58,7 @@ void balanceCores() {
     cout << endl;
   }
 
-  TH1D *hEvsPerRun = new TH1D("hEvsPerRun","Events Per Run",100,0,1e6);
+  TH1D *hEvsPerRun = new TH1D("hEvsPerRun","Events Per Run",400,0,50);
 
   ofstream outFile("entriesPerRun.txt");
 
@@ -77,6 +77,9 @@ void balanceCores() {
       lastStart = entry;
     }
   }
+
+  outFile << lenEntries-1 << " " << lenEntries - lastStart << endl;
+  hEvsPerRun->Fill((lenEntries - lastStart)/(3.5*3600));
       
   hEvsPerRun->Draw();
 

@@ -130,32 +130,35 @@ void getCRTemplates(int length, const int numTemplates,FFTWComplex** theTemplate
   //  TFile *inFile = TFile::Open("/Users/brotter/benCode/ZHAiresReader/convolveCRWithSigChain.root");
   TFile *inFile = TFile::Open("convolveCRWithSigChain.root");
   
-  for (int i=0; i<numTemplates; i++) {
-    //want to get graphs 13 through 24 (like in makeTemplate.C)
-    int wave = i+13; //peak seems to be at around the 13th one, then by 23 it is basically zero
-    name.str("");
-    name << "wave" << wave;
-    TGraph *grTemplateRaw = (TGraph*)inFile->Get(name.str().c_str());
-    //waveforms are normally a little over 1024 so lets pad to 2048 (defined in length above)
-    TGraph *grTemplateCut = new TGraph();
-    for (int pt=0; pt<grTemplateRaw->GetN(); pt++) {
-      if (pt > 2000 && pt < 4000) {
-	grTemplateCut->SetPoint(grTemplateCut->GetN(),grTemplateRaw->GetX()[pt],grTemplateRaw->GetY()[pt]);
+  for (int disp=0; disp<2; disp++) {
+    for (int i=0; i<numTemplates; i++) {
+      //want to get graphs 13 through 24 (like in makeTemplate.C)
+      int wave = i+13; //peak seems to be at around the 13th one, then by 23 it is basically zero
+      name.str("");
+      if (disp==0) name << "disp";
+      if (disp==1) name << "efield";
+      name << wave;
+      TGraph *grTemplateRaw = (TGraph*)inFile->Get(name.str().c_str());
+      //waveforms are normally a little over 1024 so lets pad to 2048 (defined in length above)
+      TGraph *grTemplateCut = new TGraph();
+      for (int pt=0; pt<grTemplateRaw->GetN(); pt++) {
+	if (pt > 2000 && pt < 4000) {
+	  grTemplateCut->SetPoint(grTemplateCut->GetN(),grTemplateRaw->GetX()[pt],grTemplateRaw->GetY()[pt]);
+	}
       }
+      TGraph *grTemplatePadded = FFTtools::padWaveToLength(grTemplateCut,length);
+      delete grTemplateCut;
+      //and normalize it
+      TGraph *grTemplate = normalizeWaveform(grTemplatePadded);
+      delete grTemplatePadded;
+      
+      //and get the FFT of it as well, since we don't want to do this every single event
+      FFTWComplex *theTemplateFFT=FFTtools::doFFT(length,grTemplate->GetY());
+      delete grTemplate;
+      
+      theTemplates[i+numTemplates*disp] = theTemplateFFT;
     }
-    TGraph *grTemplatePadded = FFTtools::padWaveToLength(grTemplateCut,length);
-    delete grTemplateCut;
-    //and normalize it
-    TGraph *grTemplate = normalizeWaveform(grTemplatePadded);
-    delete grTemplatePadded;
-    
-    //and get the FFT of it as well, since we don't want to do this every single event
-    FFTWComplex *theTemplateFFT=FFTtools::doFFT(length,grTemplate->GetY());
-    delete grTemplate;
-    
-    theTemplates[i] = theTemplateFFT;
   }
-
   inFile->Close();
 
   return;
@@ -207,8 +210,26 @@ void entryToRun(int entry, int &runOut, int &startEntry) {
 }
 
 
+/*====================
+windowing functions
+*/
 
-TGraph *windowTemplate(TGraph *inGraph) {
+TGraph *windowWave(TGraph*, const int, const int, const int, const int);
+
+TGraph *windowDispersed(TGraph *inGraph) {
+  
+  return windowWave(inGraph,50,600,100,400);
+}
+
+TGraph *windowEField(TGraph *inGraph) {
+  return windowWave(inGraph,50,50,50,50);
+}
+
+
+TGraph *windowWave(TGraph *inGraph, 
+		   const int upRampLoc = 50,   const int downRampLoc = 600,
+		   const int upRampLen = 100, const int downRampLen = 400) {
+  //defaults are for the impulse response
 
   bool debug = false;
 
@@ -222,12 +243,12 @@ TGraph *windowTemplate(TGraph *inGraph) {
 
 
   //the following are window config params, in POINTS (not nanoseconds)
-  const int upRampLen = 100; //how "long" the hamming should be (half period)
-  const int downRampLen = 400; //how "long" the hamming should be at the end (well close)
-
-  const int downRampLoc = 600; //how far after peak hilbert env to start tail hamming
-  const int upRampLoc = 50; //how far before peak hilbert to start hamming (well close)
+  // downRampLoc - how far after peak hilbert env to start tail hamming
+  // upRampLoc - how far before peak hilbert to start hamming (well close)
   
+  // upRampLen: how "long" the hamming should be (half period)
+  // downRampLen - how "long" the hamming should be at the end (well close)
+
 
   TGraph *hilbert = FFTtools::getHilbertEnvelope(inGraph);
   int peakHilbertLoc = TMath::LocMax(hilbert->GetN(),hilbert->GetY());
@@ -281,9 +302,37 @@ TGraph *windowTemplate(TGraph *inGraph) {
   return outGraph;
 
 }
+/*-----------
+ */
 
 
+void fillStokes(int length,TGraph *window, TGraph *windowXpol, AnitaEventSummary::WaveformInfo wave) {
 
+    //calculate the windowed stokes parameters
+    double *I = new double;
+    double *Q = new double;
+    double *U = new double;
+    double *V = new double;
+    double *hilbertForStokes = FFTtools::getHilbertTransform(length,window->GetY());
+    double *hilbertForStokesXpol = FFTtools::getHilbertTransform(length,windowXpol->GetY());
+    FFTtools::stokesParameters(length,window->GetY(),hilbertForStokes,windowXpol->GetY(),hilbertForStokesXpol,
+			       I,Q,U,V);
+
+    delete[] hilbertForStokes;
+    delete[] hilbertForStokesXpol;
+
+    wave.I = *I;
+    wave.Q = *Q;
+    wave.U = *U;
+    wave.V = *V;
+
+    delete I;
+    delete Q;
+    delete U;
+    delete V;
+
+  return;
+}
 
 
 
@@ -371,15 +420,18 @@ int main(int argc, char** argv) {
 
   //and create an analyzer object
   UCorrelator::Analyzer *analyzer = new UCorrelator::Analyzer(config,true); ;
-  
+
+
+  //The length every waveform I look at from now on will be
+  const int length = 2048;
 
   //get the templates
-  int length = 2048;
+
   FFTWComplex *theTemplateFFT = getImpulseResponseTemplate(length);
   FFTWComplex *theWaisTemplateFFT = getWaisTemplate(length);
-  const int numCRTemplates = 10;
-  FFTWComplex *theCRTemplates[numCRTemplates];
-  getCRTemplates(length,numCRTemplates,theCRTemplates);
+  const int numCRTemplates = 10 * 2;
+  FFTWComplex *theCRTemplates[numCRTemplates]; //LSB=dispersed, MSB=efield
+  getCRTemplates(length,numCRTemplates/2,theCRTemplates);
 
   //and add a thing to store whatever it finds
   Double_t templateImpV = 0;
@@ -394,18 +446,15 @@ int main(int argc, char** argv) {
   outTree->Branch("templateWaisH",&templateWaisH);
 
   //and for the bigger multi-coherence-angle one
-  Double_t templateCRayV[numCRTemplates];
-  Double_t templateCRayH[numCRTemplates];
+  Double_t templateCRayV[numCRTemplates][2];
+  Double_t templateCRayH[numCRTemplates][2];
   name.str("");
-  name << "templateCRayV[" << numCRTemplates << "]/D";
+  name << "templateCRayV[" << numCRTemplates << "][2]/D";
   outTree->Branch("templateCRayV",&templateCRayV,name.str().c_str());
   name.str("");
-  name << "templateCRayH[" << numCRTemplates << "]/D";
+  name << "templateCRayH[" << numCRTemplates << "][2]/D";
   outTree->Branch("templateCRayH",&templateCRayH,name.str().c_str());
-    
-    
-
-
+        
   
   //find which run startEntry refers to
   int startRun,startEntryInRun;
@@ -475,21 +524,36 @@ int main(int argc, char** argv) {
     //(H=0, V=1)
     //pull the peak coherence graph out of the analyzer so we can compare it vs the template
 
-    TGraph *windowedForStokes[2];
-    
+
+
     for (int poli=0; poli<2; poli++) {
+
+      //get coherently aligned waveform
       const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0)->even();
       TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
       //make sure it is the same length as the template
       TGraph *coherent2 = FFTtools::padWaveToLength(coherent,length);
       delete coherent;
-      TGraph *windowed = windowTemplate(coherent2);
+      TGraph *windowed = windowDispersed(coherent2);
       delete coherent2;
-      //store that for calculating stokes later
-      windowedForStokes[poli] = windowed;
+
+      //and xpol for stokes
+      coherentAligned = analyzer->getCoherentXpol((AnitaPol::AnitaPol_t)poli,0)->even();
+      coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
+      //make sure it is the same length as the template
+      coherent2 = FFTtools::padWaveToLength(coherent,length);
+      delete coherent;
+      TGraph *windowedXpol = windowDispersed(coherent2);
+      delete coherent2;
+      
+      //and do stokes for that
+      fillStokes(length,windowed,windowedXpol,eventSummary->coherent[0][1]);
+      delete windowedXpol;
+       
+
       //normalize it
       TGraph *normCoherent = normalizeWaveform(windowed);
-      //      delete windowed;//don't need to delete it now that I'm keeping it for the stokes stuff
+      delete windowed;
       FFTWComplex *coherentFFT=FFTtools::doFFT(length,normCoherent->GetY());
       delete normCoherent; 
 
@@ -518,10 +582,10 @@ int main(int argc, char** argv) {
 	minCR[i] = TMath::Abs(TMath::MinElement(length,dCorrCR));
 	delete[] dCorrCR;
 	if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
-	  templateCRayV[i] = TMath::Max(maxCR[i],minCR[i]);
+	  templateCRayV[i][0] = TMath::Max(maxCR[i],minCR[i]);
 	}
 	if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal )  {
-	  templateCRayH[i] = TMath::Max(maxCR[i],minCR[i]);
+	  templateCRayH[i][0] = TMath::Max(maxCR[i],minCR[i]);
 	}
       }
       
@@ -529,32 +593,65 @@ int main(int argc, char** argv) {
       delete[] dCorr;
       delete[] dCorrWais;
 
-      //      p.inc(entry, lenEntries);
-    }  
 
-    //calculate the windowed stokes parameters
-    double *I = new double;
-    double *Q = new double;
-    double *U = new double;
-    double *V = new double;
-    double *hilbertForStokesH = FFTtools::getHilbertTransform(length,windowedForStokes[0]->GetY());
-    double *hilbertForStokesV = FFTtools::getHilbertTransform(length,windowedForStokes[1]->GetY());
-    FFTtools::stokesParameters(length,windowedForStokes[0]->GetY(),hilbertForStokesH,windowedForStokes[1]->GetY(),hilbertForStokesV,
-			       I,Q,U,V);
+      //      p.inc(entry, lenEntries); //BenS's status bar (I like mine better)
+    }
 
-    eventSummary->coherent[0][1].I = *I;
-    eventSummary->coherent[0][1].Q = *Q;
-    eventSummary->coherent[0][1].U = *U;
-    eventSummary->coherent[0][1].V = *V;
 
-    delete windowedForStokes[0];
-    delete windowedForStokes[1];
-    delete[] hilbertForStokesH;
-    delete[] hilbertForStokesV;
-    delete I;
-    delete Q;
-    delete U;
-    delete V;
+    //do everything once more for the deconvolved coherent waveform
+    for (int poli=0; poli<2; poli++) {
+
+      //get coherently aligned waveform
+      const TGraphAligned *coherentAligned = analyzer->getDeconvolved((AnitaPol::AnitaPol_t)poli,0)->even();
+      TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
+      //make sure it is the same length as the template
+      TGraph *coherent2 = FFTtools::padWaveToLength(coherent,length);
+      delete coherent;
+      TGraph *windowed = windowEField(coherent2);
+      delete coherent2;
+
+      //and xpol for stokes
+      coherentAligned = analyzer->getDeconvolvedXpol((AnitaPol::AnitaPol_t)poli,0)->even();
+      coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
+      //make sure it is the same length as the template
+      coherent2 = FFTtools::padWaveToLength(coherent,length);
+      delete coherent;
+      TGraph *windowedXpol = windowEField(coherent2);
+      delete coherent2;
+      
+      //and do stokes for that
+      fillStokes(length,windowed,windowedXpol,eventSummary->deconvolved[0][1]);
+      delete windowedXpol;
+       
+      //normalize it
+      TGraph *normCoherent = normalizeWaveform(windowed);
+      delete windowed;
+      FFTWComplex *coherentFFT=FFTtools::doFFT(length,normCoherent->GetY());
+      delete normCoherent; 
+
+      double maxCR[numCRTemplates];
+      double minCR[numCRTemplates];
+      for (int i=0; i<numCRTemplates; i++) {
+	double *dCorrCR = getCorrelationFromFFT(length,theCRTemplates[i],coherentFFT);
+	maxCR[i] = TMath::MaxElement(length,dCorrCR);
+	minCR[i] = TMath::Abs(TMath::MinElement(length,dCorrCR));
+	delete[] dCorrCR;
+	if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
+	  templateCRayV[i][1] = TMath::Max(maxCR[i],minCR[i]);
+	}
+	if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal )  {
+	  templateCRayH[i][1] = TMath::Max(maxCR[i],minCR[i]);
+	}
+      }
+      
+      delete[] coherentFFT;
+
+
+      //      p.inc(entry, lenEntries); //BenS's status bar (I like mine better)
+    }
+
+
+    //okay all done, now I can write out and move to the next event
 
     outFile->cd();
     outTree->Fill();

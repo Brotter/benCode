@@ -28,7 +28,7 @@ else
     exit
 fi
 
-numEntries=307151
+numEntries=307151 #total num of events / 256 cores
 
 for localCore in `seq 0 63`; do
     absoluteCore=$((localCore+startCore))
