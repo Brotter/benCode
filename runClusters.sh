@@ -30,9 +30,9 @@ fi
 numEntries=307151
 
 for localCore in `seq 0 63`; do
-    absoluteCore=localCore+startCore
-    startEntry=numEntries*(absoluteCore)
-    stopEntry=numEntries*(abosluteCore+1)
+    absoluteCore=$((localCore+startCore))
+    startEntry=$((numEntries*(absoluteCore)))
+    stopEntry=$((numEntries*(abosluteCore+1)))
     nice -n 10 ./templateSearch ${sharedDir}/${absoluteCore} ${startEntry} ${stopEntry} 1> ${sharedDir}/log/${absoluteCore}.log 2>&1 &
 done
     
