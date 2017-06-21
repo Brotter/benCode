@@ -23,7 +23,8 @@ elif [ `hostname | cut -d"." -f1` == "anitaIII" ]; then
 elif [ `hostname | cut -d"." -f1` == "anitaIV" ]; then
     startCore=192
 else
-    echo "The server isn't an anita cluster server, so you shouldn't use this script"
+    echo "The server isn't an anita cluster server, so you shouldn't use this script"	
+
     exit
 fi
 

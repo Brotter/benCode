@@ -474,6 +474,9 @@ int main(int argc, char** argv) {
 
     //(H=0, V=1)
     //pull the peak coherence graph out of the analyzer so we can compare it vs the template
+
+    TGraph *windowedForStokes[2];
+    
     for (int poli=0; poli<2; poli++) {
       const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0)->even();
       TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
@@ -482,11 +485,13 @@ int main(int argc, char** argv) {
       delete coherent;
       TGraph *windowed = windowTemplate(coherent2);
       delete coherent2;
+      //store that for calculating stokes later
+      windowedForStokes[poli] = windowed;
       //normalize it
       TGraph *normCoherent = normalizeWaveform(windowed);
-      delete windowed;
+      //      delete windowed;//don't need to delete it now that I'm keeping it for the stokes stuff
       FFTWComplex *coherentFFT=FFTtools::doFFT(length,normCoherent->GetY());
-      delete normCoherent;
+      delete normCoherent; 
 
       double *dCorr = getCorrelationFromFFT(length,theTemplateFFT,coherentFFT);
       double max = TMath::MaxElement(length,dCorr);
@@ -520,13 +525,36 @@ int main(int argc, char** argv) {
 	}
       }
       
-
       delete[] coherentFFT;
       delete[] dCorr;
       delete[] dCorrWais;
 
       //      p.inc(entry, lenEntries);
     }  
+
+    //calculate the windowed stokes parameters
+    double *I = new double;
+    double *Q = new double;
+    double *U = new double;
+    double *V = new double;
+    double *hilbertForStokesH = FFTtools::getHilbertTransform(length,windowedForStokes[0]->GetY());
+    double *hilbertForStokesV = FFTtools::getHilbertTransform(length,windowedForStokes[1]->GetY());
+    FFTtools::stokesParameters(length,windowedForStokes[0]->GetY(),hilbertForStokesH,windowedForStokes[1]->GetY(),hilbertForStokesV,
+			       I,Q,U,V);
+
+    eventSummary->coherent[0][1].I = *I;
+    eventSummary->coherent[0][1].Q = *Q;
+    eventSummary->coherent[0][1].U = *U;
+    eventSummary->coherent[0][1].V = *V;
+
+    delete windowedForStokes[0];
+    delete windowedForStokes[1];
+    delete[] hilbertForStokesH;
+    delete[] hilbertForStokesV;
+    delete I;
+    delete Q;
+    delete U;
+    delete V;
 
     outFile->cd();
     outTree->Fill();
