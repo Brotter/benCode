@@ -22,13 +22,13 @@ void plotThings() {
 			    500,0,1,500,0,1);
 
   TCanvas *cTemplate = new TCanvas("cTemplate","cTemplate",800,600);
-  summaryTree->Draw("templateCRayH[5]:peak[0][0].value >> noiseTmplt",
+  summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> noiseTmplt",
 		    "flags.pulser == 0","colz");
-  summaryTree->Draw("templateCRayH[5]:peak[0][0].value >> waisTmplt",
+  summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> waisTmplt",
 		    "flags.pulser == 1","colzSame");
-  summaryTree->Draw("templateCRayH[5]:peak[0][0].value >> ldbTmplt",
+  summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> ldbTmplt",
 		    "flags.pulser == 2","colzSame");
-  summaryTree->Draw("templateCRayH[5]:peak[0][0].value >> cutTmplt",
+  summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> cutTmplt",
 		    "flags.pulser == 0 && templateCRayH[5] > 0.5 && peak[0][0].value > 0.05","colz");
 
   outFile->cd();

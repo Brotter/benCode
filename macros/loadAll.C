@@ -1,6 +1,6 @@
 
 
-TChain* loadAll(string date = "06.21.17_00h"){
+TChain* loadAll(string date = "06.21.17_23h"){
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
   
@@ -9,9 +9,7 @@ TChain* loadAll(string date = "06.21.17_00h"){
   char* resultsDir = getenv("ANITA3_RESULTSDIR");
 
   stringstream name;
-  for (int run=130; run<440; run++) {
-    //dead runs for whatever reason
-    if ( ( run >= 214 && run <=222) || (run >= 257 && run<=263) ) continue;
+  for (int run=0; run<256; run++) {
 
     name.str("");
     name << resultsDir << date << "/" << run << ".root";
