@@ -29,8 +29,127 @@ int evToRun(int ev) {
 }
 
 
+  
+TGraph *loadBases(Acclaim::AntarcticaMapPlotter *aMap) {
 
-void drawOnAntarctica(string fileName="") {
+
+  TGraph *gBases = new TGraph();
+
+  stringstream name;
+  char* anitaInstallDir = getenv("ANITA_UTIL_INSTALL_DIR");
+  name.str("");
+  name << anitaInstallDir << "/share/anitaCalib/baseListA3.root";
+  TFile *fBaseList = TFile::Open(name.str().c_str());
+  if (fBaseList == NULL) {
+    cout << "Couldn't find base list in " << name.str().c_str() << ". Not drawing bases." << endl;
+    return gBases;
+  }
+
+  TTree *baseCampTree = (TTree*)fBaseList->Get("baseCampTree");
+  TTree *awsTree = (TTree*)fBaseList->Get("awsTree");
+  TTree *fixedWingTree = (TTree*)fBaseList->Get("fixedWingTree");
+  TList *treeList = new TList();
+  treeList->Add(baseCampTree);
+  treeList->Add(awsTree);
+  treeList->Add(fixedWingTree);
+  TTree *allBases = TTree::MergeTrees(treeList);
+  double lat,lon;
+  allBases->SetBranchAddress("fullLong",&lon);
+  allBases->SetBranchAddress("fullLat",&lat);
+  
+  for (int entry=0; entry<allBases->GetEntries(); entry++) {
+    allBases->GetEntry(entry);
+    double x,y;
+    aMap->getRelXYFromLatLong(lat,lon,x,y);    
+    gBases->SetPoint(entry,x,y);
+  }
+
+  delete treeList;
+  fBaseList->Close();
+
+  return gBases;
+
+}
+
+void drawHistOnAntarctica(){
+  
+  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+
+  const int latBins = 250;
+  const int lonBins = 360;
+  TH2D *cutLatLon = new TH2D("cutLatLon","cutLatLon",latBins,-90,-65,lonBins,-180,180);
+
+  stringstream cuts;
+
+  //evs not associated with a cal pulser
+  cuts << "flags.pulser == 0";
+  //polarization angle within 15 degs of horizontal
+  cuts << " && ";
+  cuts << "TMath::Abs(TMath::RadToDeg()*TMath::ATan(coherent[0][0].U/coherent[0][0].Q)/2) < 30";
+  //linear polarization fraction
+  cuts << " && ";
+  cuts << "TMath::Sqrt(pow(coherent[0][0].Q,2)+pow(coherent[0][0].U,2))/coherent[0][0].I > 0.4";
+  //template
+  cuts << " && ";
+  cuts << "templateCRayH[5] > 0.7";
+  //map peak
+  cuts << " && ";
+  cuts << "peak[0][0].value > 0.06";
+  //not close to ldb
+  cuts << " && ";
+  cuts << "TMath::Abs(peak[0][0].phi - ldb.phi) > 5";
+  //not close to wias
+  cuts << " && ";
+  cuts << "TMath::Abs(peak[0][0].phi - ldb.phi) > 5";
+  //hits the continent
+  cuts << " && ";
+  cuts << "peak[0][0].latitude > -999";
+  //not close to some super loud base
+  //  cuts << " && ";
+  //  cuts << "!( (peak[0][0].latitude < -78 && peak[0][0].latitude > -82) && (peak[0][0].longitude < -105 && peak[0][0].longitude > -115) )";
+    
+
+  summaryTree->Draw("peak[0][0].longitude:peak[0][0].latitude >> cutLatLon",cuts.str().c_str(),"colz");
+
+  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
+  TH2D *evMap = aMap->addHistogram("evMap","evMap",250,250);
+
+  TGraph *gBases = loadBases(aMap);
+  gBases->SetMarkerColor(kRed);
+  gBases->SetMarkerStyle(3);
+
+
+  for (int latBin=0; latBin<latBins; latBin++) {
+    for (int lonBin=0; lonBin<lonBins; lonBin++) {
+      int binValue = cutLatLon->GetBinContent(latBin,lonBin);
+      double lonValue = cutLatLon->GetYaxis()->GetBinCenter(lonBin);
+      double latValue = cutLatLon->GetXaxis()->GetBinCenter(latBin);
+      double x,y;
+      aMap->getRelXYFromLatLong(latValue,lonValue,x,y);
+      evMap->Fill(x,y,binValue);
+    }
+  }
+
+  aMap->DrawHist("colz");
+  gBases->Draw("psame");
+
+}
+  
+
+  
+
+
+
+
+void drawOnAntarctica_slow(string fileName="") {
+
+  /*
+
+    This is a stupidly slow way of drawing the events.
+
+    TChain::Draw() is way faster, then I can just parse the resulting TH2D
+
+   */
 
   char* resultsDir = getenv("ANITA3_RESULTSDIR");
   string date="06.11.17_19h/";

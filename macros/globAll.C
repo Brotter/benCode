@@ -4,24 +4,25 @@
 
  */
 
-void globAll(string date = "06.05.17_14h"){
+void globAll(string date = "06.11.17_19h"){
 
-  //  string basedir = "/home/brotter/nfsShared/results/templateSearch/";
-  string basedir = "/Volumes/ANITA3data/bigAnalysisFiles/templateSearch/";
+  string basedir = "/home/brotter/nfsShared/results/templateSearch/";
+    //string basedir = "/Volumes/ANITA3data/bigAnalysisFiles/templateSearch/";
 
   stringstream name,outFile;
 
 
   outFile.str("");
-  outFile << basedir << date << "/all.root";
-  
+  //  outFile << basedir << date << "/all.root";
+  outFile << "all.root";
+
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
 
   for (int run=130; run<433; run++) {
     //    if ( (run==130) || (run==144) || (run==150) || (run==186) || (run==198) )continue;
     name.str("");
-    name << "results/" << date << "/" << run << ".root";
+    name << basedir << date << "/" << run << ".root";
     
     summaryTree->Add(name.str().c_str());
 
