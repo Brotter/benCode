@@ -33,7 +33,7 @@ TGraph *windowWave(TGraph *inGraph, int &peakHilbertLoc,
 		   const int upRampLen = 100, const int downRampLen = 400) {
   //defaults are for the impulse response
 
-  bool debug = false;
+  bool debug =false;
 
   /*
 
@@ -76,7 +76,7 @@ TGraph *windowWave(TGraph *inGraph, int &peakHilbertLoc,
   TGraph *outGraph = new TGraph();
   for (int pt=0; pt<inGraph->GetN(); pt++) {
     if (pt <= (startLoc-upRampLen)) {
-      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],0);
+      //     outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],0); //not zero out, CUT
       if (debug) cout << pt << " - 1" << endl;
     }
     else if (pt > (startLoc-upRampLen) && pt <= startLoc ) {
@@ -98,7 +98,7 @@ TGraph *windowWave(TGraph *inGraph, int &peakHilbertLoc,
       if (debug) cout << pt << " - 4 - " << ptMod << " - " << modValue << endl;
     }
     else if (pt > stopLoc+downRampLen) {
-      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],0);
+      //      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],0); //not zero out, CUT
       if (debug) cout << pt << " - 5" << endl;
     }
   }

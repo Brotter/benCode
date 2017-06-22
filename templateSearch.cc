@@ -134,12 +134,16 @@ FFTWComplex* getImpulseResponseTemplate(int length) {
   //waveforms are normally a little over 1024 so lets pad to 2048 (defined in length above)
   TGraph *grTemplatePadded = FFTtools::padWaveToLength(grTemplateRaw,length);
   delete grTemplateRaw;
-  //and normalize it
-  TGraph *grTemplate = normalizeWaveform(grTemplatePadded);
+  //then cut it back down with a window function?
+  int peakHilb = -1;
+  TGraph *grTemplateCut = windowDispersed(grTemplatePadded,peakHilb);
   delete grTemplatePadded;
+  //and finally normalize it (last step!)
+  TGraph *grTemplate = normalizeWaveform(grTemplateCut);
+  delete grTemplateCut;
 
   //and get the FFT of it as well, since we don't want to do this every single event
-  FFTWComplex *theTemplateFFT=FFTtools::doFFT(length,grTemplate->GetY());
+  FFTWComplex *theTemplateFFT=FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
   delete grTemplate;
   
   return theTemplateFFT;
@@ -162,21 +166,21 @@ void getCRTemplates(int length, const int numTemplates,FFTWComplex** theTemplate
       if (disp==1) name << "efield";
       name << wave;
       TGraph *grTemplateRaw = (TGraph*)inFile->Get(name.str().c_str());
-      //waveforms are normally a little over 1024 so lets pad to 2048 (defined in length above)
-      TGraph *grTemplateCut = new TGraph();
-      for (int pt=0; pt<grTemplateRaw->GetN(); pt++) {
-	if (pt > 2000 && pt < 4000) {
-	  grTemplateCut->SetPoint(grTemplateCut->GetN(),grTemplateRaw->GetX()[pt],grTemplateRaw->GetY()[pt]);
-	}
-      }
-      TGraph *grTemplatePadded = FFTtools::padWaveToLength(grTemplateCut,length);
+
+      //waveforms are super long so we can just cut it to the window dimentions
+      TGraph *grTemplateCut;
+      int peakHilb = -1;
+      if (disp==0) grTemplateCut = windowDispersed(grTemplateRaw,peakHilb);
+      if (disp==1) grTemplateCut = windowEField(grTemplateRaw,peakHilb);
+      delete grTemplateRaw;
+       
+
+      //and finally normalize it (last step!)
+      TGraph *grTemplate = normalizeWaveform(grTemplateCut);
       delete grTemplateCut;
-      //and normalize it
-      TGraph *grTemplate = normalizeWaveform(grTemplatePadded);
-      delete grTemplatePadded;
-      
+
       //and get the FFT of it as well, since we don't want to do this every single event
-      FFTWComplex *theTemplateFFT=FFTtools::doFFT(length,grTemplate->GetY());
+      FFTWComplex *theTemplateFFT=FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
       delete grTemplate;
       
       theTemplates[i+numTemplates*disp] = theTemplateFFT;
@@ -207,7 +211,7 @@ FFTWComplex* getWaisTemplate(int length) {
   delete grTemplatePadded;
 
   //and get the FFT of it as well, since we don't want to do this every single event
-  FFTWComplex *theTemplateFFT=FFTtools::doFFT(length,grTemplate->GetY());
+  FFTWComplex *theTemplateFFT=FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
   delete grTemplate;
   
   return theTemplateFFT;
@@ -297,15 +301,17 @@ int main(int argc, char** argv) {
   //also make a Tree of event headers that pass cuts
   name.str("");
   name << outFileName << ".root";
+  cout << "Using " << name.str() << " as output file" << endl;
   outFile = TFile::Open(name.str().c_str(),"recreate");
+  cout << outFile << endl;
   outFile->cd();
   TTree *outTree = new TTree("summaryTree","summaryTree");
 
   //Lets make the summary object that I can shove into the output tree
   AnitaEventSummary *eventSummary = new AnitaEventSummary; 
 
-
   outTree->Branch("eventSummary",&eventSummary);
+
 
   //Make a filter strategy
   //  with a debug file
@@ -320,6 +326,7 @@ int main(int argc, char** argv) {
   //the spectrum average is used for a couple of filters to make them sort of "adaptive"
   char* specAvgDir = getenv("UCORRELATOR_SPECAVG_DIR");
   const UCorrelator::SpectrumAverageLoader *specAvgLoader = new UCorrelator::SpectrumAverageLoader(specAvgDir);
+
 
   //Sine subtract alghorithm (this is the complicated way to do it)
   //  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(0.05,2);
@@ -352,16 +359,24 @@ int main(int argc, char** argv) {
   UCorrelator::Analyzer *analyzer = new UCorrelator::Analyzer(config,true); ;
 
 
-  //The length every waveform I look at from now on will be
+  //The length every waveform I look at from now on will be length, until I window it I guess.
   const int length = 2048;
 
-  //get the templates
 
+
+  /*=================
+  //get the templates
+  */
+  cout << "hello" << endl;
   FFTWComplex *theTemplateFFT = getImpulseResponseTemplate(length);
   FFTWComplex *theWaisTemplateFFT = getWaisTemplate(length);
   const int numCRTemplates = 10;
   FFTWComplex *theCRTemplates[numCRTemplates*2]; //LSB=dispersed, MSB=efield
   getCRTemplates(length,numCRTemplates,theCRTemplates);
+  /*
+    --------*/
+
+
 
   //and add a thing to store whatever it finds
   Double_t templateImpV = 0;
@@ -462,13 +477,15 @@ int main(int argc, char** argv) {
     analyzer->analyze(filteredEvent, eventSummary); 
     delete filteredEvent;
 
-    //(H=0, V=1)
+    /*==========
+      Remember:
+      (H=0, V=1)
+    ============*/
 
-    //
-    // Coherent Waveform
-    //
+    /*=============
+    Coherent Waveform
+    */
     for (int poli=0; poli<2; poli++) {
-
       //get coherently aligned waveform
       const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0)->even();
       TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
@@ -489,7 +506,7 @@ int main(int argc, char** argv) {
       delete coherent2;
       
       //and do stokes for that
-      fillStokes(length,windowed,windowedXpol,eventSummary->coherent[poli][1]);
+      fillStokes(windowed->GetN(),windowed,windowedXpol,eventSummary->coherent[poli][1]);
       delete windowedXpol;
        
 
@@ -538,11 +555,12 @@ int main(int argc, char** argv) {
 
       //      p.inc(entry, totalEntriesToDo); //BenS's status bar (I like mine better)
     }
+    /*
+      ----------*/
 
-
-    //
-    // Deconvolved
-    //
+    /*=============
+      Deconvolved
+    */
     //do everything once more for the deconvolved coherent waveform
     for (int poli=0; poli<2; poli++) {
 
@@ -566,7 +584,7 @@ int main(int argc, char** argv) {
       delete coherent2;
       
       //and do stokes for that
-      fillStokes(length,windowed,windowedXpol,eventSummary->deconvolved[poli][1]);
+      fillStokes(windowed->GetN(),windowed,windowedXpol,eventSummary->deconvolved[poli][1]);
       delete windowedXpol;
        
       //normalize it
