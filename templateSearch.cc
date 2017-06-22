@@ -40,6 +40,29 @@
 #include "SpectrumAverage.h"
 #include "ProgressBar.h"
 
+//my stuff
+#include "windowing.h"
+
+
+//lets handle SIGINT correctly so I can close the files
+#include "signal.h"
+
+TTree* outTree = NULL;
+TFile* outFile = NULL;
+void emergencyClose(int sig) {
+  
+  cout << endl << "^^^ emergencyClose(): SIGINT Signal caught!" << endl;
+  cout << endl << "Okay sounds good, Let me save things first though :) " << endl;
+  if (outFile != NULL) outFile->cd();
+  if (outTree != NULL) outTree->Write();
+  if (outFile != NULL) outFile->Close();
+  cout << "Goodnight! :D" << endl;
+
+  exit(EXIT_SUCCESS);
+}
+    
+
+
 using namespace std;
 
 /*
@@ -210,102 +233,6 @@ void entryToRun(int entry, int &runOut, int &startEntry) {
 }
 
 
-/*====================
-windowing functions
-*/
-
-TGraph *windowWave(TGraph*, const int, const int, const int, const int);
-
-TGraph *windowDispersed(TGraph *inGraph) {
-  
-  return windowWave(inGraph,50,600,100,400);
-}
-
-TGraph *windowEField(TGraph *inGraph) {
-  return windowWave(inGraph,50,50,50,50);
-}
-
-
-TGraph *windowWave(TGraph *inGraph, 
-		   const int upRampLoc = 50,   const int downRampLoc = 600,
-		   const int upRampLen = 100, const int downRampLen = 400) {
-  //defaults are for the impulse response
-
-  bool debug = false;
-
-  /*
-
-    The noise after the waveform part is useless.  I need to window it to increase the correlation value
-
-    Find the peak of the hilbert envelope, then go 5ns before it (50pts) and then do a hamming maybe like 60 after it?
-
-   */
-
-
-  //the following are window config params, in POINTS (not nanoseconds)
-  // downRampLoc - how far after peak hilbert env to start tail hamming
-  // upRampLoc - how far before peak hilbert to start hamming (well close)
-  
-  // upRampLen: how "long" the hamming should be (half period)
-  // downRampLen - how "long" the hamming should be at the end (well close)
-
-
-  TGraph *hilbert = FFTtools::getHilbertEnvelope(inGraph);
-  int peakHilbertLoc = TMath::LocMax(hilbert->GetN(),hilbert->GetY());
-  delete hilbert; //no memory leaks!
-
-  int startLoc = peakHilbertLoc - upRampLoc;
-  int stopLoc  = peakHilbertLoc + downRampLoc;
-
-  if (stopLoc+downRampLen > inGraph->GetN()) {
-    if (debug) cout << "****";
-    int overrun = (stopLoc+downRampLen) - inGraph->GetN() + 1;
-    startLoc -= overrun;
-    stopLoc -= overrun;
-  }
-
-  if (debug) cout << "inGraph->GetN()=" << inGraph->GetN() << " startLoc=" << startLoc << " stopLoc=" << stopLoc;
-
-
-
-  TGraph *outGraph = new TGraph();
-  for (int pt=0; pt<inGraph->GetN(); pt++) {
-    if (pt <= (startLoc-upRampLen)) {
-      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],0);
-      if (debug) cout << pt << " - 1" << endl;
-    }
-    else if (pt > (startLoc-upRampLen) && pt <= startLoc ) {
-      int ptMod = pt - (startLoc-upRampLen);
-      double modValue = 0.5-(TMath::Cos(ptMod * ( TMath::Pi()/upRampLen ))/2.);
-      double value =  modValue * inGraph->GetY()[pt];
-      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],value);
-      if (debug) cout << pt << " - 2 - " << ptMod << " - " << modValue << endl;
-    }
-    else if (pt > startLoc && pt <= stopLoc) {
-      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],inGraph->GetY()[pt]);
-      if (debug) cout << pt << " - 3" << endl;
-    }
-    else if (pt > stopLoc && pt <= (stopLoc+downRampLen)) {
-      double ptMod = pt - stopLoc;
-      double modValue = (1+TMath::Cos(ptMod*( TMath::Pi()/downRampLen ))/2.) - 0.5;
-      double value = modValue * inGraph->GetY()[pt];
-      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],value);
-      if (debug) cout << pt << " - 4 - " << ptMod << " - " << modValue << endl;
-    }
-    else if (pt > stopLoc+downRampLen) {
-      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],0);
-      if (debug) cout << pt << " - 5" << endl;
-    }
-  }
-
-  if (debug) cout << " outGraph->GetN()=" << outGraph->GetN() << endl;
-  return outGraph;
-
-}
-/*-----------
- */
-
-
 void fillStokes(int length,TGraph *window, TGraph *windowXpol, AnitaEventSummary::WaveformInfo wave) {
 
     //calculate the windowed stokes parameters
@@ -336,6 +263,7 @@ void fillStokes(int length,TGraph *window, TGraph *windowXpol, AnitaEventSummary
 
 
 
+
 int main(int argc, char** argv) {
 
   char* homeDir = getenv("HOME");
@@ -344,6 +272,8 @@ int main(int argc, char** argv) {
   wisdomDir << homeDir << "/macros/fftWisdom.dat";
   FFTtools::loadWisdom(wisdomDir.str().c_str());
 
+  //handle inturrupt signals for real
+  signal(SIGINT, emergencyClose); 
                                                                                                  
   string outFileName;
   int startEntry,endEntry,lenEntries;
@@ -367,7 +297,7 @@ int main(int argc, char** argv) {
   //also make a Tree of event headers that pass cuts
   name.str("");
   name << outFileName << ".root";
-  TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
+  outFile = TFile::Open(name.str().c_str(),"recreate");
   outFile->cd();
   TTree *outTree = new TTree("summaryTree","summaryTree");
 
@@ -429,9 +359,9 @@ int main(int argc, char** argv) {
 
   FFTWComplex *theTemplateFFT = getImpulseResponseTemplate(length);
   FFTWComplex *theWaisTemplateFFT = getWaisTemplate(length);
-  const int numCRTemplates = 10 * 2;
-  FFTWComplex *theCRTemplates[numCRTemplates]; //LSB=dispersed, MSB=efield
-  getCRTemplates(length,numCRTemplates/2,theCRTemplates);
+  const int numCRTemplates = 10;
+  FFTWComplex *theCRTemplates[numCRTemplates*2]; //LSB=dispersed, MSB=efield
+  getCRTemplates(length,numCRTemplates,theCRTemplates);
 
   //and add a thing to store whatever it finds
   Double_t templateImpV = 0;
@@ -477,36 +407,47 @@ int main(int argc, char** argv) {
   int timeElapsed;
   int totalTime;
   for (Long64_t entry=0; entry<lenEntries; entry++) {
-
+    //entry - tracks how far you are in the requested range
+    //entryToGet - which entry you're calling from the run
+    int entryToGet = entry + entryToStartAt - completedRunEvs;
 
     //little bit longer progress bar that normal (Acclaim's is good too but I want my OWN)
     const int refreshRate = 100;
     if (entry%refreshRate==0) {
       timeElapsed = watch.RealTime(); //+1 to prevent divide by zero error
-      watch.Start();
       totalTime += timeElapsed;
-      cout << entry << "/" << lenEntries << " evs in " << totalTime << " secs ";
+      cout << entry << "/" << lenEntries << " evs in " << float(totalTime)/60 << " mins ";
       if (timeElapsed != 0) {
-	cout << float(entry)/totalTime << "ev/sec (" << float(refreshRate)/timeElapsed << " ev/sec instantaneous)";
+	cout << float(entry)/totalTime << "ev/sec (" << float(refreshRate)/timeElapsed << " ev/sec instant)";
       }
+      cout << " {" << entryToGet << "/" << numEntries << "}";
+
       cout << endl;
       fflush(stdout);
+      watch.Start();
     }
 
-    int entryToGet = entry + entryToStartAt - completedRunEvs;
 
     if (entry == 0 || entryToGet > numEntries) {
       if (data != NULL) delete data;
       data = new AnitaDataset(runToGet,false);
       data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
+
+      cout << "AnitaDataset switched to run " << runToGet << endl;
+
       runToGet++;
       completedRunEvs += numEntries;
       numEntries = data->N();
       if (entry != 0) entryToStartAt = 0; //startEntryInRun becomes zero after the first runswitch
+
+      cout << "New run has " << numEntries << " entries, and I am starting at " << entryToStartAt;
+      cout << ", so there are " << numEntries - entryToStartAt << " left in the run" << endl;
+
+
     }
 
     //get all the pointers set right
-    data->getEntry(entry);
+    data->getEntry(entryToGet);
     
     //0) If I'm going to re-run this again, I want to at least cut it in half
     //    So no Vpol triggered events
@@ -522,10 +463,10 @@ int main(int argc, char** argv) {
     delete filteredEvent;
 
     //(H=0, V=1)
-    //pull the peak coherence graph out of the analyzer so we can compare it vs the template
 
-
-
+    //
+    // Coherent Waveform
+    //
     for (int poli=0; poli<2; poli++) {
 
       //get coherently aligned waveform
@@ -534,7 +475,8 @@ int main(int argc, char** argv) {
       //make sure it is the same length as the template
       TGraph *coherent2 = FFTtools::padWaveToLength(coherent,length);
       delete coherent;
-      TGraph *windowed = windowDispersed(coherent2);
+      int peakHilbert = -1;
+      TGraph *windowed = windowDispersed(coherent2,peakHilbert);
       delete coherent2;
 
       //and xpol for stokes
@@ -543,11 +485,11 @@ int main(int argc, char** argv) {
       //make sure it is the same length as the template
       coherent2 = FFTtools::padWaveToLength(coherent,length);
       delete coherent;
-      TGraph *windowedXpol = windowDispersed(coherent2);
+      TGraph *windowedXpol = windowDispersed(coherent2,peakHilbert);
       delete coherent2;
       
       //and do stokes for that
-      fillStokes(length,windowed,windowedXpol,eventSummary->coherent[0][1]);
+      fillStokes(length,windowed,windowedXpol,eventSummary->coherent[poli][1]);
       delete windowedXpol;
        
 
@@ -598,6 +540,9 @@ int main(int argc, char** argv) {
     }
 
 
+    //
+    // Deconvolved
+    //
     //do everything once more for the deconvolved coherent waveform
     for (int poli=0; poli<2; poli++) {
 
@@ -607,7 +552,8 @@ int main(int argc, char** argv) {
       //make sure it is the same length as the template
       TGraph *coherent2 = FFTtools::padWaveToLength(coherent,length);
       delete coherent;
-      TGraph *windowed = windowEField(coherent2);
+      int peakHilbert = -1;
+      TGraph *windowed = windowEField(coherent2,peakHilbert);
       delete coherent2;
 
       //and xpol for stokes
@@ -616,11 +562,11 @@ int main(int argc, char** argv) {
       //make sure it is the same length as the template
       coherent2 = FFTtools::padWaveToLength(coherent,length);
       delete coherent;
-      TGraph *windowedXpol = windowEField(coherent2);
+      TGraph *windowedXpol = windowEField(coherent2,peakHilbert);
       delete coherent2;
       
       //and do stokes for that
-      fillStokes(length,windowed,windowedXpol,eventSummary->deconvolved[0][1]);
+      fillStokes(length,windowed,windowedXpol,eventSummary->deconvolved[poli][1]);
       delete windowedXpol;
        
       //normalize it
@@ -632,7 +578,7 @@ int main(int argc, char** argv) {
       double maxCR[numCRTemplates];
       double minCR[numCRTemplates];
       for (int i=0; i<numCRTemplates; i++) {
-	double *dCorrCR = getCorrelationFromFFT(length,theCRTemplates[i],coherentFFT);
+	double *dCorrCR = getCorrelationFromFFT(length,theCRTemplates[i+10],coherentFFT);
 	maxCR[i] = TMath::MaxElement(length,dCorrCR);
 	minCR[i] = TMath::Abs(TMath::MinElement(length,dCorrCR));
 	delete[] dCorrCR;
