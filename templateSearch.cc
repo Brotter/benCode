@@ -276,7 +276,7 @@ int main(int argc, char** argv) {
   signal(SIGINT, emergencyClose); 
                                                                                                  
   string outFileName;
-  int startEntry,endEntry,lenEntries;
+  int startEntry,endEntry,totalEntriesToDo;
 
   if (argc==4) {
     outFileName = argv[1];
@@ -284,8 +284,8 @@ int main(int argc, char** argv) {
     endEntry = atoi(argv[3]);
     cout << "Hello!  Let us do some physics mate" << endl;
     cout << "Doing entry " << startEntry << " to " << endEntry << endl;
-    lenEntries = endEntry - startEntry;
-    cout << "This will be a total of " << lenEntries << " events to process" << endl;
+    totalEntriesToDo = endEntry - startEntry;
+    cout << "This will be a total of " << totalEntriesToDo << " events to process" << endl;
     }
   else {
     cout << "Usage: " << argv[0] << " [output base filename] [start entry] [end entry]" << endl;
@@ -393,7 +393,7 @@ int main(int argc, char** argv) {
   cout << "startEntry " << startEntry << " starts " << entryToStartAt << " entries into run " << startRun << endl;
   int runToGet = startRun;
 
-  int numEntries; //number of entries in current open run file
+  int entriesInCurrRun; //number of entries in current open run file
   int completedRunEvs; //number of entries from previous runs
 
   //make data storage object pointer for later
@@ -401,12 +401,12 @@ int main(int argc, char** argv) {
 
   cout << "templateSearch(): starting event loop" << endl;
 
-  Acclaim::ProgressBar p(lenEntries);
+  Acclaim::ProgressBar p(totalEntriesToDo);
   TStopwatch watch; //!< ROOT's stopwatch class, used to time the progress since object construction
   watch.Start(kTRUE);
   int timeElapsed;
   int totalTime;
-  for (Long64_t entry=0; entry<lenEntries; entry++) {
+  for (Long64_t entry=0; entry<totalEntriesToDo; entry++) {
     //entry - tracks how far you are in the requested range
     //entryToGet - which entry you're calling from the run
     int entryToGet = entry + entryToStartAt - completedRunEvs;
@@ -416,11 +416,11 @@ int main(int argc, char** argv) {
     if (entry%refreshRate==0) {
       timeElapsed = watch.RealTime(); //+1 to prevent divide by zero error
       totalTime += timeElapsed;
-      cout << entry << "/" << lenEntries << " evs in " << float(totalTime)/60 << " mins ";
+      cout << entry << "/" << totalEntriesToDo << " evs in " << float(totalTime)/60 << " mins ";
       if (timeElapsed != 0) {
 	cout << float(entry)/totalTime << "ev/sec (" << float(refreshRate)/timeElapsed << " ev/sec instant)";
       }
-      cout << " {" << entryToGet << "/" << numEntries << "}";
+      cout << " {" << entryToGet << "/" << entriesInCurrRun << "}";
 
       cout << endl;
       fflush(stdout);
@@ -428,20 +428,20 @@ int main(int argc, char** argv) {
     }
 
 
-    if (entry == 0 || entryToGet > numEntries) {
+    if (entry == 0 || entryToGet > entriesInCurrRun-1) {
       if (data != NULL) delete data;
       data = new AnitaDataset(runToGet,false);
       data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
 
       cout << "AnitaDataset switched to run " << runToGet << endl;
-
+      
+      completedRunEvs = entry;
       runToGet++;
-      completedRunEvs += numEntries;
-      numEntries = data->N();
+      entriesInCurrRun = data->N();
       if (entry != 0) entryToStartAt = 0; //startEntryInRun becomes zero after the first runswitch
 
-      cout << "New run has " << numEntries << " entries, and I am starting at " << entryToStartAt;
-      cout << ", so there are " << numEntries - entryToStartAt << " left in the run" << endl;
+      cout << "New run has " << entriesInCurrRun << " entries, and I am starting at " << entryToStartAt;
+      cout << ", so there are " << entriesInCurrRun - entryToStartAt << " left in the run" << endl;
 
 
     }
@@ -536,7 +536,7 @@ int main(int argc, char** argv) {
       delete[] dCorrWais;
 
 
-      //      p.inc(entry, lenEntries); //BenS's status bar (I like mine better)
+      //      p.inc(entry, totalEntriesToDo); //BenS's status bar (I like mine better)
     }
 
 
@@ -593,7 +593,7 @@ int main(int argc, char** argv) {
       delete[] coherentFFT;
 
 
-      //      p.inc(entry, lenEntries); //BenS's status bar (I like mine better)
+      //      p.inc(entry, totalEntriesToDo); //BenS's status bar (I like mine better)
     }
 
 
@@ -607,7 +607,7 @@ int main(int argc, char** argv) {
   }
 
 
-  cout << endl << "Final Processing Rate: " << float(lenEntries)/totalTime << "ev/sec" << endl;
+  cout << endl << "Final Processing Rate: " << float(totalEntriesToDo)/totalTime << "ev/sec" << endl;
 
   outFile->cd();
   cout << "Writing out to file..." << endl;
