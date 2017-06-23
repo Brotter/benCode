@@ -17,15 +17,32 @@ windowing functions
 
 TGraph *windowWave(TGraph*, int&, const int, const int, const int, const int);
 
+
 TGraph *windowDispersed(TGraph *inGraph, int &peakHilbertLoc) {  
   return windowWave(inGraph,peakHilbertLoc,
 		    50,250,20,20);
 }
 
+
+TGraph *windowDispersed(TGraph *inGraph) {
+  //overload!
+  int tempPeak = -1;
+  return windowDispersed(inGraph,tempPeak);
+}
+
+
 TGraph *windowEField(TGraph *inGraph, int &peakHilbertLoc) {
   return windowWave(inGraph,peakHilbertLoc,
 		    30,30,2,2);
 }
+
+
+TGraph *windowEField(TGraph *inGraph) {
+  //overload!
+  int tempPeak = -1;
+  return windowEField(inGraph,tempPeak);
+}
+
 
 
 TGraph *windowWave(TGraph *inGraph, int &peakHilbertLoc,

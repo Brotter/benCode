@@ -1,6 +1,8 @@
 #include "Analyzer.h"
 #include "AnalysisConfig.h"
 #include "SpectrumAverage.h"
+#include "../windowing.h"
+
 
 /*
 
@@ -11,90 +13,77 @@
  */
 
 
-TGraph *windowTemplate(TGraph *inGraph) {
-
-  /*
-
-    The noise after the waveform part is useless.  I need to window it to increase the correlation value
-
-    Find the peak of the hilbert envelope, then go 5ns before it (50pts) and then do a hamming maybe like 60 after it?
-
-   */
-
-
-  //the following are window config params, in POINTS (not nanoseconds)
-  const int upRampLen = 50; //how "long" the hamming should be (half period)
-  const int downRampLen = 200; //how "long" the hamming should be at the end (well close)
-
-  const int downRampLoc = 600; //how far after peak hilbert env to start tail hamming
-  const int upRampLoc = 50; //how far before peak hilbert to start hamming (well close)
-  
-
-  TGraph *hilbert = FFTtools::getHilbertEnvelope(inGraph);
-  int peakHilbertLoc = TMath::LocMax(hilbert->GetN(),hilbert->GetY());
-
-  int startLoc = peakHilbertLoc - upRampLoc;
-  int stopLoc  = peakHilbertLoc + downRampLoc;
-
-  if (stopLoc+downRampLen > inGraph->GetN()) {
-    cout << "****";
-    int overrun = (stopLoc+downRampLen) - inGraph->GetN() + 1;
-    startLoc -= overrun;
-    stopLoc -= overrun;
-  }
-
-  bool debugPrint = false;
-
-
-  if (debugPrint) cout << "inGraph->GetN()=" << inGraph->GetN() << " startLoc=" << startLoc << " stopLoc=" << stopLoc;
-
-
-  TGraph *outGraph = new TGraph();
-  for (int pt=0; pt<inGraph->GetN(); pt++) {
-    if (pt <= (startLoc-upRampLen)) {
-      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],0);
-      if (debugPrint) cout << pt << " - 1 - x0" << endl;
-    }
-    else if (pt > (startLoc-upRampLen) && pt <= startLoc ) {
-      int ptMod = pt - (startLoc-upRampLen);
-      double modValue = 0.5-(TMath::Cos(ptMod * ( TMath::Pi()/upRampLen ))/2.);
-      double value =  modValue * inGraph->GetY()[pt];
-      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],value);
-      if (debugPrint) cout << pt << " - 2 - " << ptMod << " - " << modValue << endl;
-    }
-    else if (pt > startLoc && pt <= stopLoc) {
-      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],inGraph->GetY()[pt]);
-      if (debugPrint) cout << pt << " - 3 x1" << endl;
-    }
-    else if (pt > stopLoc && pt <= (stopLoc+downRampLen)) {
-      double ptMod = pt - stopLoc;
-      double modValue = (1+TMath::Cos(ptMod*( TMath::Pi()/downRampLen ))/2.) - 0.5;
-      double value = modValue * inGraph->GetY()[pt];
-      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],value);
-      if (debugPrint) cout << pt << " - 4 - " << ptMod << " - " << modValue << endl;
-    }
-    else if (pt > stopLoc+downRampLen) {
-      outGraph->SetPoint(outGraph->GetN(),inGraph->GetX()[pt],0);
-      if (debugPrint) cout << pt << " - 5 x0" << endl;
-    }
-  }
-
-  
-  if (debugPrint) cout << " outGraph->GetN()=" << outGraph->GetN() << endl;
-  return outGraph;
-
-}
-
-
 
 void makeCalculatedTemplate() {
 
-  cout << "This one doesn't do anything yet" << endl;
+  cout << "This one doesn't do anything, go look in ~/benCode/ZHAiresReader/convolveWithSigChain.C I think" << endl;
 
   return;
 
 }
 
+
+void drawAllTemplates() {
+
+  /*
+
+    Draw all the templates into a pretty graph that I can show to the collaboration
+
+    Actually, grab it from one of the finished processing files!
+
+   */
+
+  TFile *inFile = TFile::Open("../templateGenRun.root");
+  cout << inFile << endl;
+
+  const int numCRs = 9;
+  TGraph *crTmplts[numCRs];
+  stringstream name;
+  for (int i=0; i<=numCRs; i++) {
+    name.str("");
+    name << "disp" << i+13;
+    cout << name.str() << endl;
+    crTmplts[i] = (TGraph*)inFile->Get(name.str().c_str());
+    name.str("");
+    name << "Cosmic Ray @ Peak Angle + " << i;
+    crTmplts[i]->SetTitle(name.str().c_str());
+  }
+  
+  TGraph *waisTmplt = (TGraph*)inFile->Get("templateWais");
+  waisTmplt->SetTitle("Wais Averaged Waveform");
+  TGraph *impTmplt  = (TGraph*)inFile->Get("templateImp");
+  impTmplt->SetTitle("Impulse Response");
+
+  cout << "got all templates" << endl;
+
+  TCanvas *c1 = new TCanvas("cTemplates","cTemplates",800,600);
+  c1->Divide(4,3);
+  
+  int place[numCRs] = {1,5,9,2,6,10,3,7,11};
+  int color[numCRs] = {0,18,17,16,15,14,13,12,12};
+  for (int i=0; i<numCRs; i++) {
+    TVirtualPad* currPad = c1->cd(place[i]);
+    crTmplts[i]->Draw("alp");
+    currPad->SetFillColor(color[i]);
+    currPad->SetFillStyle(3003);
+  }
+
+  TVirtualPad* currPad = c1->cd(4);
+  currPad->SetFillColor(kBlue);
+  currPad->SetFillStyle(3003);
+  waisTmplt->Draw("alp");
+
+  currPad = c1->cd(12);
+  currPad->SetFillColor(kRed);
+  currPad->SetFillStyle(3003);
+  impTmplt->Draw("alp");
+
+  cout << "all done why is it quitting" << endl;
+
+  return;
+
+}
+				
 
 
 void makeMeasuredTemplate() {
@@ -182,13 +171,13 @@ void makeMeasuredTemplate() {
       //make sure it is the same length as the template
       
       TGraph *padded = FFTtools::padWaveToLength(coherentRaw,length);
+      //dont window it here I think, do that when you load it into templateSearch so it is consistent with the measurements
+      coherent[i][poli] = padded;
 
-      coherent[i][poli] = windowTemplate(padded);
-      delete padded;
       name.str("");
       name << data[i]->header()->eventNumber;
-      if (poli) name << "H";
-      else name << "V";
+      if (poli) name << "V";
+      else name << "H";
       coherent[i][poli]->SetTitle(name.str().c_str());
       name.str("");
       name << "Wave" << i << "pol" << poli;
@@ -214,38 +203,38 @@ void makeMeasuredTemplate() {
   c1->cd(1);
   coherent[0][0]->Draw("alp");
   c1->cd(2);
-  hilbert[0][0]->Draw("alp");
+  coherent[0][1]->Draw("alp");
   c1->cd(3);
   coherent[1][0]->Draw("alp");
   c1->cd(4);
-  hilbert[1][0]->Draw("alp");
+  coherent[1][1]->Draw("alp");
   c1->cd(5);
   coherent[2][0]->Draw("alp");
   c1->cd(6);
-  hilbert[2][0]->Draw("alp");
+  coherent[2][1]->Draw("alp");
   c1->cd(7);
   coherent[3][0]->Draw("alp");
   c1->cd(8);
-  hilbert[3][0]->Draw("alp");
+  coherent[3][1]->Draw("alp");
 
 
   
   TCanvas *c2 = new TCanvas("c2","c2",800,600);
   c2->Divide(2,4);
   c2->cd(1);
-  coherent[0][1]->Draw("alp");
+  hilbert[0][0]->Draw("alp");
   c2->cd(2);
   hilbert[0][1]->Draw("alp");
   c2->cd(3);
-  coherent[1][1]->Draw("alp");
+  hilbert[1][0]->Draw("alp");
   c2->cd(4);
   hilbert[1][1]->Draw("alp");
   c2->cd(5);
-  coherent[2][1]->Draw("alp");
+  hilbert[2][0]->Draw("alp");
   c2->cd(6);
   hilbert[2][1]->Draw("alp");
   c2->cd(7);
-  coherent[3][1]->Draw("alp");
+  hilbert[3][0]->Draw("alp");
   c2->cd(8);
   hilbert[3][1]->Draw("alp");
 
@@ -357,9 +346,29 @@ TGraph *normalizeWaveform(TGraph *inGraph) {
 void compTemplatesVsMeasured() {
 
   stringstream name;
+
+  TFile *inFile = TFile::Open("../templateGenRun.root");
+
+  const int numCRs = 10;
+  TGraph *templates[numCRs];
+  for (int i=0; i<numCRs; i++) {
+    name.str("");
+    name << "disp" << i+13;
+    cout << name.str() << endl;
+    templates[i] = (TGraph*)inFile->Get(name.str().c_str());
+    name.str("");
+    name << "Cosmic Ray @ Peak Angle + " << i;
+    templates[i]->SetTitle(name.str().c_str());
+  }
   
+  TGraph *waisTmplt = (TGraph*)inFile->Get("templateWais");
+  waisTmplt->SetTitle("Wais Averaged Waveform");
+  TGraph *impTmplt  = (TGraph*)inFile->Get("templateImp");
+  impTmplt->SetTitle("Impulse Response");
+
+  cout << "got all templates" << endl;
   
-  int length = 10000; //length of ZHAires waveforms
+  const int length = 10000; //length of ZHAires waveforms
 
   TFile *measFile = TFile::Open("measuredCR.root");
   TGraph *measWaves[4];
@@ -368,37 +377,46 @@ void compTemplatesVsMeasured() {
     name << "Wave" << i << "pol0";
     TGraph* tempWave = (TGraph*)measFile->Get(name.str().c_str());
     TGraph* paddedWave = FFTtools::padWaveToLength(tempWave,length);
-    measWaves[i] = normalizeWaveform(paddedWave);
+    TGraph* windowedWave = windowDispersed(paddedWave);
     delete paddedWave;
+    measWaves[i] = normalizeWaveform(windowedWave);
+    delete windowedWave;
   }
 
+  TH2D *hComp = new TH2D("hComp","Templates Vs BenS's Measured CR Events",13,-0.5,12.5, 4,0,3.5);
+  hComp->SetStats(0);
+  hComp->GetYaxis()->SetBinLabel(1,"32907848");
+  hComp->GetYaxis()->SetBinLabel(2,"33484995");
+  hComp->GetYaxis()->SetBinLabel(3,"41529195");
+  hComp->GetYaxis()->SetBinLabel(4,"58592863");
 
-  TFile *tempFile = TFile::Open("/Users/brotter/benCode/ZHAiresReader/convolveCRWithSigChain.root");
-  TGraph *templates[10];
+  
   for (int i=0; i<10; i++) {
-    int wave = i+13; //peak seems to be at around the 13th one, then by 23 it is basically zero
     name.str("");
-    name << "wave" << wave;
-    TGraph* tempWave = (TGraph*)tempFile->Get(name.str().c_str());
-    templates[i] = normalizeWaveform(tempWave);
-    
+    name << "CR + " << i;
+    hComp->GetXaxis()->SetBinLabel(i+1,name.str().c_str());
   }
+  hComp->GetXaxis()->SetBinLabel(11,"Impulse Response");
+  hComp->GetXaxis()->SetBinLabel(12,"WAIS Average Pulse");
 
 
-  TH2D *hComp = new TH2D("hComp","correlation values",13,-0.5,12.5, 4,0,3.5);
 
   double tempMean[10];
   for (int i=0; i<10; i++) {
     tempMean[i] = 0;
   }
 
+  //length changes once I window it
+  int newLength = templates[0]->GetN();
+  cout << newLength << endl;
+
   for (int measi=0; measi<4; measi++) {
     cout << "Measurement " << measi << " | ";
     double peaks[10];
     for (int tempi=0; tempi<10; tempi++) {
-      double *corr = FFTtools::getCorrelation(length,measWaves[measi]->GetY(),templates[tempi]->GetY());
-      double max = TMath::MaxElement(length,corr);
-      double min = TMath::MinElement(length,corr);
+      double *corr = FFTtools::getCorrelation(newLength,measWaves[measi]->GetY(),templates[tempi]->GetY());
+      double max = TMath::MaxElement(newLength,corr);
+      double min = TMath::MinElement(newLength,corr);
       double peak = TMath::Max(max,-1.*min);
       tempMean[tempi] += peak/4.;
       peaks[tempi] = peak;
@@ -415,22 +433,12 @@ void compTemplatesVsMeasured() {
     cout << "temp " << i << " = " << tempMean[i] << endl;
   }
 
-  TGraph* gIRraw = new TGraph("~/anita16/local/share/AnitaAnalysisFramework/responses/SingleBRotter/all.imp");
-  TGraph *gIR = FFTtools::padWaveToLength(gIRraw,length);
-  gIR->SetMarkerColor(kRed);
-  gIR->SetLineColor(kRed);
-  gIR->SetName("gIR");
-  gIR->SetTitle("Impulse Response");
-
-
-
-
 
   cout << "Vs Impulse Response | ";
   for (int measi=0; measi<4; measi++) {
-    double *corr = FFTtools::getCorrelation(length,measWaves[measi]->GetY(),gIR->GetY());
-    double max = TMath::MaxElement(length,corr);
-    double min = TMath::MinElement(length,corr);
+    double *corr = FFTtools::getCorrelation(newLength,measWaves[measi]->GetY(),impTmplt->GetY());
+    double max = TMath::MaxElement(newLength,corr);
+    double min = TMath::MinElement(newLength,corr);
     double peak = TMath::Max(max,-1.*min);
     hComp->Fill(11,measi,peak);
     cout << peak<< " ";
@@ -438,28 +446,11 @@ void compTemplatesVsMeasured() {
   cout << endl;
 
 
-  //wais template too
-  TFile *inFile = TFile::Open("waisTemplate.root");
-  TGraph *waisRaw = (TGraph*)inFile->Get("wais01TH");
-  //the wais waveform is like N=2832, but most of it is dumb, so cut off the beginning
-  TGraph *waisCut = new TGraph();
-  for (int pt=0; pt<waisRaw->GetN(); pt++) {
-    if (waisRaw->GetX()[pt] > 0) waisCut->SetPoint(waisCut->GetN(),waisRaw->GetX()[pt],waisRaw->GetY()[pt]);
-  }
-  inFile->Close();
-  //of course this way of doing it probably makes it too short :P
-  TGraph *waisPadded = FFTtools::padWaveToLength(waisCut,length);
-  delete waisCut;
-  //and then normalize it
-  TGraph *wais = normalizeWaveform(waisPadded);
-  delete waisPadded;
-
-
   cout << "Vs Wais  | ";
   for (int measi=0; measi<4; measi++) {
-    double *corr = FFTtools::getCorrelation(length,measWaves[measi]->GetY(),wais->GetY());
-    double max = TMath::MaxElement(length,corr);
-    double min = TMath::MinElement(length,corr);
+    double *corr = FFTtools::getCorrelation(newLength,measWaves[measi]->GetY(),waisTmplt->GetY());
+    double max = TMath::MaxElement(newLength,corr);
+    double min = TMath::MinElement(newLength,corr);
     double peak = TMath::Max(max,-1.*min);
     hComp->Fill(12,measi,peak);
     cout << peak<< " ";
@@ -493,6 +484,7 @@ void measuredVsEachOther() {
     delete paddedWave;
   }
 
+ 
 
   TH2D *hComp = new TH2D("hComp","BenS Cosmic Rays Correlation Values",4,-0.5,3.5, 4,-0.5,3.5);
 
@@ -518,32 +510,55 @@ void measuredVsEachOther() {
 
 void templatesVsEachOther() {
 
-  int length = 10000;
+
+  TFile *inFile = TFile::Open("../templateGenRun.root");
 
   stringstream name;
 
-  TFile *tempFile = TFile::Open("/Users/brotter/benCode/ZHAiresReader/convolveCRWithSigChain.root");
-  TGraph *templates[10];
-  for (int i=0; i<10; i++) {
-    int wave = i+13; //peak seems to be at around the 13th one, then by 23 it is basically zero
+  const int numCRs = 10;
+  TGraph *templates[numCRs+3];
+  for (int i=0; i<numCRs; i++) {
     name.str("");
-    name << "wave" << wave;
-    TGraph* tempWave = (TGraph*)tempFile->Get(name.str().c_str());
-    cout << tempWave->GetN() << endl;
-    templates[i] = normalizeWaveform(tempWave);
-    
+    name << "disp" << i+13;
+    cout << name.str() << endl;
+    templates[i] = (TGraph*)inFile->Get(name.str().c_str());
+    name.str("");
+    name << "Cosmic Ray @ Peak Angle + " << i;
+    templates[i]->SetTitle(name.str().c_str());
   }
+  
+  TGraph *waisTmplt = (TGraph*)inFile->Get("templateWais");
+  waisTmplt->SetTitle("Wais Averaged Waveform");
+  TGraph *impTmplt  = (TGraph*)inFile->Get("templateImp");
+  impTmplt->SetTitle("Impulse Response");
 
+  templates[11]=waisTmplt;
+  templates[12]=impTmplt;
 
+  cout << "got all templates" << endl;
+  
 
-  TH2D *hComp = new TH2D("hComp","templates vs each other",10,-0.5,9.5, 10,-0.5,9.5);
-
-
+  TH2D *hComp = new TH2D("hComp","templates vs each other",13,-0.5,12.5, 13,-0.5,12.5);
   for (int i=0; i<10; i++) {
-    for (int j=0; j<10; j++) {
-      double *corr = FFTtools::getCorrelation(length,templates[i]->GetY(),templates[j]->GetY());
-      double max = TMath::MaxElement(length,corr);
-      double min = TMath::MinElement(length,corr);
+    name.str("");
+    name << "CR + " << i;
+    hComp->GetXaxis()->SetBinLabel(i+1,name.str().c_str());
+    hComp->GetYaxis()->SetBinLabel(i+1,name.str().c_str());
+  }
+  hComp->GetXaxis()->SetBinLabel(12,"Impulse Response");
+  hComp->GetXaxis()->SetBinLabel(13,"WAIS Average Pulse");
+  hComp->GetYaxis()->SetBinLabel(12,"Impulse Response");
+  hComp->GetYaxis()->SetBinLabel(13,"WAIS Average Pulse");
+
+
+  int newLength = waisTmplt->GetN();
+
+  for (int i=0; i<13; i++) {
+    for (int j=0; j<13; j++) {
+      if (i==10 || j==10) continue;
+      double *corr = FFTtools::getCorrelation(newLength,templates[i]->GetY(),templates[j]->GetY());
+      double max = TMath::MaxElement(newLength,corr);
+      double min = TMath::MinElement(newLength,corr);
       double peak = TMath::Max(max,-1.*min);	
       hComp->Fill(i,j,peak);
     }
