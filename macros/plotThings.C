@@ -4,13 +4,13 @@
 
 
 
-TH1* makeCutStrengthPlot(TH1* inHist) {
+TH1D* makeNormCumulative(TH1D* inHist) {
 
-  TH1* copyHist = (TH1*)inHist->Clone();
+  TH1D* copyHist = (TH1D*)inHist->Clone();
   
   copyHist->Scale(1./copyHist->GetIntegral()[copyHist->GetNbinsX()]);
 
-  TH1* outHist = copyHist->GetCumulative();
+  TH1D* outHist = (TH1D*)copyHist->GetCumulative();
   delete copyHist;
 
   return outHist;
@@ -76,8 +76,7 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
   h1IPeakWais->Write();
   h1IPeakLDB->Write();
 
-  h1Tmplt->Scale(1./h1Tmplt->GetIntegral()[500]);
-  TH1D *h1TmpltCum = h1Tmplt->GetCumulative();
+  TH1D *h1TmpltCum = makeNormCumulative(h1Tmplt);
   h1TmpltCum->Write();
 
 
