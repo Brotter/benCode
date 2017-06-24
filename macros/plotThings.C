@@ -1,6 +1,25 @@
 #include "AnitaConventions.h"
 #include "AnitaEventSummary.h"
  
+
+
+
+TH1* makeCutStrengthPlot(TH1* inHist) {
+
+  TH1* copyHist = (TH1*)inHist->Clone();
+  
+  copyHist->Scale(1./copyHist->GetIntegral()[copyHist->GetNbinsX()]);
+
+  TH1* outHist = copyHist->GetCumulative();
+  delete copyHist;
+
+  return outHist;
+}
+
+
+
+
+
 void plotCorr(TChain *summaryTree,TFile *outFile) {
   /*================
     Template Correlation Stuff
@@ -31,7 +50,7 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
   ldbTmplt->Write();
   cutTmplt->Write();
 
-
+ 
 
   TH1D *h1Tmplt = noiseTmplt->ProjectionY("h1Tmplt",0,500);
   h1Tmplt->SetTitle("Cosmic Ray Template (5) Correlation - No Pulsers;Template Corr; Occupancy");
@@ -46,6 +65,9 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
   h1IPeakWais->SetTitle("Interferometric Map Peak - WAIS; Map Peak; Occupancy");
   TH1D *h1IPeakLDB = ldbTmplt->ProjectionX("h1IPeakLDB",0,500);
   h1IPeakLDB->SetTitle("Interferometric Map Peak - LDB; Map Peak; Occupancy");
+
+
+
   outFile->cd();
   h1Tmplt->Write();
   h1TmpltWais->Write();
@@ -53,6 +75,11 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
   h1IPeak->Write();
   h1IPeakWais->Write();
   h1IPeakLDB->Write();
+
+  h1Tmplt->Scale(1./h1Tmplt->GetIntegral()[500]);
+  TH1D *h1TmpltCum = h1Tmplt->GetCumulative();
+  h1TmpltCum->Write();
+
 
   //LDB pulses as time are actually kinda neat since we used different pulser configs
   TH2D *ldbVsTime = new TH2D("ldbVsTime","LDB Pulser Template Correlations;eventnumber; Template Correlation",
@@ -229,8 +256,8 @@ void plotThings() {
   TFile *outFile = TFile::Open("plotThings.root","recreate");
   TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
-  plotPol(summaryTree,outFile);
-  //  plotCorr(summaryTree,outFile);
+  //  plotPol(summaryTree,outFile);
+  plotCorr(summaryTree,outFile);
   //  plotSNR(summaryTree,outFile);
 
   outFile->Close();
