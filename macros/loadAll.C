@@ -34,3 +34,16 @@ TChain* loadAll(string date = "06.21.17_23h"){
 }
 
 
+TH1* makeCutStrengthPlot(TH1* inHist) {
+
+  TH1* copyHist = (TH1*)inHist->Clone();
+  
+  copyHist->Scale(1./copyHist->GetIntegral());
+
+  TH1* outHist = copyHist->GetCumulative();
+  delete copyHist;
+
+  return outHist;
+}
+
+  
