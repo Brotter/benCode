@@ -1,17 +1,24 @@
 
 
-TChain* loadAll(string date = "06.21.17_00h"){
+TChain* loadAll(string date = "06.21.17_23h"){
+  //crab
+  //kwaabz
+  //crab
+  //crabcrab
+  //kiki
+  //popo
+  //bert
+  //kona
+  //tate
 
-  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  TChain *summaryTree = new TChain("summaryTree");
   
   gROOT->ProcessLine(".x setupProof.C");
 
   char* resultsDir = getenv("ANITA3_RESULTSDIR");
 
   stringstream name;
-  for (int run=130; run<440; run++) {
-    //dead runs for whatever reason
-    if ( ( run >= 214 && run <=222) || (run >= 257 && run<=263) ) continue;
+  for (int run=0; run<256; run++) {
 
     name.str("");
     name << resultsDir << date << "/" << run << ".root";
@@ -20,7 +27,7 @@ TChain* loadAll(string date = "06.21.17_00h"){
 
   }
 
-  summaryTree->SetProof();
+    summaryTree->SetProof();
 
   return summaryTree;
 

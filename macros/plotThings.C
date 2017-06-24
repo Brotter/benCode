@@ -1,34 +1,28 @@
 #include "AnitaConventions.h"
-
-
-void plotThings() {
-
-  TFile *outFile = TFile::Open("plotThings.root","recreate");
-
-  TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
-
-
+#include "AnitaEventSummary.h"
+ 
+void plotCorr(TChain *summaryTree,TFile *outFile) {
   /*================
     Template Correlation Stuff
   */
+  cout << "Doing template correlation stuff" << endl;
 
   TH2D *noiseTmplt = new TH2D("noiseTmplt","Cosmic Ray Template (5) Correlation - No Pulsers; Interferometric Peak; Template Corr",
-			      500,0,1,500,0,1);
+			      500,0,0.5,500,0,1);
   TH2D *waisTmplt = new TH2D("waisTmplt","Cosmic Ray Template (5) Correlation - WAIS; Interferometric Peak; Template Corr",
-			     500,0,1,500,0,1);
+			     500,0,0.5,500,0,1);
   TH2D *ldbTmplt = new TH2D("ldbTmplt","Cosmic Ray Template (5) Correlation - LDB; Interferometric Peak; Template Corr",
-			    500,0,1,500,0,1);
+			    500,0,0.5,500,0,1);
   TH2D *cutTmplt = new TH2D("cutTmplt","Cosmic Ray Template (5) Correlation - Simple Cut; Interferometric Peak; Template Corr",
-			    500,0,1,500,0,1);
+			    500,0,0.5,500,0,1);
 
-  TCanvas *cTemplate = new TCanvas("cTemplate","cTemplate",800,600);
-  summaryTree->Draw("templateCRayH[5]:peak[0][0].value >> noiseTmplt",
+  summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> noiseTmplt",
 		    "flags.pulser == 0","colz");
-  summaryTree->Draw("templateCRayH[5]:peak[0][0].value >> waisTmplt",
+  summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> waisTmplt",
 		    "flags.pulser == 1","colzSame");
-  summaryTree->Draw("templateCRayH[5]:peak[0][0].value >> ldbTmplt",
+  summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> ldbTmplt",
 		    "flags.pulser == 2","colzSame");
-  summaryTree->Draw("templateCRayH[5]:peak[0][0].value >> cutTmplt",
+  summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> cutTmplt",
 		    "flags.pulser == 0 && templateCRayH[5] > 0.5 && peak[0][0].value > 0.05","colz");
 
   outFile->cd();
@@ -52,7 +46,6 @@ void plotThings() {
   h1IPeakWais->SetTitle("Interferometric Map Peak - WAIS; Map Peak; Occupancy");
   TH1D *h1IPeakLDB = ldbTmplt->ProjectionX("h1IPeakLDB",0,500);
   h1IPeakLDB->SetTitle("Interferometric Map Peak - LDB; Map Peak; Occupancy");
-
   outFile->cd();
   h1Tmplt->Write();
   h1TmpltWais->Write();
@@ -61,14 +54,86 @@ void plotThings() {
   h1IPeakWais->Write();
   h1IPeakLDB->Write();
 
+  //LDB pulses as time are actually kinda neat since we used different pulser configs
+  TH2D *ldbVsTime = new TH2D("ldbVsTime","LDB Pulser Template Correlations;eventnumber; Template Correlation",
+			     200,5400e3,5550e3,200,0,1);
+
+  summaryTree->Draw("templateCRayH[5]:eventNumber >> ldbVsTime","flags.pulser==2","colz");
+  outFile->cd();
+  ldbVsTime->Write();
+
+  return;
   /*
     --------------*/
+}
+
+
+
+  /* =========================
+     SNR Cuts
+  */
+void plotSNR(TChain *summaryTree, TFile *outFile) {
+
+  cout << "doing SNR cut stuff" << endl;
+
+
+  TH1D *coherentSNR = new TH1D("coherentSNR","Coherent SNR;Coherent SNR; Occupancy",100,0,100);
+  TH1D *coherentSNRWais = new TH1D("coherentSNRWais","Coherent SNR Wais;Coherent SNR; Occupancy",100,0,100);
+  TH1D *coherentSNRLDB = new TH1D("coherentSNRLDB","Coherent SNR LDB;Coherent SNR; Occupancy",100,0,100);
+  
+  summaryTree->Draw("coherent_filtered[0][0].snr >> coherentSNR","flags.pulser == 0");
+  summaryTree->Draw("coherent_filtered[0][0].snr >> coherentSNRWais","flags.pulser == 1");
+  summaryTree->Draw("coherent_filtered[0][0].snr >> coherentSNRLDB","flags.pulser == 2");
+
+  outFile->cd();
+  coherentSNR->Write();
+  coherentSNRWais->Write();
+  coherentSNRLDB->Write();
+
+
+  TH1D *deconvolvedSNR = new TH1D("deconvolvedSNR","Deconvolved SNR;Deconvolved SNR; Occupancy",100,0,100);
+  TH1D *deconvolvedSNRWais = new TH1D("deconvolvedSNRWais","Deconvolved SNR Wais;Deconvolved SNR; Occupancy",100,0,100);
+  TH1D *deconvolvedSNRLDB = new TH1D("deconvolvedSNRLDB","Deconvolved SNR LDB;Deconvolved SNR; Occupancy",100,0,100);
+  
+  summaryTree->Draw("deconvolved_filtered[0][0].snr >> deconvolvedSNR","flags.pulser == 0");
+  summaryTree->Draw("deconvolved_filtered[0][0].snr >> deconvolvedSNRWais","flags.pulser == 1");
+  summaryTree->Draw("deconvolved_filtered[0][0].snr >> deconvolvedSNRLDB","flags.pulser == 2");
+
+  outFile->cd();
+  deconvolvedSNR->Write();
+  deconvolvedSNRWais->Write();
+  deconvolvedSNRLDB->Write();
+
+  TH2D *bothSNR = new TH2D("bothSNR","Both SNR;Coherent SNR; Deconvolved SNR",100,0,100,100,0,100);
+  TH2D *bothSNRWais = new TH2D("bothSNRWais","Coherent SNR Wais;Both SNR; Deconvolved SNR",100,0,100,100,0,100);
+  TH2D *bothSNRLDB = new TH2D("bothSNRLDB","Both SNR LDB;Coherent SNR; Deconvolved SNR",100,0,100,100,0,100);
+    
+  summaryTree->Draw("coherent_filtered[0][0].snr:deconvolved_filtered[0][0].snr >> bothSNR","flags.pulser == 0","colz");
+  summaryTree->Draw("coherent_filtered[0][0].snr:deconvolved_filtered[0][0].snr >> bothSNRWais","flags.pulser == 1","colz");
+  summaryTree->Draw("coherent_filtered[0][0].snr:deconvolved_filtered[0][0].snr >> bothSNRLDB","flags.pulser == 2","colz");
+
+  outFile->cd();
+  bothSNR->Write();
+  bothSNRWais->Write();
+  bothSNRLDB->Write();
+
+  /*
+    ----------------*/
+
+  return;
+
+}
 
 
   /*=================
     Polarization Plots
   */
-  TCanvas *cPolariz = new TCanvas("cPolariz","Polarization Info",800,600);
+
+void plotPol(TChain* summaryTree,TFile* outFile) {
+
+  cout << "Doing polarization stuff" << endl;
+
+
   TH2D *polariz = new TH2D("polariz","Polarization Info - Noise; Linear Polarization Fraction; Linear Polarization Angle",
 			   500,0,1,360,-45,45);
   TH2D *polarizWais = new TH2D("polarizWais","Polarization Info - Wais; Linear Polarization Fraction; Linear Polarization Angle",
@@ -76,19 +141,13 @@ void plotThings() {
   TH2D *polarizLDB = new TH2D("polarizLDB","Polarization Info - LDB; Linear Polarization Fraction; Linear Polarization Angle",
 			      500,0,1,360,-45,45);
 
-    
 
 
-  summaryTree->Draw("TMath::RadToDeg()*TMath::ATan(coherent[0][0].U/coherent[0][0].Q)/2.:TMath::Sqrt(pow(coherent[0][0].Q,2)+pow(coherent[0][0].U,2))/coherent[0][0].I >> polariz"
-		    "flags.pulser == 0","colz");
+  summaryTree->Draw("deconvolved_filtered[0][1].linearPolAngle():deconvolved_filtered[0][1].linearPolFrac() >> polariz","flags.pulser == 0","colz");
 
+  summaryTree->Draw("deconvolved_filtered[0][1].linearPolAngle():deconvolved_filtered[0][1].linearPolFrac() >> polarizWais","flags.pulser == 1","colzSame");
 
-  summaryTree->Draw("TMath::RadToDeg()*TMath::ATan(coherent[0][0].U/coherent[0][0].Q)/2.:TMath::Sqrt(pow(coherent[0][0].Q,2)+pow(coherent[0][0].U,2))/coherent[0][0].I >> polarizWais"
-		    "flags.pulser == 1","colzSame");
-
-
-  summaryTree->Draw("TMath::RadToDeg()*TMath::ATan(coherent[0][0].U/coherent[0][0].Q)/2.:TMath::Sqrt(pow(coherent[0][0].Q,2)+pow(coherent[0][0].U,2))/coherent[0][0].I >> polarizLDB"
-		    "flags.pulser == 2","colzSame");
+  summaryTree->Draw("deconvolved_filtered[0][1].linearPolAngle():deconvolved_filtered[0][1].linearPolFrac() >> polarizLDB","flags.pulser == 2","colzSame");
 
 
 
@@ -96,13 +155,12 @@ void plotThings() {
   polariz->Write();
   polarizWais->Write();
   polarizLDB->Write();
-  
 
-  TH1D *linPolFrac = polariz->ProjectionY("linPolFrac",0,500);
+  TH1D *linPolFrac = polariz->ProjectionX("linPolFrac",0,500);
   linPolFrac->SetTitle("Linear Polarization Fraction - No Pulsers; Linear Polarization Fraction; Occupancy");
-  TH1D *linPolFracWais = polarizWais->ProjectionY("linPolFracWais",0,500);
+  TH1D *linPolFracWais = polarizWais->ProjectionX("linPolFracWais",0,500);
   linPolFracWais->SetTitle("Linear Polarization Fraction - No Pulsers; Linear Polarization Fraction; Occupancy");
-  TH1D *linPolFracLDB = polarizLDB->ProjectionY("linPolFracLDB",0,500);
+  TH1D *linPolFracLDB = polarizLDB->ProjectionX("linPolFracLDB",0,500);
   linPolFracLDB->SetTitle("Linear Polarization Fraction - No Pulsers; Linear Polarization Fraction; Occupancy");
 
   TH1D *linPolAng = polariz->ProjectionY("linPolAng",0,360);
@@ -122,11 +180,14 @@ void plotThings() {
   linPolAngWais->Write();
   linPolAngLDB->Write();
 
+
+  return;
   /*
     ---------*/
+}
 
-  
-  TCanvas *cCut = new TCanvas("cCut","cCut",800,600);
+
+void PlotCutsAndBases(TChain* summaryTree, TFile *outFile) {  
   TH1D *bothCutsWais = new TH1D("bothCutsWais","bothCutsWais",1000,0,9e7);
 
   summaryTree->Draw("eventNumber >> bothCutsWais","flags.pulser == 1 && TMath::Abs(TMath::RadToDeg()*TMath::ATan(coherent[0][0].U/coherent[0][0].Q)/2) < 15 && TMath::Sqrt(pow(coherent[0][0].Q,2)+pow(coherent[0][0].U,2))/coherent[0][0].I > 0.4 && templateCRayH[5] > 0.5 && peak[0][0].value > 0.05 ","colz");
@@ -160,3 +221,20 @@ void plotThings() {
 
   return;
 }
+
+
+
+void plotThings() {
+
+  TFile *outFile = TFile::Open("plotThings.root","recreate");
+  TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+
+  plotPol(summaryTree,outFile);
+  //  plotCorr(summaryTree,outFile);
+  //  plotSNR(summaryTree,outFile);
+
+  outFile->Close();
+
+  return;
+}
+

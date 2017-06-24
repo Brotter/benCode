@@ -71,7 +71,76 @@ TGraph *loadBases(Acclaim::AntarcticaMapPlotter *aMap) {
 
 }
 
-void drawHistOnAntarctica(){
+
+
+void drawOnAntarcticaFromLatLonList() {
+
+  ifstream inFile("passingEvs.txt");
+
+  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
+  TH2D *evMap = aMap->addHistogram("evMap","evMap",250,250);
+
+  TGraph *gBases = loadBases(aMap);
+  gBases->SetMarkerColor(kRed);
+  gBases->SetMarkerStyle(3);
+  
+  int row,instance,evNum;
+  double lat,lon;
+  while (inFile >> row >> instance >> evNum >> lat >> lon) {
+    if (lat != -9999 && lon != -9999) continue;
+    double x,y;
+    aMap->getRelXYFromLatLong(lat,lon,x,y);
+    evMap->Fill(x,y);
+  }
+  
+  aMap->DrawHist("colz");
+  aMap->DrawTGraph("pSame");
+
+
+}
+
+
+void drawOnAntarcticaFromLatLonHist() {
+
+  TFile* inFile = TFile::Open("passingLatLons.root");
+
+  TH2D* latLons = (TH2D*)inFile->Get("passingLatLons");
+
+
+  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
+  TH2D *evMap = aMap->addHistogram("evMap","evMap",250,250);
+
+  TGraph *gBases = loadBases(aMap);
+  gBases->SetMarkerColor(kRed);
+  gBases->SetMarkerStyle(3);
+  
+
+
+  for (int latBin=0; latBin<latLons->GetNbinsX(); latBin++) {
+    for (int lonBin=0; lonBin<latLons->GetNbinsY(); lonBin++) {
+      int binValue = latLons->GetBinContent(latBin,lonBin);
+      double lonValue = latLons->GetYaxis()->GetBinCenter(lonBin);
+      double latValue = latLons->GetXaxis()->GetBinCenter(latBin);
+      double x,y;
+      aMap->getRelXYFromLatLong(latValue,lonValue,x,y);
+      evMap->Fill(x,y,binValue);
+    }
+  }
+
+  aMap->DrawHist("colz");
+  gBases->Draw("psame");
+
+  return;
+}
+
+
+
+
+
+    
+
+
+void drawHistOnAntarcticaFromCuts(){
   
   TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
@@ -267,3 +336,5 @@ void drawOnAntarctica_slow(string fileName="") {
 
   return;
 }
+
+
