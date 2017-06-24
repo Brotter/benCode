@@ -38,7 +38,7 @@ TH1* makeCutStrengthPlot(TH1* inHist) {
 
   TH1* copyHist = (TH1*)inHist->Clone();
   
-  copyHist->Scale(1./copyHist->ComputeIntegral());
+  copyHist->Scale(1./copyHist->GetIntegral()[copyHist->fNcells]);
 
   TH1* outHist = copyHist->GetCumulative();
   delete copyHist;
