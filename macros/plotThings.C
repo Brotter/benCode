@@ -77,13 +77,13 @@ void plotSNR(TChain *summaryTree, TFile *outFile) {
   cout << "doing SNR cut stuff" << endl;
 
 
-  TH1D *coherentSNR = new TH1D("coherentSNR","Coherent SNR;Coherent SNR; Occupancy",100,0,50);
-  TH1D *coherentSNRWais = new TH1D("coherentSNRWais","Coherent SNR Wais;Coherent SNR; Occupancy",100,0,50);
-  TH1D *coherentSNRLDB = new TH1D("coherentSNRLDB","Coherent SNR LDB;Coherent SNR; Occupancy",100,0,50);
+  TH1D *coherentSNR = new TH1D("coherentSNR","Coherent SNR;Coherent SNR; Occupancy",100,0,100);
+  TH1D *coherentSNRWais = new TH1D("coherentSNRWais","Coherent SNR Wais;Coherent SNR; Occupancy",100,0,100);
+  TH1D *coherentSNRLDB = new TH1D("coherentSNRLDB","Coherent SNR LDB;Coherent SNR; Occupancy",100,0,100);
   
-  summaryTree->Draw("coherent[0][0].snr >> coherentSNR","flags.pulser == 0","colz");
-  summaryTree->Draw("coherent[0][0].snr >> coherentSNRWais","flags.pulser == 1","colz");
-  summaryTree->Draw("coherent[0][0].snr >> coherentSNRLDB","flags.pulser == 2","colz");
+  summaryTree->Draw("coherent_filtered[0][0].snr >> coherentSNR","flags.pulser == 0");
+  summaryTree->Draw("coherent_filtered[0][0].snr >> coherentSNRWais","flags.pulser == 1");
+  summaryTree->Draw("coherent_filtered[0][0].snr >> coherentSNRLDB","flags.pulser == 2");
 
   outFile->cd();
   coherentSNR->Write();
@@ -91,30 +91,29 @@ void plotSNR(TChain *summaryTree, TFile *outFile) {
   coherentSNRLDB->Write();
 
 
-  TH1D *deconvolvedSNR = new TH1D("deconvolvedSNR","Deconvolved SNR;Deconvolved SNR; Occupancy",100,0,50);
-  TH1D *deconvolvedSNRWais = new TH1D("deconvolvedSNRWais","Deconvolved SNR Wais;Deconvolved SNR; Occupancy",100,0,50);
-  TH1D *deconvolvedSNRLDB = new TH1D("deconvolvedSNRLDB","Deconvolved SNR LDB;Deconvolved SNR; Occupancy",100,0,50);
+  TH1D *deconvolvedSNR = new TH1D("deconvolvedSNR","Deconvolved SNR;Deconvolved SNR; Occupancy",100,0,100);
+  TH1D *deconvolvedSNRWais = new TH1D("deconvolvedSNRWais","Deconvolved SNR Wais;Deconvolved SNR; Occupancy",100,0,100);
+  TH1D *deconvolvedSNRLDB = new TH1D("deconvolvedSNRLDB","Deconvolved SNR LDB;Deconvolved SNR; Occupancy",100,0,100);
   
-  summaryTree->Draw("deconvolved[0][0].snr >> deconvolvedSNR","flags.pulser == 0","colz");
-  summaryTree->Draw("deconvolved[0][0].snr >> deconvolvedSNRWais","flags.pulser == 1","colz");
-  summaryTree->Draw("deconvolved[0][0].snr >> deconvolvedSNRLDB","flags.pulser == 2","colz");
+  summaryTree->Draw("deconvolved_filtered[0][0].snr >> deconvolvedSNR","flags.pulser == 0");
+  summaryTree->Draw("deconvolved_filtered[0][0].snr >> deconvolvedSNRWais","flags.pulser == 1");
+  summaryTree->Draw("deconvolved_filtered[0][0].snr >> deconvolvedSNRLDB","flags.pulser == 2");
 
   outFile->cd();
   deconvolvedSNR->Write();
   deconvolvedSNRWais->Write();
   deconvolvedSNRLDB->Write();
 
-  TH2D *bothSNR = new TH2D("bothSNR","Both SNR;Coherent SNR; Deconvolved SNR",100,0,50,100,0,50);
-  TH2D *bothSNRWais = new TH2D("bothSNRWais","Coherent SNR Wais;Both SNR; Deconvolved SNR",100,0,50,100,0,50);
-  TH2D *bothSNRLDB = new TH2D("bothSNRLDB","Both SNR LDB;Coherent SNR; Deconvolved SNR",100,0,50,100,0,50);
+  TH2D *bothSNR = new TH2D("bothSNR","Both SNR;Coherent SNR; Deconvolved SNR",100,0,100,100,0,100);
+  TH2D *bothSNRWais = new TH2D("bothSNRWais","Coherent SNR Wais;Both SNR; Deconvolved SNR",100,0,100,100,0,100);
+  TH2D *bothSNRLDB = new TH2D("bothSNRLDB","Both SNR LDB;Coherent SNR; Deconvolved SNR",100,0,100,100,0,100);
     
-  summaryTree->Draw("coherent[0][0].snr:deconvolved[0][0].snr >> bothSNR","flags.pulser == 0","colz");
-  summaryTree->Draw("coherent[0][0].snr:deconvolved[0][0].snr >> bothSNRWais","flags.pulser == 1","colz");
-  summaryTree->Draw("coherent[0][0].snr:deconvolved[0][0].snr >> bothSNRLDB","flags.pulser == 2","colz");
+  summaryTree->Draw("coherent_filtered[0][0].snr:deconvolved_filtered[0][0].snr >> bothSNR","flags.pulser == 0","colz");
+  summaryTree->Draw("coherent_filtered[0][0].snr:deconvolved_filtered[0][0].snr >> bothSNRWais","flags.pulser == 1","colz");
+  summaryTree->Draw("coherent_filtered[0][0].snr:deconvolved_filtered[0][0].snr >> bothSNRLDB","flags.pulser == 2","colz");
 
   outFile->cd();
   bothSNR->Write();
-
   bothSNRWais->Write();
   bothSNRLDB->Write();
 
@@ -144,11 +143,11 @@ void plotPol(TChain* summaryTree,TFile* outFile) {
 
 
 
-  summaryTree->Draw("coherent[0][0].linearPolAngle():coherent[0][0].linearPolFrac() >> polariz","flags.pulser == 0","colz");
+  summaryTree->Draw("deconvolved_filtered[0][1].linearPolAngle():deconvolved_filtered[0][1].linearPolFrac() >> polariz","flags.pulser == 0","colz");
 
-  summaryTree->Draw("coherent[0][0].linearPolAngle():coherent[0][0].linearPolFrac() >> polarizWais","flags.pulser == 1","colzSame");
+  summaryTree->Draw("deconvolved_filtered[0][1].linearPolAngle():deconvolved_filtered[0][1].linearPolFrac() >> polarizWais","flags.pulser == 1","colzSame");
 
-  summaryTree->Draw("coherent[0][0].linearPolAngle():coherent[0][0].linearPolFrac() >> polarizLDB","flags.pulser == 2","colzSame");
+  summaryTree->Draw("deconvolved_filtered[0][1].linearPolAngle():deconvolved_filtered[0][1].linearPolFrac() >> polarizLDB","flags.pulser == 2","colzSame");
 
 
 
@@ -157,11 +156,11 @@ void plotPol(TChain* summaryTree,TFile* outFile) {
   polarizWais->Write();
   polarizLDB->Write();
 
-  TH1D *linPolFrac = polariz->ProjectionY("linPolFrac",0,500);
+  TH1D *linPolFrac = polariz->ProjectionX("linPolFrac",0,500);
   linPolFrac->SetTitle("Linear Polarization Fraction - No Pulsers; Linear Polarization Fraction; Occupancy");
-  TH1D *linPolFracWais = polarizWais->ProjectionY("linPolFracWais",0,500);
+  TH1D *linPolFracWais = polarizWais->ProjectionX("linPolFracWais",0,500);
   linPolFracWais->SetTitle("Linear Polarization Fraction - No Pulsers; Linear Polarization Fraction; Occupancy");
-  TH1D *linPolFracLDB = polarizLDB->ProjectionY("linPolFracLDB",0,500);
+  TH1D *linPolFracLDB = polarizLDB->ProjectionX("linPolFracLDB",0,500);
   linPolFracLDB->SetTitle("Linear Polarization Fraction - No Pulsers; Linear Polarization Fraction; Occupancy");
 
   TH1D *linPolAng = polariz->ProjectionY("linPolAng",0,360);
@@ -231,8 +230,8 @@ void plotThings() {
   TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
   plotPol(summaryTree,outFile);
-  plotCorr(summaryTree,outFile);
-  plotSNR(summaryTree,outFile);
+  //  plotCorr(summaryTree,outFile);
+  //  plotSNR(summaryTree,outFile);
 
   outFile->Close();
 

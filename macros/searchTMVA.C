@@ -14,12 +14,11 @@
 
 /* These are the names of our branches */ 
  
-const char * vars[] = { "mapPeak","hilbertPeak","linPolFraction"};//,"template" }; 
+const char * vars[] = { "mapPeak","hilbertPeak" };
 
 /* These are the expressions for our branches */ 
-const char * expr[] = {"peak.value[0][0]", "coherent.peakHilbert[0][0]",
-		       "TMath::Sqrt(pow(coherent[0][0].Q,2) + pow(coherent[0][0].U,2) ) / coherent[0][0].I"};
-//		       "templateCRayH[5]"}; 
+const char * expr[] = {"peak[0][0].value", "coherent[0][0].peakHilbert"};
+
 
 /* These is our selection cuts.
  *
@@ -32,26 +31,20 @@ stringstream cut_signal,cut_bg,cut_eval;
 void setupCuts() {
   string evenCut = "(Entry$ %2) == 1";
   string oddCut = "(Entry$ %2) == 0";
-  string globalCuts1 = "peak.value[0][0] > 0 && flags.isRF==1 && peak[0][0].theta < 60";
+  string globalCuts1 = "peak[0][0].value > 0 && flags.isRF == 1 && peak[0][0].theta < 60";
   string globalCuts2 = "peak[0][0].theta > -60 && flags.isPayloadBlast == 0";
-  string hPolCut = "flags.isHPolTrigger == 1";
   string waisPulser = "flags.pulser == 1";
   string noPulser = "flags.pulser == 0";    
-  string cut450M = "!(coherent[0][0].peakFrequency[0] > 0.45 && coherent[0][0].peakFrequency[0] < 0.47  && coherent[0][0].peakPower[0] > 16.2 && coherent[0][0].peakPower[0] < 17.4)";
   string plus = " && ";
   
   cut_signal.str("");
-  cut_signal << "(" << evenCut << plus << globalCuts1 << plus << globalCuts2 << plus << waisPulser;
-  cut_signal << plus << cut450M << plus << hPolCut << ")";
-  
+  cut_signal << "(" << evenCut << plus << globalCuts1 << plus << globalCuts2 << plus << waisPulser << ")";
+
   cut_bg.str("");
-  cut_bg << "(" << evenCut << plus << globalCuts1 << plus << globalCuts2 << plus << noPulser;
-  cut_bg  << plus << cut450M << plus << hPolCut << ")";
-  
+  cut_bg << "(" << evenCut << plus << globalCuts1 << plus << globalCuts2 << plus << noPulser << ")";
   
   cut_eval.str("");
-  cut_eval << "(" << oddCut << plus << globalCuts1 << plus << globalCuts2  << plus << cut450M;
-  cut_eval << plus << hPolCut << ")";
+  cut_eval << "(" << oddCut << plus << globalCuts1 << plus << globalCuts2 << ")";
  
   return;
 }
@@ -61,7 +54,7 @@ void searchTMVA()
 {
 
   char* resultsDir = getenv("ANITA3_RESULTSDIR");
-  string date = "06.11.17_19h/";
+  string date = "06.21.17_23h/";
 
   /* This is just a lazy way of loading the tree in this case, but you could also add multiple files trivially */ 
 
@@ -71,19 +64,18 @@ void searchTMVA()
 
 
   stringstream name;
-  for (int run=340; run<350; run++) {
+  for (int run=165; run<166; run++) {
     name.str("");
     name << resultsDir << date << run << ".root";
     signalChain.Add(name.str().c_str());
-    evalChain.Add(name.str().c_str());
-  }
-  for (int run=287; run<300; run++) {
-    name.str("");
-    name << resultsDir << date << run << ".root";
-    backChain.Add(name.str().c_str()); 
-    evalChain.Add(name.str().c_str());
   }
 
+  for (int run=120; run<121; run++) {
+    name.str("");
+    name << resultsDir << date << run << ".root";
+    backChain.Add(name.str().c_str());
+    evalChain.Add(name.str().c_str());
+  }
 
 
   cout << "Eval - Got : " << evalChain.GetEntries() << " entries " << endl;
@@ -91,7 +83,7 @@ void searchTMVA()
   cout << "Back - Got : " << backChain.GetEntries() << " entries " << endl;
 
   /* Create our variable set */ 
-  AnitaTMVA::MVAVarSet varset(3,vars,expr); 
+  AnitaTMVA::MVAVarSet varset(2,vars,expr); 
 
 
   //set up the cuts
@@ -101,8 +93,11 @@ void searchTMVA()
   /* We'll do everything in the same file here. */ 
   TFile *treeFile = TFile::Open("tmvaTrees.root","RECREATE"); 
   TTree *sigtree = AnitaTMVA::makeTMVATree(&signalChain, treeFile, "signal_in", varset, cut_signal.str().c_str()); 
+  cout << sigtree->GetEntries() << " passing sig events" << endl;
   TTree *bgtree = AnitaTMVA::makeTMVATree(&backChain, treeFile, "bg_in", varset, cut_bg.str().c_str()); 
-  TTree *evaltree = AnitaTMVA::makeTMVATree(&backChain, treeFile, "eval_in", varset, cut_eval.str().c_str()); 
+  cout << bgtree->GetEntries() << " passing background events" << endl;
+  TTree *evaltree = AnitaTMVA::makeTMVATree(&evalChain, treeFile, "eval_in", varset, cut_eval.str().c_str()); 
+  cout << evaltree->GetEntries() << " passing evaluation events" << endl;
 
   cout << "made Trees" << endl;
 
@@ -117,19 +112,11 @@ void searchTMVA()
   varset.setUpData(&factory); 
   factory.AddSignalTree(sigtree); 
   factory.AddBackgroundTree(bgtree); 
-  factory.BookMethod(TMVA::Types::kFisher,"Fisher"); // book a Fisher discriminant 
-  //  factory.BookMethod(TMVA::Types::kBDT,"BDT"); //also a BDT because cosmin had luck with it
+  //factory.BookMethod(TMVA::Types::kFisher,"Fisher"); // book a Fisher discriminant 
+  factory.BookMethod(TMVA::Types::kBDT,"BDT"); //also a BDT because cosmin had luck with it
 
 
   cout << "added stuff to factory" << endl;
-
-
-  //TMVA::DataLoader loader; 
-  //varset.setUpData(&loader); 
-  //loader.AddSignalTree(sigtree); 
-  //loader.AddBackgroundTree(bgtree); 
-  //factory.BookMethod(&loader, TMVA::Types::kFisher,"Fisher"); // book a Fisher discriminant 
-
 
   //Tell TMVA to train, test and evaluate
   factory.TrainAllMethods(); 

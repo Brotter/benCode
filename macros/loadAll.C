@@ -11,7 +11,7 @@ TChain* loadAll(string date = "06.21.17_23h"){
   //kona
   //tate
 
-  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  TChain *summaryTree = new TChain("summaryTree");
   
   gROOT->ProcessLine(".x setupProof.C");
 
@@ -27,7 +27,7 @@ TChain* loadAll(string date = "06.21.17_23h"){
 
   }
 
-  summaryTree->SetProof();
+    summaryTree->SetProof();
 
   return summaryTree;
 
