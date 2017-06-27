@@ -61,7 +61,6 @@ void makeMovies(TChain *summaryTree) {
     TH2D *currHist = new TH2D("currHist",title.str().c_str(),500,0,0.2,500,0,1);
       
     c1->cd();
-    c1->SetLogz();
     summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> currHist",name.str().c_str(),"colz");
 
 
@@ -365,20 +364,6 @@ void PlotCutsAndBases(TChain* summaryTree, TFile *outFile) {
 }
 
 
-void PlotCutsAndBases2(TChain* summaryTree, TFile *outFile) {  
-
-
-  TProfile2D *cutLatLon = new TProfile2D("cutLatLon","cutLatLon",250,-90,-65,360,-180,180);
-
-  summaryTree->Draw("latitude:longitude:templateCRayH[5] >> bothCuts","flags.pulser == 0","colz");
-    
-
-  cutLatLon->Write()
-
-  return;
-}
-
-
 
 void plotThings() {
 
@@ -386,9 +371,9 @@ void plotThings() {
   TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
   makeMovies(summaryTree);
-  //  plotPol(summaryTree,outFile);
-  //  plotCorr(summaryTree,outFile);
-  //  plotSNR(summaryTree,outFile);
+  plotPol(summaryTree,outFile);
+  plotCorr(summaryTree,outFile);
+  plotSNR(summaryTree,outFile);
 
   outFile->Close();
 
