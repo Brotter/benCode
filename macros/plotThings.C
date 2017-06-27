@@ -55,7 +55,7 @@ void makeMovies(TChain *summaryTree) {
     name.str("");
     name << "flags.pulser == 0 && eventNumber > " << startEntry << " && eventNumber <= " <<  endEntry;
     title.str("");
-    title << "Cosmic Ray Template +4 Correlation - No Pulsers - ev " << startEntry << "; Interferometric Peak; Template Corr"
+    title << "Cosmic Ray Template +4 Correlation - No Pulsers - ev " << startEntry << "; Interferometric Peak; Template Corr";
     cout << startEntry << endl;
 
     TH2D *currHist = new TH2D("currHist",title.str(),500,0,0.2,500,0,1);
