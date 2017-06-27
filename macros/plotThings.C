@@ -58,7 +58,7 @@ void makeMovies(TChain *summaryTree) {
     title << "Cosmic Ray Template +4 Correlation - No Pulsers - ev " << startEntry << "; Interferometric Peak; Template Corr"
     cout << startEntry << endl;
 
-    TH2D *currHist = new TH2D("currHist",title.str(),500,0,0.5,500,0,1);
+    TH2D *currHist = new TH2D("currHist",title.str(),500,0,0.2,500,0,1);
       
     c1->cd();
     c1->SetLogz();
