@@ -128,7 +128,7 @@ TProfile2D* makeTemplateHeatmap() {
   for (int entry=0; entry<lenEntries; entry++) {
     if (entry%100000 == 0) cout << entry << "/" << lenEntries << endl;
     summaryTree->GetEntry(entry);
-    cutLatLon->Fill(peak[0][0].latitude , peak[0][0].longitude , templateValue);
+    cutLatLon->Fill(summary->peak[0][0].latitude , summary->peak[0][0].longitude , templateValue);
   }
   
   cout << cutLatLon->GetEntries() << endl;
