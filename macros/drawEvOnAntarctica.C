@@ -118,8 +118,8 @@ TProfile2D* makeCutHist() {
 
   TProfile2D *cutLatLon = new TProfile2D("cutLatLon","cutLatLon",250,-90,-65,360,-180,180);
 
-  summaryTree->Draw("peak[0][0].latitude:peak[0][0].longitude:templateCRayH[5] >> cutLatLon",
-		    "flags.pulser == 0 && peak[0][0].latitude > -100","colz");
+  summaryTree->Draw("peak[0][0].latitude:peak[0][0].longitude:templateCRayH[5][0] >> cutLatLon",
+		    "flags.pulser == 0 && peak[0][0].latitude > -999","colz");
 
 
   return cutLatLon;
