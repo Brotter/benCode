@@ -169,6 +169,7 @@ void drawOnAntarcticaFromCuts() {
   TH2D* antCutHist = drawOnAntarcticaFromLatLonHist(cutHist,aMap);
   cout << "projected it onto antarctica" << endl;
 
+  c1->cd();
   antCutHist->Draw("colzSame");
 
   c1->SaveAs("antTemplateMap.png");

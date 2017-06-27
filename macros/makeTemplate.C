@@ -564,7 +564,8 @@ void templatesVsEachOther() {
     }
   }
 
-  hComp->Draw("colz");
+  hComp->SetMarkerSize(1);
+  hComp->Draw("colText");
 
 
 
