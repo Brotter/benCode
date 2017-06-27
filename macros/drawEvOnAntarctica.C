@@ -148,7 +148,6 @@ TH2D* drawOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter 
 
 
 void drawOnAntarcticaFromCuts() {
-  TProfile2D* hCuts = makeCutHist();
 
   Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
 
@@ -179,7 +178,7 @@ void drawOnAntarcticaFromCuts() {
     
 
 
-void drawHistOnAntarcticaFromCuts(){
+void drawHistOnAntarcticaFromCuts_old(){
   
   TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
