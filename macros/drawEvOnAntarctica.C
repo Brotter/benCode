@@ -112,16 +112,25 @@ void drawOnAntarcticaFromLatLonList() {
 
 
 
-TProfile2D* makeTemplateProfile() {  
+TProfile2D* makeTemplateHeatmap() {  
 
   TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
-  TProfile2D *cutLatLon = new TProfile2D("cutLatLon","cutLatLon",250,-90,-65,360,-180,180);
+  AnitaEventSummary *summary = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&summary);
+  double templateValue;
+  summaryTree->SetBranchAddress("templateCRayH[5][0]",&templateValue);
 
-  summaryTree->Draw("peak[0][0].longitude:peak[0][0].latitude:templateCRayH[5][0] >> cutLatLon",
-		    "flags.pulser == 0 && peak[0][0].latitude > -999","prof");
+  TProfile2D *cutLatLon = new TProfile2D("cutLatLon","cutLatLon",250,-90,-65, 360,-180,180);
 
+  int lenEntries = summaryTree->GetEntries();
 
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (entry%100000 == 0) cout << entry << "/" << lenEntries << endl;
+    summaryTree->GetEntry(entry);
+    cutLatLon->Fill(peak[0][0].latitude , peak[0][0].longitude , templateValue);
+  }
+  
   cout << cutLatLon->GetEntries() << endl;
 
   return cutLatLon;
@@ -143,7 +152,7 @@ TH2D* mapOnAntarcticaFromLatLonHist(TProfile2D* latLons,Acclaim::AntarcticaMapPl
       double latValue = latLons->GetXaxis()->GetBinCenter(latBin);
       double x,y;
       aMap->getRelXYFromLatLong(latValue,lonValue,x,y);
-      if (lonBin == 100) cout << latBin << " " << lonBin <<  " " << x << " " << y << " " << binValue << endl;
+      cout << latBin << " " << lonBin <<  " " << x << " " << y << " " << binValue << endl;
       evMap->Fill(x,y,binValue);
     }
   }
@@ -157,12 +166,7 @@ void drawTemplateHeatmap() {
 
   Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
 
-  TGraph *gBases = loadBases(aMap);
-  gBases->SetMarkerColor(kRed);
-  gBases->SetMarkerStyle(3);
-  cout << "loaded bases" << endl;
-
-  TProfile2D *cutHist = makeTemplateProfile();
+  TProfile2D *cutHist = makeTemplateHeatmap();
   cout << "made cut histogram" << endl;
   TH2D* antCutHist = mapOnAntarcticaFromLatLonHist(cutHist,aMap,"template");
   cout << "projected it onto antarctica" << endl;
@@ -170,8 +174,6 @@ void drawTemplateHeatmap() {
   
   aMap->setCurrentHistogram("template");
   TCanvas *c1 = aMap->DrawHist("colz");
-  gBases->Draw("pSame");
-
 
   c1->SaveAs("antTemplateMap.png");
 
