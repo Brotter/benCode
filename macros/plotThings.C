@@ -16,7 +16,38 @@ TH1* makeCutStrengthPlot(TH1* inHist) {
   return outHist;
 }
 
+/*==========
+  I like gifs*/
+void makeMoves(TChain *summaryTree, TFile *outFile) {
 
+  //remember that gifs are stupid so make a bunch of pngs to stick together with ffmpeg
+
+  const int numFrames = 1000;
+  const int evsPerFrame = summaryTree->GetEntries()/numFrames;
+
+  stringstream name;
+    
+  for (int frame=0; frame++; frame<numFrames) {
+    int startEntry = frame*evsPerFrame;
+    int endEntry = (1+frame)*evsPerFrame;
+    name.str("");
+    name << "flags.pulser == 0 && Entry$ > " << startEntry << " && Entry$ <= endEntry";
+
+    TH2D *currHist = new TH2D("currHist","Cosmic Ray Template +4 Correlation - No Pulsers; Interferometric Peak; Template Corr",
+				500,0,0.5,500,0,1);
+      
+    summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> currHist",name.str().c_str());
+
+    name.str("");
+    name << "movies/template_map" << frame << ".png";
+    currHist->SaveAs(name.str().c_str());
+
+    delete currHist;
+  }
+
+
+  return;
+}
 
 
 
@@ -26,13 +57,13 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
   */
   cout << "Doing template correlation stuff" << endl;
 
-  TH2D *noiseTmplt = new TH2D("noiseTmplt","Cosmic Ray Template (5) Correlation - No Pulsers; Interferometric Peak; Template Corr",
+  TH2D *noiseTmplt = new TH2D("noiseTmplt","Cosmic Ray Template +4 Correlation - No Pulsers; Interferometric Peak; Template Corr",
 			      500,0,0.5,500,0,1);
-  TH2D *waisTmplt = new TH2D("waisTmplt","Cosmic Ray Template (5) Correlation - WAIS; Interferometric Peak; Template Corr",
+  TH2D *waisTmplt = new TH2D("waisTmplt","Cosmic Ray Template +4 Correlation - WAIS; Interferometric Peak; Template Corr",
 			     500,0,0.5,500,0,1);
-  TH2D *ldbTmplt = new TH2D("ldbTmplt","Cosmic Ray Template (5) Correlation - LDB; Interferometric Peak; Template Corr",
+  TH2D *ldbTmplt = new TH2D("ldbTmplt","Cosmic Ray Template +4 Correlation - LDB; Interferometric Peak; Template Corr",
 			    500,0,0.5,500,0,1);
-  TH2D *cutTmplt = new TH2D("cutTmplt","Cosmic Ray Template (5) Correlation - Simple Cut; Interferometric Peak; Template Corr",
+  TH2D *cutTmplt = new TH2D("cutTmplt","Cosmic Ray Template +4 Correlation - Simple Cut; Interferometric Peak; Template Corr",
 			    500,0,0.5,500,0,1);
 
   summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> noiseTmplt",
@@ -53,11 +84,11 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
  
 
   TH1D *h1Tmplt = noiseTmplt->ProjectionY("h1Tmplt",0,500);
-  h1Tmplt->SetTitle("Cosmic Ray Template (5) Correlation - No Pulsers;Template Corr; Occupancy");
+  h1Tmplt->SetTitle("Cosmic Ray Template +4 Correlation - No Pulsers;Template Corr; Occupancy");
   TH1D *h1TmpltWais = waisTmplt->ProjectionY("h1TmpltWais",0,500);
-  h1TmpltWais->SetTitle("Cosmic Ray Template (5) Correlation - Wais;Template Corr; Occupancy");
+  h1TmpltWais->SetTitle("Cosmic Ray Template +4 Correlation - Wais;Template Corr; Occupancy");
   TH1D *h1TmpltLDB = ldbTmplt->ProjectionY("h1TmpltLDB",0,500);
-  h1TmpltLDB->SetTitle("Cosmic Ray Template (5) Correlation - LDB;Template Corr; Occupancy");
+  h1TmpltLDB->SetTitle("Cosmic Ray Template +4 Correlation - LDB;Template Corr; Occupancy");
 
   TH1D *h1IPeak = noiseTmplt->ProjectionX("h1IPeak",0,500);
   h1IPeak->SetTitle("Interferometric Map Peak - No Pulsers; Map Peak; Occupancy");
@@ -77,7 +108,7 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
   h1IPeakLDB->Write();
 
   h1Tmplt->Scale(1./h1Tmplt->GetIntegral()[500]);
-  TH1D *h1TmpltCum = h1Tmplt->GetCumulative();
+  TH1 *h1TmpltCum = h1Tmplt->GetCumulative();
   h1TmpltCum->Write();
 
 
@@ -256,8 +287,10 @@ void plotThings() {
   TFile *outFile = TFile::Open("plotThings.root","recreate");
   TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
+
+  makeMovies(summaryTree,outFile);
   //  plotPol(summaryTree,outFile);
-  plotCorr(summaryTree,outFile);
+  //  plotCorr(summaryTree,outFile);
   //  plotSNR(summaryTree,outFile);
 
   outFile->Close();
