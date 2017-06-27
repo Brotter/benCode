@@ -73,6 +73,17 @@ TGraph *loadBases(Acclaim::AntarcticaMapPlotter *aMap) {
 
 
 
+void drawOnAntarcticaFromLatLonFile(string inFileName="passingLocations") {
+
+  TFile* inFile = TFile::Open("passingLatLons.root");
+
+  TH2D* latLons = (TH2D*)inFile->Get("passingLatLons");
+
+
+  return;
+}
+
+
 void drawOnAntarcticaFromLatLonList() {
 
   ifstream inFile("passingEvs.txt");
@@ -115,31 +126,20 @@ TProfile2D* makeCutHist() {
 }
 
 
-void drawOnAntarcticaFromLatLonFile(string inFileName="passingLocations") {
 
-  TFile* inFile = TFile::Open("passingLatLons.root");
-
-  TH2D* latLons = (TH2D*)inFile->Get("passingLatLons");
+TH2D* mapOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter *aMap,string name="evMap") {
 
 
-  return;
-}
-
-
-
-TH2D* drawOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter *aMap) {
-
-
-  TH2D *evMap = aMap->addHistogram("evMap","evMap",250,250);
+  TH2D *evMap = aMap->addHistogram(name.c_str(),name.c_str(),250,250);
 
   for (int latBin=0; latBin<latLons->GetNbinsX(); latBin++) {
     for (int lonBin=0; lonBin<latLons->GetNbinsY(); lonBin++) {
-      cout << latBin << " " << lonBin << endl;
       int binValue = latLons->GetBinContent(latBin,lonBin);
       double lonValue = latLons->GetYaxis()->GetBinCenter(lonBin);
       double latValue = latLons->GetXaxis()->GetBinCenter(latBin);
       double x,y;
       aMap->getRelXYFromLatLong(latValue,lonValue,x,y);
+      cout << latBin << " " << lonBin <<  " " << x << " " << y << endl;
       evMap->Fill(x,y,binValue);
     }
   }
@@ -160,7 +160,7 @@ void drawOnAntarcticaFromCuts() {
 
   TProfile2D *cutHist = makeCutHist();
   cout << "made cut histogram" << endl;
-  TH2D* antCutHist = drawOnAntarcticaFromLatLonHist(cutHist,aMap);
+  TH2D* antCutHist = mapOnAntarcticaFromLatLonHist(cutHist,aMap);
   cout << "projected it onto antarctica" << endl;
 
   
