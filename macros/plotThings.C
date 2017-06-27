@@ -4,9 +4,9 @@
 
 
 
-TH1D* makeNormCumulative(TH1D* inHist) {
+TH1* makeCutStrengthPlot(TH1* inHist) {
 
-  TH1D* copyHist = (TH1D*)inHist->Clone();
+  TH1* copyHist = (TH1*)inHist->Clone();
   
   double integral = 0;
   for (int i=0; i<copyHist->GetNbinsX(); i++) {
@@ -14,6 +14,7 @@ TH1D* makeNormCumulative(TH1D* inHist) {
     integral += value;
   }
 
+<<<<<<< HEAD
   copyHist->Scale(1./integral);
   TH1D* outHist = (TH1D*)copyHist->GetCumulative();
 
@@ -25,12 +26,46 @@ TH1D* makeNormCumulative(TH1D* inHist) {
 
 
 
+=======
+  TH1* outHist = copyHist->GetCumulative();
+>>>>>>> 484fde40e8bc28c74275b1bdc938592b7bffd211
   delete copyHist;
 
   return outHist;
 }
 
+/*==========
+  I like gifs*/
+void makeMoves(TChain *summaryTree, TFile *outFile) {
 
+  //remember that gifs are stupid so make a bunch of pngs to stick together with ffmpeg
+
+  const int numFrames = 1000;
+  const int evsPerFrame = summaryTree->GetEntries()/numFrames;
+
+  stringstream name;
+    
+  for (int frame=0; frame++; frame<numFrames) {
+    int startEntry = frame*evsPerFrame;
+    int endEntry = (1+frame)*evsPerFrame;
+    name.str("");
+    name << "flags.pulser == 0 && Entry$ > " << startEntry << " && Entry$ <= endEntry";
+
+    TH2D *currHist = new TH2D("currHist","Cosmic Ray Template +4 Correlation - No Pulsers; Interferometric Peak; Template Corr",
+				500,0,0.5,500,0,1);
+      
+    summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> currHist",name.str().c_str());
+
+    name.str("");
+    name << "movies/template_map" << frame << ".png";
+    currHist->SaveAs(name.str().c_str());
+
+    delete currHist;
+  }
+
+
+  return;
+}
 
 
 
@@ -40,13 +75,13 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
   */
   cout << "Doing template correlation stuff" << endl;
 
-  TH2D *noiseTmplt = new TH2D("noiseTmplt","Cosmic Ray Template (5) Correlation - No Pulsers; Interferometric Peak; Template Corr",
+  TH2D *noiseTmplt = new TH2D("noiseTmplt","Cosmic Ray Template +4 Correlation - No Pulsers; Interferometric Peak; Template Corr",
 			      500,0,0.5,500,0,1);
-  TH2D *waisTmplt = new TH2D("waisTmplt","Cosmic Ray Template (5) Correlation - WAIS; Interferometric Peak; Template Corr",
+  TH2D *waisTmplt = new TH2D("waisTmplt","Cosmic Ray Template +4 Correlation - WAIS; Interferometric Peak; Template Corr",
 			     500,0,0.5,500,0,1);
-  TH2D *ldbTmplt = new TH2D("ldbTmplt","Cosmic Ray Template (5) Correlation - LDB; Interferometric Peak; Template Corr",
+  TH2D *ldbTmplt = new TH2D("ldbTmplt","Cosmic Ray Template +4 Correlation - LDB; Interferometric Peak; Template Corr",
 			    500,0,0.5,500,0,1);
-  TH2D *cutTmplt = new TH2D("cutTmplt","Cosmic Ray Template (5) Correlation - Simple Cut; Interferometric Peak; Template Corr",
+  TH2D *cutTmplt = new TH2D("cutTmplt","Cosmic Ray Template +4 Correlation - Simple Cut; Interferometric Peak; Template Corr",
 			    500,0,0.5,500,0,1);
 
   summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> noiseTmplt",
@@ -67,11 +102,11 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
  
 
   TH1D *h1Tmplt = noiseTmplt->ProjectionY("h1Tmplt",0,500);
-  h1Tmplt->SetTitle("Cosmic Ray Template (5) Correlation - No Pulsers;Template Corr; Occupancy");
+  h1Tmplt->SetTitle("Cosmic Ray Template +4 Correlation - No Pulsers;Template Corr; Occupancy");
   TH1D *h1TmpltWais = waisTmplt->ProjectionY("h1TmpltWais",0,500);
-  h1TmpltWais->SetTitle("Cosmic Ray Template (5) Correlation - Wais;Template Corr; Occupancy");
+  h1TmpltWais->SetTitle("Cosmic Ray Template +4 Correlation - Wais;Template Corr; Occupancy");
   TH1D *h1TmpltLDB = ldbTmplt->ProjectionY("h1TmpltLDB",0,500);
-  h1TmpltLDB->SetTitle("Cosmic Ray Template (5) Correlation - LDB;Template Corr; Occupancy");
+  h1TmpltLDB->SetTitle("Cosmic Ray Template +4 Correlation - LDB;Template Corr; Occupancy");
 
   TH1D *h1IPeak = noiseTmplt->ProjectionX("h1IPeak",0,500);
   h1IPeak->SetTitle("Interferometric Map Peak - No Pulsers; Map Peak; Occupancy");
@@ -90,7 +125,8 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
   h1IPeakWais->Write();
   h1IPeakLDB->Write();
 
-  TH1D *h1TmpltCum = makeNormCumulative(h1Tmplt);
+  h1Tmplt->Scale(1./h1Tmplt->GetIntegral()[500]);
+  TH1 *h1TmpltCum = h1Tmplt->GetCumulative();
   h1TmpltCum->Write();
   TH1D *h1TmpltCumWais = makeNormCumulative(h1TmpltWais);
   h1TmpltCumWais->Write();
@@ -321,9 +357,17 @@ void plotThings() {
   TFile *outFile = TFile::Open("plotThings.root","recreate");
   TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
+<<<<<<< HEAD
   plotPol(summaryTree,outFile);
   plotCorr(summaryTree,outFile);
   plotSNR(summaryTree,outFile);
+=======
+
+  makeMovies(summaryTree,outFile);
+  //  plotPol(summaryTree,outFile);
+  //  plotCorr(summaryTree,outFile);
+  //  plotSNR(summaryTree,outFile);
+>>>>>>> 484fde40e8bc28c74275b1bdc938592b7bffd211
 
   outFile->Close();
 

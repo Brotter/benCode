@@ -22,8 +22,8 @@ void globInteresting(string date = "06.11.17_19h"){
   TFile *outFile = TFile::Open("interesting.root","recreate");
   TTree *outTree = new TTree("interestingTree","interestingTree");
 
-  double templateCRayH[10];
-  double templateCRayV[10];
+  double templateCRayH[10][2];
+  double templateCRayV[10][2];
   summaryTree->SetBranchAddress("templateCRayH",&templateCRayH);
   summaryTree->SetBranchAddress("templateCRayV",&templateCRayV);
   outTree->Branch("templateCRayH",&templateCRayH,"templateCRayH[10]/D");
