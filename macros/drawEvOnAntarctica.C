@@ -118,8 +118,8 @@ TProfile2D* makeTemplateHeatmap() {
 
   AnitaEventSummary *summary = NULL;
   summaryTree->SetBranchAddress("eventSummary",&summary);
-  double templateValue;
-  summaryTree->SetBranchAddress("templateCRayH[5][0]",&templateValue);
+  double templateCRayH[10][2];
+  summaryTree->SetBranchAddress("templateCRayH",&templateValue);
 
   TProfile2D *cutLatLon = new TProfile2D("cutLatLon","cutLatLon",250,-90,-65, 360,-180,180);
 
@@ -128,7 +128,7 @@ TProfile2D* makeTemplateHeatmap() {
   for (int entry=0; entry<lenEntries; entry++) {
     if (entry%100000 == 0) cout << entry << "/" << lenEntries << endl;
     summaryTree->GetEntry(entry);
-    cutLatLon->Fill(summary->peak[0][0].latitude , summary->peak[0][0].longitude , templateValue);
+    cutLatLon->Fill(summary->peak[0][0].latitude , summary->peak[0][0].longitude , templateCRayH[4][0]);
   }
   
   cout << cutLatLon->GetEntries() << endl;
