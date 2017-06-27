@@ -112,14 +112,14 @@ void drawOnAntarcticaFromLatLonList() {
 
 
 
-TProfile2D* makeCutHist() {  
+TProfile2D* makeTemplateProfile() {  
 
   TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
   TProfile2D *cutLatLon = new TProfile2D("cutLatLon","cutLatLon",250,-90,-65,360,-180,180);
 
   summaryTree->Draw("peak[0][0].longitude:peak[0][0].latitude:templateCRayH[5][0] >> cutLatLon",
-		    "flags.pulser == 0 && peak[0][0].latitude > -999","colz");
+		    "flags.pulser == 0 && peak[0][0].latitude > -999","prof");
 
 
   cout << cutLatLon->GetEntries() << endl;
@@ -153,7 +153,7 @@ TH2D* mapOnAntarcticaFromLatLonHist(TProfile2D* latLons,Acclaim::AntarcticaMapPl
 
 
 
-void drawOnAntarcticaFromCuts() {
+void drawTemplateHeatmap() {
 
   Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
 
@@ -162,7 +162,7 @@ void drawOnAntarcticaFromCuts() {
   gBases->SetMarkerStyle(3);
   cout << "loaded bases" << endl;
 
-  TProfile2D *cutHist = makeCutHist();
+  TProfile2D *cutHist = makeTemplateProfile();
   cout << "made cut histogram" << endl;
   TH2D* antCutHist = mapOnAntarcticaFromLatLonHist(cutHist,aMap,"template");
   cout << "projected it onto antarctica" << endl;
