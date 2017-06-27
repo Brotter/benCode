@@ -139,15 +139,19 @@ void drawOnAntarcticaFromCuts() {
   aMap->img->Draw();
   gBases->Draw("pSame");
 
+  cout << "loaded bases" << endl;
+
   TProfile2D *cutHist = makeCutHist();
-  cutHist->Draw("colzSame");
+  TH2D* antCutHist = drawOnAntarcticaFromLatLonHist(cutHist,aMap);
+  
+
 
   c1->SaveAs("antTemplateMap.png");
 
   return;
 }  
 
-void drawOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter *aMap) {
+TH2D* drawOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter *aMap) {
 
 
   TH2D *evMap = aMap->addHistogram("evMap","evMap",250,250);
@@ -163,7 +167,7 @@ void drawOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter *
     }
   }
 
-
+  return evMap;
 }
 
 
