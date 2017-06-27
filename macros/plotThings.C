@@ -4,7 +4,7 @@
 
 
 
-TH1* makeCutStrengthPlot(TH1* inHist) {
+TH1* makeNormCumulative(TH1* inHist) {
 
   TH1* copyHist = (TH1*)inHist->Clone();
   
@@ -14,9 +14,8 @@ TH1* makeCutStrengthPlot(TH1* inHist) {
     integral += value;
   }
 
-<<<<<<< HEAD
   copyHist->Scale(1./integral);
-  TH1D* outHist = (TH1D*)copyHist->GetCumulative();
+  TH1* outHist = (TH1*)copyHist->GetCumulative();
 
   for (int i=0; i<copyHist->GetNbinsX(); i++) {
     double value = outHist->GetBinContent(i);
@@ -26,9 +25,6 @@ TH1* makeCutStrengthPlot(TH1* inHist) {
 
 
 
-=======
-  TH1* outHist = copyHist->GetCumulative();
->>>>>>> 484fde40e8bc28c74275b1bdc938592b7bffd211
   delete copyHist;
 
   return outHist;
@@ -36,7 +32,7 @@ TH1* makeCutStrengthPlot(TH1* inHist) {
 
 /*==========
   I like gifs*/
-void makeMoves(TChain *summaryTree, TFile *outFile) {
+void makeMovies(TChain *summaryTree, TFile *outFile) {
 
   //remember that gifs are stupid so make a bunch of pngs to stick together with ffmpeg
 
@@ -128,9 +124,9 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
   h1Tmplt->Scale(1./h1Tmplt->GetIntegral()[500]);
   TH1 *h1TmpltCum = h1Tmplt->GetCumulative();
   h1TmpltCum->Write();
-  TH1D *h1TmpltCumWais = makeNormCumulative(h1TmpltWais);
+  TH1 *h1TmpltCumWais = makeNormCumulative(h1TmpltWais);
   h1TmpltCumWais->Write();
-  TH1D *h1TmpltCumLDB = makeNormCumulative(h1TmpltLDB);
+  TH1 *h1TmpltCumLDB = makeNormCumulative(h1TmpltLDB);
   h1TmpltCumLDB->Write();
 
 
@@ -170,11 +166,11 @@ void plotSNR(TChain *summaryTree, TFile *outFile) {
   coherentSNRWais->Write();
   coherentSNRLDB->Write();
 
-  TH1D *coherentSNRCum = makeNormCumulative(coherentSNR);
+  TH1 *coherentSNRCum = makeNormCumulative(coherentSNR);
   coherentSNRCum->Write();
-  TH1D *coherentSNRCumWais = makeNormCumulative(coherentSNRWais);
+  TH1 *coherentSNRCumWais = makeNormCumulative(coherentSNRWais);
   coherentSNRCum->Write();
-  TH1D *coherentSNRCumLDB = makeNormCumulative(coherentSNRLDB);
+  TH1 *coherentSNRCumLDB = makeNormCumulative(coherentSNRLDB);
   coherentSNRCumLDB->Write();
 
 
@@ -183,11 +179,11 @@ void plotSNR(TChain *summaryTree, TFile *outFile) {
   TH1D *deconvolvedSNRWais = new TH1D("deconvolvedSNRWais","Deconvolved SNR Wais;Deconvolved SNR; Occupancy",100,0,100);
   TH1D *deconvolvedSNRLDB = new TH1D("deconvolvedSNRLDB","Deconvolved SNR LDB;Deconvolved SNR; Occupancy",100,0,100);
 
-  TH1D *deconvolvedSNRCum = makeNormCumulative(deconvolvedSNR);
+  TH1 *deconvolvedSNRCum = makeNormCumulative(deconvolvedSNR);
   deconvolvedSNRCum->Write();
-  TH1D *deconvolvedSNRCumWais = makeNormCumulative(deconvolvedSNRWais);
+  TH1 *deconvolvedSNRCumWais = makeNormCumulative(deconvolvedSNRWais);
   deconvolvedSNRCum->Write();
-  TH1D *deconvolvedSNRCumLDB = makeNormCumulative(deconvolvedSNRLDB);
+  TH1 *deconvolvedSNRCumLDB = makeNormCumulative(deconvolvedSNRLDB);
   deconvolvedSNRCumLDB->Write();
   
   outFile->cd();
@@ -209,11 +205,11 @@ void plotSNR(TChain *summaryTree, TFile *outFile) {
   deconvFiltSNRWais->Write();
   deconvFiltSNRLDB->Write();
 
-  TH1D *deconvFiltSNRCum = makeNormCumulative(deconvFiltSNR);
+  TH1 *deconvFiltSNRCum = makeNormCumulative(deconvFiltSNR);
   deconvFiltSNRCum->Write();
-  TH1D *deconvFiltSNRCumWais = makeNormCumulative(deconvFiltSNRWais);
+  TH1 *deconvFiltSNRCumWais = makeNormCumulative(deconvFiltSNRWais);
   deconvFiltSNRCum->Write();
-  TH1D *deconvFiltSNRCumLDB = makeNormCumulative(deconvFiltSNRLDB);
+  TH1 *deconvFiltSNRCumLDB = makeNormCumulative(deconvFiltSNRLDB);
   deconvFiltSNRCumLDB->Write();
 
 
@@ -289,11 +285,11 @@ void plotPol(TChain* summaryTree,TFile* outFile) {
   linPolFracWais->Write();
   linPolFracLDB->Write();
 
-  TH1D *linPolFracCum = makeNormCumulative(linPolFrac);
+  TH1 *linPolFracCum = makeNormCumulative(linPolFrac);
   linPolFracCum->Write();
-  TH1D *linPolFracCumWais = makeNormCumulative(linPolFracWais);
+  TH1 *linPolFracCumWais = makeNormCumulative(linPolFracWais);
   linPolFracCum->Write();
-  TH1D *linPolFracCumLDB = makeNormCumulative(linPolFracLDB);
+  TH1 *linPolFracCumLDB = makeNormCumulative(linPolFracLDB);
   linPolFracCumLDB->Write();
 
 
@@ -301,11 +297,11 @@ void plotPol(TChain* summaryTree,TFile* outFile) {
   linPolAngWais->Write();
   linPolAngLDB->Write();
 
-  TH1D *linPolAngCum = makeNormCumulative(linPolAng);
+  TH1 *linPolAngCum = makeNormCumulative(linPolAng);
   linPolAngCum->Write();
-  TH1D *linPolAngCumWais = makeNormCumulative(linPolAngWais);
+  TH1 *linPolAngCumWais = makeNormCumulative(linPolAngWais);
   linPolAngCum->Write();
-  TH1D *linPolAngCumLDB = makeNormCumulative(linPolAngLDB);
+  TH1 *linPolAngCumLDB = makeNormCumulative(linPolAngLDB);
   linPolAngCumLDB->Write();
 
 
@@ -357,17 +353,10 @@ void plotThings() {
   TFile *outFile = TFile::Open("plotThings.root","recreate");
   TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
-<<<<<<< HEAD
-  plotPol(summaryTree,outFile);
-  plotCorr(summaryTree,outFile);
-  plotSNR(summaryTree,outFile);
-=======
-
   makeMovies(summaryTree,outFile);
   //  plotPol(summaryTree,outFile);
   //  plotCorr(summaryTree,outFile);
   //  plotSNR(summaryTree,outFile);
->>>>>>> 484fde40e8bc28c74275b1bdc938592b7bffd211
 
   outFile->Close();
 
