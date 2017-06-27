@@ -50,10 +50,10 @@ void makeMovies(TChain *summaryTree) {
   
   TCanvas *c1 = new TCanvas("c1","c1",800,600);
   for (int frame=0; frame<numFrames; frame++ ) {
-    int startEntry = frame*evsPerFrame;// + startEvNum;
-    int endEntry = (1+frame)*evsPerFrame;// + startEvNum;
+    int startEntry = frame*evsPerFrame + startEvNum;
+    int endEntry = (1+frame)*evsPerFrame + startEvNum;
     name.str("");
-    name << "flags.pulser == 0 && Entry$ > " << startEntry << " && Entry$ <= " <<  endEntry;
+    name << "flags.pulser == 0 && eventNumber > " << startEntry << " && eventNumber <= " <<  endEntry;
 
     cout << name.str() << endl;
 
