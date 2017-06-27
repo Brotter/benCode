@@ -134,7 +134,7 @@ TH2D* mapOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter *
 
   for (int latBin=0; latBin<latLons->GetNbinsX(); latBin++) {
     for (int lonBin=0; lonBin<latLons->GetNbinsY(); lonBin++) {
-      int binValue = latLons->GetBinContent(latBin,lonBin);
+      double binValue = latLons->GetBinContent(latBin,lonBin);
       double lonValue = latLons->GetYaxis()->GetBinCenter(lonBin);
       double latValue = latLons->GetXaxis()->GetBinCenter(latBin);
       double x,y;
