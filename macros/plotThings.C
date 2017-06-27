@@ -41,7 +41,7 @@ void makeMovies(TChain *summaryTree) {
   const int numFrames = 1000;
   const int evsPerFrame = summaryTree->GetEntries()/numFrames;
 
-  //  const int startEvNum = 45671358;
+  const int startEvNum = 45671358;
 
   cout << "there are going to be " << evsPerFrame << "events per frame" << endl;
 
