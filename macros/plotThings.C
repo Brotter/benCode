@@ -366,7 +366,7 @@ void PlotCutsAndBases(TChain* summaryTree, TFile *outFile) {
 
 void waisVsWais(TChain* summaryTree, TFile* outFile) {
 
-  TH2D *waisVsWais = new TH2D("waisVsWais","wais pulser events vs wais template",500,0,0.2, 500,0,1);
+  TH2D *waisVsWais = new TH2D("waisVsWais","wais pulser events vs wais template",500,0,0.5, 500,0,1);
 
   summaryTree->Draw("templateWaisH:peak[0][0] >> waisVsWais","flags.pulser==1","colz");
 

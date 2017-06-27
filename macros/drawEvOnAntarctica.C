@@ -139,7 +139,7 @@ TH2D* mapOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter *
       double latValue = latLons->GetXaxis()->GetBinCenter(latBin);
       double x,y;
       aMap->getRelXYFromLatLong(latValue,lonValue,x,y);
-      cout << latBin << " " << lonBin <<  " " << x << " " << y << endl;
+      cout << latBin << " " << lonBin <<  " " << x << " " << y << " " << binValue << endl;
       evMap->Fill(x,y,binValue);
     }
   }
@@ -160,15 +160,14 @@ void drawOnAntarcticaFromCuts() {
 
   TProfile2D *cutHist = makeCutHist();
   cout << "made cut histogram" << endl;
-  TH2D* antCutHist = mapOnAntarcticaFromLatLonHist(cutHist,aMap);
+  TH2D* antCutHist = mapOnAntarcticaFromLatLonHist(cutHist,aMap,"template");
   cout << "projected it onto antarctica" << endl;
 
   
-  TCanvas *c1 = new TCanvas("c1","c1",1024,800);
-
-  aMap->img->Draw();
+  aMap->setCurrentHistogram("template");
+  TCanvas *c1 = aMap->DrawHist("colz");
   gBases->Draw("pSame");
-  antCutHist->Draw("colzSame");
+
 
   c1->SaveAs("antTemplateMap.png");
 
@@ -179,7 +178,8 @@ void drawOnAntarcticaFromCuts() {
 
 
     
-
+/*===========================
+ */
 
 void drawHistOnAntarcticaFromCuts_old(){
   
