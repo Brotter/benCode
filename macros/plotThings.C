@@ -356,7 +356,7 @@ void plotThings() {
   TFile *outFile = TFile::Open("plotThings.root","recreate");
   TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
-  makeMovies(summaryTree,outFile);
+  makeMovies(summaryTree);
   //  plotPol(summaryTree,outFile);
   //  plotCorr(summaryTree,outFile);
   //  plotSNR(summaryTree,outFile);
