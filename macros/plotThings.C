@@ -365,12 +365,12 @@ void PlotCutsAndBases(TChain* summaryTree, TFile *outFile) {
 
 
 
-void plotThings() {
+void plotThings(int movie=false) {
 
   TFile *outFile = TFile::Open("plotThings.root","recreate");
   TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
-  makeMovies(summaryTree);
+  if (movie) makeMovies(summaryTree);
   plotPol(summaryTree,outFile);
   plotCorr(summaryTree,outFile);
   plotSNR(summaryTree,outFile);
