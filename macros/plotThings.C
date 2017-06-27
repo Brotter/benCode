@@ -365,6 +365,20 @@ void PlotCutsAndBases(TChain* summaryTree, TFile *outFile) {
 }
 
 
+void PlotCutsAndBases2(TChain* summaryTree, TFile *outFile) {  
+
+
+  TProfile2D *cutLatLon = new TProfile2D("cutLatLon","cutLatLon",250,-90,-65,360,-180,180);
+
+  summaryTree->Draw("latitude:longitude:templateCRayH[5] >> bothCuts","flags.pulser == 0","colz");
+    
+
+  cutLatLon->Write()
+
+  return;
+}
+
+
 
 void plotThings() {
 

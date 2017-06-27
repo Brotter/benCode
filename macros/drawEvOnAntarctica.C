@@ -100,11 +100,32 @@ void drawOnAntarcticaFromLatLonList() {
 }
 
 
-void drawOnAntarcticaFromLatLonHist() {
+
+TProfile2D* makeCutHist() {  
+
+  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+
+  TProfile2D *cutLatLon = new TProfile2D("cutLatLon","cutLatLon",250,-90,-65,360,-180,180);
+
+  summaryTree->Draw("latitude:longitude:templateCRayH[5] >> bothCuts","flags.pulser == 0","colz");
+
+
+  return cutLatLon;
+}
+
+
+void drawOnAntarcticaFromLatLonFile(string inFileName="passingLocations") {
 
   TFile* inFile = TFile::Open("passingLatLons.root");
 
   TH2D* latLons = (TH2D*)inFile->Get("passingLatLons");
+
+
+  return;
+}
+
+
+void drawOnAntarcticaFromLatLonHist(TH2* latLons) {
 
 
   Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
