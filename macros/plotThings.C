@@ -61,6 +61,7 @@ void makeMovies(TChain *summaryTree) {
 				500,0,0.5,500,0,1);
       
     c1->cd();
+    c1->SetLogz();
     summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> currHist",name.str().c_str(),"colz");
 
 
