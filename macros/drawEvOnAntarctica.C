@@ -125,17 +125,32 @@ void drawOnAntarcticaFromLatLonFile(string inFileName="passingLocations") {
 }
 
 
-void drawOnAntarcticaFromLatLonHist(TH2* latLons) {
-
+void drawOnAntarcticaFromCuts() {
+  TProfile2D* hCuts = makeCutHist();
 
   Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
-  TH2D *evMap = aMap->addHistogram("evMap","evMap",250,250);
 
   TGraph *gBases = loadBases(aMap);
   gBases->SetMarkerColor(kRed);
   gBases->SetMarkerStyle(3);
   
+  TCanvas *c1 = new TCanvas("c1","c1",1024,800);
 
+  aMap->img->Draw();
+  gBases->Draw("pSame");
+
+  TProfile2D *cutHist = makeCutHist();
+  cutHist->Draw("colzSame");
+
+  c1->SaveAs("antTemplateMap.png");
+
+  return;
+}  
+
+void drawOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter *aMap) {
+
+
+  TH2D *evMap = aMap->addHistogram("evMap","evMap",250,250);
 
   for (int latBin=0; latBin<latLons->GetNbinsX(); latBin++) {
     for (int lonBin=0; lonBin<latLons->GetNbinsY(); lonBin++) {
@@ -148,10 +163,7 @@ void drawOnAntarcticaFromLatLonHist(TH2* latLons) {
     }
   }
 
-  aMap->DrawHist("colz");
-  gBases->Draw("psame");
 
-  return;
 }
 
 
