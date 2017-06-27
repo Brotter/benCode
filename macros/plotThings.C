@@ -54,6 +54,7 @@ void makeMovies(TChain *summaryTree, TFile *outFile) {
 
     name.str("");
     name << "movies/template_map" << frame << ".png";
+    cout << name.str() << endl;
     currHist->SaveAs(name.str().c_str());
 
     delete currHist;
