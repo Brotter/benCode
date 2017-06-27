@@ -53,7 +53,7 @@ void makeMovies(TChain *summaryTree) {
     int startEntry = frame*evsPerFrame;// + startEvNum;
     int endEntry = (1+frame)*evsPerFrame;// + startEvNum;
     name.str("");
-    name << "flags.pulser == 0 && Entry$ > " << startEntry << " && Entry$ <= " endEntry;
+    name << "flags.pulser == 0 && Entry$ > " << startEntry << " && Entry$ <= " <<  endEntry;
 
     cout << name.str() << endl;
 
