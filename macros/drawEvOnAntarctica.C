@@ -125,6 +125,28 @@ void drawOnAntarcticaFromLatLonFile(string inFileName="passingLocations") {
 }
 
 
+
+TH2D* drawOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter *aMap) {
+
+
+  TH2D *evMap = aMap->addHistogram("evMap","evMap",250,250);
+
+  for (int latBin=0; latBin<latLons->GetNbinsX(); latBin++) {
+    for (int lonBin=0; lonBin<latLons->GetNbinsY(); lonBin++) {
+      int binValue = latLons->GetBinContent(latBin,lonBin);
+      double lonValue = latLons->GetYaxis()->GetBinCenter(lonBin);
+      double latValue = latLons->GetXaxis()->GetBinCenter(latBin);
+      double x,y;
+      aMap->getRelXYFromLatLong(latValue,lonValue,x,y);
+      evMap->Fill(x,y,binValue);
+    }
+  }
+
+  return evMap;
+}
+
+
+
 void drawOnAntarcticaFromCuts() {
   TProfile2D* hCuts = makeCutHist();
 
@@ -150,26 +172,6 @@ void drawOnAntarcticaFromCuts() {
 
   return;
 }  
-
-TH2D* drawOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter *aMap) {
-
-
-  TH2D *evMap = aMap->addHistogram("evMap","evMap",250,250);
-
-  for (int latBin=0; latBin<latLons->GetNbinsX(); latBin++) {
-    for (int lonBin=0; lonBin<latLons->GetNbinsY(); lonBin++) {
-      int binValue = latLons->GetBinContent(latBin,lonBin);
-      double lonValue = latLons->GetYaxis()->GetBinCenter(lonBin);
-      double latValue = latLons->GetXaxis()->GetBinCenter(latBin);
-      double x,y;
-      aMap->getRelXYFromLatLong(latValue,lonValue,x,y);
-      evMap->Fill(x,y,binValue);
-    }
-  }
-
-  return evMap;
-}
-
 
 
 
