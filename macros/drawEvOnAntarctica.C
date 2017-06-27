@@ -156,12 +156,6 @@ void drawOnAntarcticaFromCuts() {
   TGraph *gBases = loadBases(aMap);
   gBases->SetMarkerColor(kRed);
   gBases->SetMarkerStyle(3);
-  
-  TCanvas *c1 = new TCanvas("c1","c1",1024,800);
-
-  aMap->img->Draw();
-  gBases->Draw("pSame");
-
   cout << "loaded bases" << endl;
 
   TProfile2D *cutHist = makeCutHist();
@@ -169,7 +163,11 @@ void drawOnAntarcticaFromCuts() {
   TH2D* antCutHist = drawOnAntarcticaFromLatLonHist(cutHist,aMap);
   cout << "projected it onto antarctica" << endl;
 
-  c1->cd();
+  
+  TCanvas *c1 = new TCanvas("c1","c1",1024,800);
+
+  aMap->img->Draw();
+  gBases->Draw("pSame");
   antCutHist->Draw("colzSame");
 
   c1->SaveAs("antTemplateMap.png");
