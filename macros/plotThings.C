@@ -8,9 +8,23 @@ TH1D* makeNormCumulative(TH1D* inHist) {
 
   TH1D* copyHist = (TH1D*)inHist->Clone();
   
-  copyHist->Scale(1./copyHist->GetIntegral()[copyHist->GetNbinsX()]);
+  double integral = 0;
+  for (int i=0; i<copyHist->GetNbinsX(); i++) {
+    double value = copyHist->GetBinContent(i);
+    integral += value;
+  }
 
+  copyHist->Scale(1./integral);
   TH1D* outHist = (TH1D*)copyHist->GetCumulative();
+
+  for (int i=0; i<copyHist->GetNbinsX(); i++) {
+    double value = outHist->GetBinContent(i);
+    outHist->SetBinContent(i,1.-value);
+  }
+
+
+
+
   delete copyHist;
 
   return outHist;
@@ -78,6 +92,10 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
 
   TH1D *h1TmpltCum = makeNormCumulative(h1Tmplt);
   h1TmpltCum->Write();
+  TH1D *h1TmpltCumWais = makeNormCumulative(h1TmpltWais);
+  h1TmpltCumWais->Write();
+  TH1D *h1TmpltCumLDB = makeNormCumulative(h1TmpltLDB);
+  h1TmpltCumLDB->Write();
 
 
   //LDB pulses as time are actually kinda neat since we used different pulser configs
@@ -116,19 +134,52 @@ void plotSNR(TChain *summaryTree, TFile *outFile) {
   coherentSNRWais->Write();
   coherentSNRLDB->Write();
 
+  TH1D *coherentSNRCum = makeNormCumulative(coherentSNR);
+  coherentSNRCum->Write();
+  TH1D *coherentSNRCumWais = makeNormCumulative(coherentSNRWais);
+  coherentSNRCum->Write();
+  TH1D *coherentSNRCumLDB = makeNormCumulative(coherentSNRLDB);
+  coherentSNRCumLDB->Write();
+
+
 
   TH1D *deconvolvedSNR = new TH1D("deconvolvedSNR","Deconvolved SNR;Deconvolved SNR; Occupancy",100,0,100);
   TH1D *deconvolvedSNRWais = new TH1D("deconvolvedSNRWais","Deconvolved SNR Wais;Deconvolved SNR; Occupancy",100,0,100);
   TH1D *deconvolvedSNRLDB = new TH1D("deconvolvedSNRLDB","Deconvolved SNR LDB;Deconvolved SNR; Occupancy",100,0,100);
-  
-  summaryTree->Draw("deconvolved_filtered[0][0].snr >> deconvolvedSNR","flags.pulser == 0");
-  summaryTree->Draw("deconvolved_filtered[0][0].snr >> deconvolvedSNRWais","flags.pulser == 1");
-  summaryTree->Draw("deconvolved_filtered[0][0].snr >> deconvolvedSNRLDB","flags.pulser == 2");
 
+  TH1D *deconvolvedSNRCum = makeNormCumulative(deconvolvedSNR);
+  deconvolvedSNRCum->Write();
+  TH1D *deconvolvedSNRCumWais = makeNormCumulative(deconvolvedSNRWais);
+  deconvolvedSNRCum->Write();
+  TH1D *deconvolvedSNRCumLDB = makeNormCumulative(deconvolvedSNRLDB);
+  deconvolvedSNRCumLDB->Write();
+  
   outFile->cd();
   deconvolvedSNR->Write();
   deconvolvedSNRWais->Write();
   deconvolvedSNRLDB->Write();
+
+
+  TH1D *deconvFiltSNR = new TH1D("deconvFiltSNR","Deconvolved SNR;Deconvolved SNR; Occupancy",100,0,100);
+  TH1D *deconvFiltSNRWais = new TH1D("deconvFiltSNRWais","Deconvolved SNR Wais;Deconvolved SNR; Occupancy",100,0,100);
+  TH1D *deconvFiltSNRLDB = new TH1D("deconvFiltSNRLDB","Deconvolved SNR LDB;Deconvolved SNR; Occupancy",100,0,100);
+
+  summaryTree->Draw("deconvolved_filtered[0][0].snr >> deconvFiltSNR","flags.pulser == 0");
+  summaryTree->Draw("deconvolved_filtered[0][0].snr >> deconvFiltSNRWais","flags.pulser == 1");
+  summaryTree->Draw("deconvolved_filtered[0][0].snr >> deconvFiltSNRLDB","flags.pulser == 2");
+
+  outFile->cd();
+  deconvFiltSNR->Write();
+  deconvFiltSNRWais->Write();
+  deconvFiltSNRLDB->Write();
+
+  TH1D *deconvFiltSNRCum = makeNormCumulative(deconvFiltSNR);
+  deconvFiltSNRCum->Write();
+  TH1D *deconvFiltSNRCumWais = makeNormCumulative(deconvFiltSNRWais);
+  deconvFiltSNRCum->Write();
+  TH1D *deconvFiltSNRCumLDB = makeNormCumulative(deconvFiltSNRLDB);
+  deconvFiltSNRCumLDB->Write();
+
 
   TH2D *bothSNR = new TH2D("bothSNR","Both SNR;Coherent SNR; Deconvolved SNR",100,0,100,100,0,100);
   TH2D *bothSNRWais = new TH2D("bothSNRWais","Coherent SNR Wais;Both SNR; Deconvolved SNR",100,0,100,100,0,100);
@@ -202,9 +253,24 @@ void plotPol(TChain* summaryTree,TFile* outFile) {
   linPolFracWais->Write();
   linPolFracLDB->Write();
 
+  TH1D *linPolFracCum = makeNormCumulative(linPolFrac);
+  linPolFracCum->Write();
+  TH1D *linPolFracCumWais = makeNormCumulative(linPolFracWais);
+  linPolFracCum->Write();
+  TH1D *linPolFracCumLDB = makeNormCumulative(linPolFracLDB);
+  linPolFracCumLDB->Write();
+
+
   linPolAng->Write();
   linPolAngWais->Write();
   linPolAngLDB->Write();
+
+  TH1D *linPolAngCum = makeNormCumulative(linPolAng);
+  linPolAngCum->Write();
+  TH1D *linPolAngCumWais = makeNormCumulative(linPolAngWais);
+  linPolAngCum->Write();
+  TH1D *linPolAngCumLDB = makeNormCumulative(linPolAngLDB);
+  linPolAngCumLDB->Write();
 
 
   return;
@@ -255,9 +321,9 @@ void plotThings() {
   TFile *outFile = TFile::Open("plotThings.root","recreate");
   TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
-  //  plotPol(summaryTree,outFile);
+  plotPol(summaryTree,outFile);
   plotCorr(summaryTree,outFile);
-  //  plotSNR(summaryTree,outFile);
+  plotSNR(summaryTree,outFile);
 
   outFile->Close();
 
