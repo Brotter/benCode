@@ -45,7 +45,7 @@ void makeMovies(TChain *summaryTree) {
 
   cout << "there are going to be " << evsPerFrame << "events per frame" << endl;
 
-  stringstream name;
+  stringstream name,title;
     
   
   TCanvas *c1 = new TCanvas("c1","c1",800,600);
@@ -54,11 +54,11 @@ void makeMovies(TChain *summaryTree) {
     int endEntry = (1+frame)*evsPerFrame + startEvNum;
     name.str("");
     name << "flags.pulser == 0 && eventNumber > " << startEntry << " && eventNumber <= " <<  endEntry;
+    title.str("");
+    title << "Cosmic Ray Template +4 Correlation - No Pulsers - ev " << startEntry << "; Interferometric Peak; Template Corr"
+    cout << startEntry << endl;
 
-    cout << name.str() << endl;
-
-    TH2D *currHist = new TH2D("currHist","Cosmic Ray Template +4 Correlation - No Pulsers; Interferometric Peak; Template Corr",
-				500,0,0.5,500,0,1);
+    TH2D *currHist = new TH2D("currHist",title.str(),500,0,0.5,500,0,1);
       
     c1->cd();
     c1->SetLogz();
