@@ -143,7 +143,7 @@ TH2D* mapOnAntarcticaFromLatLonHist(TProfile2D* latLons,Acclaim::AntarcticaMapPl
       double latValue = latLons->GetXaxis()->GetBinCenter(latBin);
       double x,y;
       aMap->getRelXYFromLatLong(latValue,lonValue,x,y);
-      cout << latBin << " " << lonBin <<  " " << x << " " << y << " " << binValue << endl;
+      if (lonBin == 100) cout << latBin << " " << lonBin <<  " " << x << " " << y << " " << binValue << endl;
       evMap->Fill(x,y,binValue);
     }
   }
