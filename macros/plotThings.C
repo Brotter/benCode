@@ -45,6 +45,7 @@ void makeMovies(TChain *summaryTree) {
 
   stringstream name;
     
+  TCanvas *c1 = new TCanvas("c1","c1",800,600);
   for (int frame=0; frame<numFrames; frame++ ) {
     int startEntry = frame*evsPerFrame;
     int endEntry = (1+frame)*evsPerFrame;
@@ -54,12 +55,18 @@ void makeMovies(TChain *summaryTree) {
     TH2D *currHist = new TH2D("currHist","Cosmic Ray Template +4 Correlation - No Pulsers; Interferometric Peak; Template Corr",
 				500,0,0.5,500,0,1);
       
+    c1->cd();
     summaryTree->Draw("templateCRayH[5][0]:peak[0][0].value >> currHist",name.str().c_str());
+
+
+    cout << "There are " << currHist->GetEntries() << " entries in that histogram" << endl;
+
 
     name.str("");
     name << "movies/template_map" << frame << ".png";
     cout << name.str() << endl;
-    currHist->SaveAs(name.str().c_str());
+    c1->SaveAs(name.str().c_str());
+    c1->Clear();
 
     delete currHist;
   }
