@@ -134,6 +134,8 @@ TH2D* mapOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter *
 
   TH2D *evMap = aMap->addHistogram(name.c_str(),name.c_str(),250,250);
 
+  cout << "hello" << endl;
+  cout << latLons->GetNbinsX() << " " << latLons->GetNbinsY() << endl;
   for (int latBin=0; latBin<latLons->GetNbinsX(); latBin++) {
     for (int lonBin=0; lonBin<latLons->GetNbinsY(); lonBin++) {
       double binValue = latLons->GetBinContent(latBin,lonBin);
