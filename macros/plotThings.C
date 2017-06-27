@@ -41,16 +41,19 @@ void makeMovies(TChain *summaryTree) {
   const int numFrames = 1000;
   const int evsPerFrame = summaryTree->GetEntries()/numFrames;
 
+  const int startEvNum = 45671358;
+
   cout << "there are going to be " << evsPerFrame << "events per frame" << endl;
 
   stringstream name;
     
+  
   TCanvas *c1 = new TCanvas("c1","c1",800,600);
   for (int frame=0; frame<numFrames; frame++ ) {
-    int startEntry = frame*evsPerFrame;
-    int endEntry = (1+frame)*evsPerFrame;
+    int startEntry = frame*evsPerFrame + startEvNum;
+    int endEntry = (1+frame)*evsPerFrame + startEvNum;
     name.str("");
-    name << "flags.pulser == 0 && Entry$ > " << startEntry << " && Entry$ <= endEntry";
+    name << "flags.pulser == 0 && eventNumber > " << startEntry << " && eventNumber <= endEntry";
 
     TH2D *currHist = new TH2D("currHist","Cosmic Ray Template +4 Correlation - No Pulsers; Interferometric Peak; Template Corr",
 				500,0,0.5,500,0,1);
