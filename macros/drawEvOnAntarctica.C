@@ -129,7 +129,7 @@ TProfile2D* makeCutHist() {
 
 
 
-TH2D* mapOnAntarcticaFromLatLonHist(TH2* latLons,Acclaim::AntarcticaMapPlotter *aMap,string name="evMap") {
+TH2D* mapOnAntarcticaFromLatLonHist(TProfile2D* latLons,Acclaim::AntarcticaMapPlotter *aMap,string name="evMap") {
 
 
   TH2D *evMap = aMap->addHistogram(name.c_str(),name.c_str(),250,250);
