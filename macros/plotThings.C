@@ -32,9 +32,11 @@ TH1* makeNormCumulative(TH1* inHist) {
 
 /*==========
   I like gifs*/
-void makeMovies(TChain *summaryTree, TFile *outFile) {
+void makeMovies(TChain *summaryTree) {
 
   //remember that gifs are stupid so make a bunch of pngs to stick together with ffmpeg
+  
+  cout << "making movies!" << endl;
 
   const int numFrames = 1000;
   const int evsPerFrame = summaryTree->GetEntries()/numFrames;
