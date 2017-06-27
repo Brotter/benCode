@@ -119,7 +119,7 @@ TProfile2D* makeTemplateHeatmap() {
   AnitaEventSummary *summary = NULL;
   summaryTree->SetBranchAddress("eventSummary",&summary);
   double templateCRayH[10][2];
-  summaryTree->SetBranchAddress("templateCRayH",&templateValue);
+  summaryTree->SetBranchAddress("templateCRayH",&templateCRayH);
 
   TProfile2D *cutLatLon = new TProfile2D("cutLatLon","cutLatLon",250,-90,-65, 360,-180,180);
 
