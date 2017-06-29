@@ -42,7 +42,7 @@ void fixRootFiles(string date="06.28.17_15h") {
   char* resultsDir = getenv("ANITA3_RESULTSDIR");
 
 
-  for (int core=130; core<440; core++) {
+  for (int core=0; core<256; core++) {
     cout << core << endl;
 
 
