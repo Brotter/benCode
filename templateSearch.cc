@@ -47,15 +47,24 @@
 //lets handle SIGINT correctly so I can close the files
 #include "signal.h"
 
+
 TFile* outFile = NULL;
 void emergencyClose(int sig) {
   
-  cout << endl << "^^^ emergencyClose(): SIGINT Signal caught!" << endl;
-  cout << endl << "Okay sounds good, Let me save things first though :) " << endl;
+  /*
+  if (paused) {
+    unpause();
+    return;
+  }
+  */
+  cout << endl << "emergencyClose(): SIGTERM Signal caught!" << endl;
+  cout << endl << "Okay I guess you want me to stop :(  Just kidding I'm not sad!  Let me save first...  " << endl;
+
   if (outFile != NULL) {
     outFile->cd();
     outFile->Write();
     outFile->Close();
+    cout << "Saved successfully!" << endl;
   }
   else {
     cout << "Warning!  I don't have a file open so I didn't actually do anthing right there" << endl;
@@ -65,7 +74,39 @@ void emergencyClose(int sig) {
 
   exit(EXIT_SUCCESS);
 }
-    
+
+void systemPause() {
+  cout << endl << "Writing data and pausing so that you can read what I've done without ROOT errors" << endl;
+
+  if (outFile != NULL) {
+    outFile->cd();
+    outFile->Write();
+    cout << "Written successfully!" << endl;
+  }
+  else {
+    cout << "Warning!  I don't have a file open so I didn't actually do anthing right there" << endl;
+  }
+
+}
+
+volatile sig_atomic_t paused = false;
+
+void pauseSwitch(int sig) {
+
+  cout << endl << "^^^ pauseSwitch(): SIGINT Signal caught!" << endl;
+
+  if (!paused) {
+    systemPause();
+    cout << "Send another SIGINT signal to continue" << endl;
+    sig=0;
+    paused = true;
+  }
+  else {
+    cout << "Thanks! Resuming!" << endl;
+    paused = false;
+  }
+
+}
 
 
 using namespace std;
@@ -294,8 +335,9 @@ int main(int argc, char** argv) {
   FFTtools::loadWisdom(wisdomDir.str().c_str());
 
   //handle inturrupt signals for real
-  signal(SIGINT, emergencyClose); 
-                                                                                                 
+  signal(SIGTERM, emergencyClose); 
+  signal(SIGINT, pauseSwitch);
+  
   string outFileName;
   int startEntry,endEntry,totalEntriesToDo;
 
@@ -349,7 +391,7 @@ int main(int argc, char** argv) {
 
 
   //Sine subtract alghorithm (this is the complicated way to do it)
-  //  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(0.05,2);
+  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(0.05,2);
   //  sineSub->makeAdaptive(specAvgLoader);
   //  strategy->addOperation(sineSub);
   // This seems like it should work and is easier
@@ -441,6 +483,8 @@ int main(int argc, char** argv) {
   int timeElapsed;
   int totalTime;
   for (Long64_t entry=0; entry<totalEntriesToDo; entry++) {
+    while(paused);
+
     //entry - tracks how far you are in the requested range
     //entryToGet - which entry you're calling from the run
     int entryToGet = entry + entryToStartAt - completedRunEvs;
@@ -508,6 +552,8 @@ int main(int argc, char** argv) {
     for (int poli=0; poli<2; poli++) {
       //get coherently aligned waveform
       const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0,false)->even();
+      //I actually want to do SOME filtering though... so sine subtract a single one?
+      //      sineSub->processOne
       TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
       //make sure it is the same length as the template
       TGraph *coherent2 = FFTtools::padWaveToLength(coherent,length);
@@ -516,6 +562,7 @@ int main(int argc, char** argv) {
       TGraph *windowed = windowDispersed(coherent2,peakHilbert);
       delete coherent2;
       int newLength = windowed->GetN();
+
 
       //and xpol for stokes
       coherentAligned = analyzer->getCoherentXpol((AnitaPol::AnitaPol_t)poli,0,false)->even();
