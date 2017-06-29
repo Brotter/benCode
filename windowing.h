@@ -20,7 +20,7 @@ TGraph *windowWave(TGraph*, int&, const int, const int, const int, const int);
 
 TGraph *windowDispersed(TGraph *inGraph, int &peakHilbertLoc) {  
   return windowWave(inGraph,peakHilbertLoc,
-		    150,550,20,20);
+		    500,750,20,20);
 }
 
 

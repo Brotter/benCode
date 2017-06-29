@@ -14,6 +14,7 @@
 
 
 
+
 void makeCalculatedTemplate() {
 
   cout << "This one doesn't do anything, go look in ~/benCode/ZHAiresReader/convolveWithSigChain.C I think" << endl;
@@ -506,6 +507,62 @@ void measuredVsEachOther() {
   return;
 
 }
+
+
+void writeOutTemplates() {
+
+  TFile *inFile = TFile::Open("../templateGenRun.root");
+
+  stringstream name;
+
+  const int numCRs = 10;
+  TGraph *templates[numCRs+2];
+  TGraph *dispTemplates[numCRs];
+  for (int i=0; i<numCRs; i++) {
+    name.str("");
+    name << "disp" << i+13;
+    cout << name.str() << endl;
+    templates[i] = (TGraph*)inFile->Get(name.str().c_str());
+
+    name.str("");
+    name << "efield" << i+13;
+    cout << name.str() << endl;
+    dispTemplates[i] = (TGraph*)inFile->Get(name.str().c_str());
+
+  }
+  
+  TGraph *waisTmplt = (TGraph*)inFile->Get("templateWais");
+  waisTmplt->SetTitle("Wais Averaged Waveform");
+  TGraph *impTmplt  = (TGraph*)inFile->Get("templateImp");
+  impTmplt->SetTitle("Impulse Response");
+
+  templates[10]=waisTmplt;
+  templates[11]=impTmplt;
+
+  cout << "got all templates" << endl;
+
+ 
+  ofstream outTxtFile("templates.txt");
+  for (int pt=0; pt<templates[0]->GetN(); pt++) {
+    outTxtFile << templates[0]->GetX()[pt] << " ";
+    for (int i=0; i<numCRs+2; i++) {
+      outTxtFile << templates[i]->GetY()[pt] << " ";
+    }
+    for (int i=0; i<numCRs; i++) {
+      if (pt > dispTemplates[i]->GetN()) outTxtFile << "0 ";
+      else outTxtFile << dispTemplates[i]->GetY()[pt] << " ";
+    }
+
+    outTxtFile << endl;
+  }
+
+  outTxtFile.close();
+
+  
+
+  return;
+}
+
 
 
 void templatesVsEachOther() {

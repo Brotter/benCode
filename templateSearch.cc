@@ -506,7 +506,7 @@ int main(int argc, char** argv) {
     */
     for (int poli=0; poli<2; poli++) {
       //get coherently aligned waveform
-      const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0)->even();
+      const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0,true)->even();
       TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
       //make sure it is the same length as the template
       TGraph *coherent2 = FFTtools::padWaveToLength(coherent,length);
@@ -517,7 +517,7 @@ int main(int argc, char** argv) {
       int newLength = windowed->GetN();
 
       //and xpol for stokes
-      coherentAligned = analyzer->getCoherentXpol((AnitaPol::AnitaPol_t)poli,0)->even();
+      coherentAligned = analyzer->getCoherentXpol((AnitaPol::AnitaPol_t)poli,0,true)->even();
       coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
       //make sure it is the same length as the template
       coherent2 = FFTtools::padWaveToLength(coherent,length);
