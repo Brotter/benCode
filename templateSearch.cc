@@ -57,7 +57,9 @@ void emergencyClose(int sig) {
     return;
   }
   */
-  cout << endl << "emergencyClose(): SIGTERM Signal caught!" << endl;
+  if (sig==15) cout << endl << "emergencyClose(): SIGTERM Signal caught!" << endl;
+  else if (sig==3) cout << endl << "emergencyClose(): SIGQUIT Signal caught!" << endl;
+  else cout << endl << "emergencyClose(): A signal was caught!" << endl;
   cout << endl << "Okay I guess you want me to stop :(  Just kidding I'm not sad!  Let me save first...  " << endl;
 
   if (outFile != NULL) {
@@ -181,17 +183,19 @@ FFTWComplex* getImpulseResponseTemplate(int length) {
   TGraph *grTemplatePadded = FFTtools::padWaveToLength(grTemplateRaw,length);
   delete grTemplateRaw;
   //then cut it back down with a window function
-  int peakHilb = -1;
-  TGraph *grTemplateCut = windowDispersed(grTemplatePadded,peakHilb);
-  delete grTemplatePadded;
+  //  int peakHilb = -1;
+  //  TGraph *grTemplateCut = windowDispersed(grTemplatePadded,peakHilb);
+  //  delete grTemplatePadded;
   //and finally normalize it (last step!)
-  TGraph *grTemplate = normalizeWaveform(grTemplateCut);
-  delete grTemplateCut;
+  TGraph *grTemplate = normalizeWaveform(grTemplatePadded);
+  delete grTemplatePadded;
 
   //save it quickly
   outFile->cd();
   grTemplate->SetName("templateImp");
   grTemplate->Write();
+
+  cout << "Impulse Response Template Length: " << grTemplate->GetN() << endl;
 
   //and get the FFT of it as well, since we don't want to do this every single event
   FFTWComplex *theTemplateFFT=FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
@@ -221,7 +225,8 @@ void getCRTemplates(int length, const int numTemplates,FFTWComplex** theTemplate
       //waveforms are super long so we can just cut it to the window dimentions
       TGraph *grTemplateCut;
       int peakHilb = -1;
-      if (disp==0) grTemplateCut = windowDispersed(grTemplateRaw,peakHilb);
+      //if (disp==0) grTemplateCut = windowDispersed(grTemplateRaw,peakHilb);
+      if (disp==0) grTemplateCut = windowCut(grTemplateRaw,length);
       if (disp==1) grTemplateCut = windowEField(grTemplateRaw,peakHilb);
       delete grTemplateRaw;
        
@@ -234,6 +239,8 @@ void getCRTemplates(int length, const int numTemplates,FFTWComplex** theTemplate
       outFile->cd();
       grTemplate->SetName(name.str().c_str());
       grTemplate->Write();
+
+      cout << "CR Template " << i << "_" << disp << " Length: " << grTemplate->GetN() << endl;
 
       //and get the FFT of it as well, since we don't want to do this every single event
       FFTWComplex *theTemplateFFT=FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
@@ -256,7 +263,7 @@ FFTWComplex* getWaisTemplate(int length) {
   //the wais waveform is like N=2832, but most of it is dumb, so cut off the beginning
   //actually just window it!
   int peakHilb = -1;
-  TGraph *grTemplateCut = windowDispersed(grTemplateRaw,peakHilb);
+  TGraph *grTemplateCut = windowCut(grTemplateRaw,length);
   delete grTemplateRaw;
 
   //and then normalize it
@@ -267,6 +274,8 @@ FFTWComplex* getWaisTemplate(int length) {
   outFile->cd();
   grTemplate->SetName("templateWais");
   grTemplate->Write();
+
+  cout << "Wais Template Length: " << grTemplate->GetN() << endl;
 
   //and get the FFT of it as well, since we don't want to do this every single event
   FFTWComplex *theTemplateFFT=FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
@@ -336,6 +345,7 @@ int main(int argc, char** argv) {
 
   //handle inturrupt signals for real
   signal(SIGTERM, emergencyClose); 
+  signal(SIGQUIT, emergencyClose); 
   signal(SIGINT, pauseSwitch);
   
   string outFileName;
@@ -392,8 +402,8 @@ int main(int argc, char** argv) {
 
   //Sine subtract alghorithm (this is the complicated way to do it)
   UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(0.05,2);
-  //  sineSub->makeAdaptive(specAvgLoader);
-  //  strategy->addOperation(sineSub);
+  sineSub->makeAdaptive(specAvgLoader);
+  strategy->addOperation(sineSub);
   // This seems like it should work and is easier
   //add "adsinsub_2_5_13" (default in MagicDisplay)
   //  UCorrelator::fillStrategyWithKey(strategy,"sinsub_05_1_ad_1");
@@ -403,7 +413,7 @@ int main(int argc, char** argv) {
   // UCorrelator::AdaptiveBrickWallFilter(const UCorrelator::SpectrumAverageLoader * spec, double thresh=2, bool fillNotch = true);  
   // Don't fill in the noise because whats the point of that really
   UCorrelator::AdaptiveBrickWallFilter *brickWall = new UCorrelator::AdaptiveBrickWallFilter(specAvgLoader,2,false);
-  strategy->addOperation(brickWall);
+  //strategy->addOperation(brickWall);
 
 
   //  with abby's list of filtering
@@ -475,7 +485,14 @@ int main(int argc, char** argv) {
   //make data storage object pointer for later
   AnitaDataset *data = NULL;
 
+
+
+  /*==============================
+    Event Loop Begins Here      */
   cout << "templateSearch(): starting event loop" << endl;
+
+  int skippedEvs=0;
+  int skippedEvsInst=0;
 
   Acclaim::ProgressBar p(totalEntriesToDo);
   TStopwatch watch; //!< ROOT's stopwatch class, used to time the progress since object construction
@@ -494,15 +511,17 @@ int main(int argc, char** argv) {
     if (entry%refreshRate==0 || entry<10) {
       timeElapsed = watch.RealTime(); //+1 to prevent divide by zero error
       totalTime += timeElapsed;
-      cout << entry << "/" << totalEntriesToDo << " evs in " << float(totalTime)/60 << " mins ";
+      cout << entry << "/" << totalEntriesToDo << " evs in " << float(totalTime)/60 << "mins,";
+      cout << " skipped " << skippedEvs << "(+" << skippedEvsInst << ") ";
       if (timeElapsed != 0) {
-	cout << float(entry)/totalTime << "ev/sec (" << float(refreshRate)/timeElapsed << " ev/sec instant)";
+	cout << float(entry-skippedEvs)/totalTime << "ev/sec (" << float(refreshRate-skippedEvsInst)/timeElapsed << " ev/sec instant)";
       }
       cout << " {" << entryToGet << "/" << entriesInCurrRun << "}";
 
       cout << endl;
       fflush(stdout);
       watch.Start();
+      skippedEvsInst=0;
     }
 
 
@@ -529,7 +548,11 @@ int main(int argc, char** argv) {
     
     //0) If I'm going to re-run this again, I want to at least cut it in half
     //    So no Vpol triggered events
-    if (!data->header()->l3TrigPatternH) continue;
+    if (!data->header()->l3TrigPatternH) {
+      skippedEvs++;
+      skippedEvsInst++;
+      continue;
+    }
 
 
     //1) calibrate and then filter the event and get a FilteredAnitaEvent back
@@ -551,47 +574,58 @@ int main(int argc, char** argv) {
     */
     for (int poli=0; poli<2; poli++) {
       //get coherently aligned waveform
-      const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0,false)->even();
+      const AnalysisWaveform *coherentAnalysis = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0,false);
       //I actually want to do SOME filtering though... so sine subtract a single one?
-      //      sineSub->processOne
+      //      sineSub->processOne(coherentAnalysis,data->header(),);
+      const TGraphAligned *coherentAligned = coherentAnalysis->even();
       TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
       //make sure it is the same length as the template
-      TGraph *coherent2 = FFTtools::padWaveToLength(coherent,length);
+      TGraph *coherentPad = FFTtools::padWaveToLength(coherent,length);
       delete coherent;
+
+
+      //-------stokes stuff
+      //window it for stokes parameters
       int peakHilbert = -1;
-      TGraph *windowed = windowDispersed(coherent2,peakHilbert);
-      delete coherent2;
-      int newLength = windowed->GetN();
+      TGraph *windowed = windowDispersed(coherentPad,peakHilbert);
+      //      delete coherentPad; //don't delete the padded one because its better for the template
+      int windLength = windowed->GetN();
 
 
       //and xpol for stokes
-      coherentAligned = analyzer->getCoherentXpol((AnitaPol::AnitaPol_t)poli,0,false)->even();
-      coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
+      const AnalysisWaveform *coherentAnalysisXpol = analyzer->getCoherentXpol((AnitaPol::AnitaPol_t)poli,0,false);
+      //I actually want to do SOME filtering though... so sine subtract a single one?
+      //      sineSub->processOne(coherentAnalysisXpol);
+      const TGraphAligned *coherentAlignedXpol = coherentAnalysisXpol->even();
+      TGraph *coherentXpol = new TGraph(coherentAlignedXpol->GetN(),coherentAlignedXpol->GetX(),coherentAlignedXpol->GetY());
       //make sure it is the same length as the template
-      coherent2 = FFTtools::padWaveToLength(coherent,length);
-      delete coherent;
-      TGraph *windowedXpol = windowDispersed(coherent2,peakHilbert);
-      delete coherent2;
-      if (newLength != windowedXpol->GetN()) cout << "xpol is a different length" << endl;
+      TGraph *coherentPadXpol = FFTtools::padWaveToLength(coherentXpol,length);
+      delete coherentXpol;
+      TGraph *windowedXpol = windowDispersed(coherentPadXpol,peakHilbert);
+      delete coherentPadXpol;
+      if (windLength != windowedXpol->GetN()) cout << "xpol is a different length" << endl;
 
-      //and do stokes for that
+      //and do stokes for that, then you can throw out the windowed things because thats all I use them for
       fillStokes(windowed->GetN(),windowed,windowedXpol,eventSummary->coherent[poli][1]);
       delete windowedXpol;
-
-
-      //normalize it
-      TGraph *normCoherent = normalizeWaveform(windowed);
       delete windowed;
-      FFTWComplex *coherentFFT=FFTtools::doFFT(newLength,normCoherent->GetY());
+      //--------done with stokes stuff
+
+
+      //==== Template stuff
+      //normalize coherently summed waveform
+      TGraph *normCoherent = normalizeWaveform(coherentPad);
+      delete coherentPad;
+      FFTWComplex *coherentFFT=FFTtools::doFFT(length,normCoherent->GetY());
       delete normCoherent; 
 
-      double *dCorr = getCorrelationFromFFT(newLength,theTemplateFFT,coherentFFT);
-      double max = TMath::MaxElement(newLength,dCorr);
-      double min = TMath::Abs(TMath::MinElement(newLength,dCorr));
+      double *dCorr = getCorrelationFromFFT(length,theTemplateFFT,coherentFFT);
+      double max = TMath::MaxElement(length,dCorr);
+      double min = TMath::Abs(TMath::MinElement(length,dCorr));
 
-      double *dCorrWais = getCorrelationFromFFT(newLength,theWaisTemplateFFT,coherentFFT);
-      double maxWais = TMath::MaxElement(newLength,dCorrWais);
-      double minWais = TMath::Abs(TMath::MinElement(newLength,dCorrWais));
+      double *dCorrWais = getCorrelationFromFFT(length,theWaisTemplateFFT,coherentFFT);
+      double maxWais = TMath::MaxElement(length,dCorrWais);
+      double minWais = TMath::Abs(TMath::MinElement(length,dCorrWais));
 
 
       if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal ) {
@@ -606,9 +640,9 @@ int main(int argc, char** argv) {
       double maxCR[numCRTemplates];
       double minCR[numCRTemplates];
       for (int i=0; i<numCRTemplates; i++) {
-	double *dCorrCR = getCorrelationFromFFT(newLength,theCRTemplates[i],coherentFFT);
-	maxCR[i] = TMath::MaxElement(newLength,dCorrCR);
-	minCR[i] = TMath::Abs(TMath::MinElement(newLength,dCorrCR));
+	double *dCorrCR = getCorrelationFromFFT(length,theCRTemplates[i],coherentFFT);
+	maxCR[i] = TMath::MaxElement(length,dCorrCR);
+	minCR[i] = TMath::Abs(TMath::MinElement(length,dCorrCR));
 	delete[] dCorrCR;
 	if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
 	  templateCRayV[i][0] = TMath::Max(maxCR[i],minCR[i]);
@@ -648,7 +682,7 @@ int main(int argc, char** argv) {
       int peakHilbert = -1;
       TGraph *windowed = windowEField(coherent2,peakHilbert);
       delete coherent2;
-      int newLength = windowed->GetN();
+      int windLength = windowed->GetN();
 
       //and xpol for stokes
       coherentAligned = analyzer->getDeconvolvedXpol((AnitaPol::AnitaPol_t)poli,0)->even();
@@ -658,7 +692,7 @@ int main(int argc, char** argv) {
       delete coherent;
       TGraph *windowedXpol = windowEField(coherent2,peakHilbert);
       delete coherent2;
-      if (newLength != windowedXpol->GetN()) cout << "xpol has a different length" << endl;
+      if (windLength != windowedXpol->GetN()) cout << "xpol has a different length" << endl;
 
       //and do stokes for that
       fillStokes(windowed->GetN(),windowed,windowedXpol,eventSummary->deconvolved[poli][1]);
@@ -667,15 +701,16 @@ int main(int argc, char** argv) {
       //normalize it
       TGraph *normCoherent = normalizeWaveform(windowed);
       delete windowed;
-      FFTWComplex *coherentFFT=FFTtools::doFFT(newLength,normCoherent->GetY());
+      FFTWComplex *coherentFFT=FFTtools::doFFT(windLength,normCoherent->GetY());
       delete normCoherent; 
+
 
       double maxCR[numCRTemplates];
       double minCR[numCRTemplates];
       for (int i=0; i<numCRTemplates; i++) {
-	double *dCorrCR = getCorrelationFromFFT(newLength,theCRTemplates[i+10],coherentFFT);
-	maxCR[i] = TMath::MaxElement(newLength,dCorrCR);
-	minCR[i] = TMath::Abs(TMath::MinElement(newLength,dCorrCR));
+	double *dCorrCR = getCorrelationFromFFT(windLength,theCRTemplates[i+10],coherentFFT);
+	maxCR[i] = TMath::MaxElement(windLength,dCorrCR);
+	minCR[i] = TMath::Abs(TMath::MinElement(windLength,dCorrCR));
 	delete[] dCorrCR;
 	if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
 	  templateCRayV[i][1] = TMath::Max(maxCR[i],minCR[i]);

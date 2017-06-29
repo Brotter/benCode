@@ -18,6 +18,16 @@ windowing functions
 TGraph *windowWave(TGraph*, int&, const int, const int, const int, const int);
 
 
+TGraph *windowCut(TGraph *inGraph,int length) {
+  /* cut whatever to this length with a nice little tail */
+  int tempPeak = -1;
+  const int beforeTime = 500;
+  const int wings = 10;
+  int afterTime = length - beforeTime - 2*wings;
+
+  return windowWave(inGraph,tempPeak,beforeTime,afterTime,wings,wings);
+}
+
 TGraph *windowDispersed(TGraph *inGraph, int &peakHilbertLoc) {  
   return windowWave(inGraph,peakHilbertLoc,
 		    500,750,20,20);
