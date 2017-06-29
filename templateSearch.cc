@@ -487,6 +487,7 @@ int main(int argc, char** argv) {
     //    So no Vpol triggered events
     if (!data->header()->l3TrigPatternH) continue;
 
+
     //1) calibrate and then filter the event and get a FilteredAnitaEvent back
     FilteredAnitaEvent *filteredEvent = new FilteredAnitaEvent(data->useful(), strategy, data->gps(), data->header());
 
@@ -506,7 +507,7 @@ int main(int argc, char** argv) {
     */
     for (int poli=0; poli<2; poli++) {
       //get coherently aligned waveform
-      const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0,true)->even();
+      const TGraphAligned *coherentAligned = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0,false)->even();
       TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
       //make sure it is the same length as the template
       TGraph *coherent2 = FFTtools::padWaveToLength(coherent,length);
@@ -517,7 +518,7 @@ int main(int argc, char** argv) {
       int newLength = windowed->GetN();
 
       //and xpol for stokes
-      coherentAligned = analyzer->getCoherentXpol((AnitaPol::AnitaPol_t)poli,0,true)->even();
+      coherentAligned = analyzer->getCoherentXpol((AnitaPol::AnitaPol_t)poli,0,false)->even();
       coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
       //make sure it is the same length as the template
       coherent2 = FFTtools::padWaveToLength(coherent,length);
