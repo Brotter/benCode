@@ -36,33 +36,33 @@ void CopyDir(TDirectory *source) {
   savdir->cd();
 }
 
-void fixRootFiles(string date="06.28.17_15h") {
+void fixRootFiles(string date="06.28.17_15h",int start=0, int end=256) {
 
-  stringstream name;
+  stringstream inName,outName;
   char* resultsDir = getenv("ANITA3_RESULTSDIR");
 
 
-  for (int core=0; core<256; core++) {
+  for (int core=start; core<end; core++) {
     cout << core << endl;
 
 
-    name.str("");
-    name << resultsDir << date << "/" << core << ".root";
-    cout << "inFile = " << name.str() << endl;
-    TFile *inFile = TFile::Open(name.str().c_str());
+    inName.str("");
+    inName << resultsDir << date << "/" << core << ".root";
+    cout << "inFile = " << inName.str() << endl;
+    TFile *inFile = TFile::Open(inName.str().c_str());
     if (!inFile || inFile->IsZombie()) {
-      cout << "File " << name.str() << " doesn't exist!" << endl;
+      cout << "File " << inName.str() << " doesn't exist!" << endl;
       continue;
     }
     cout << "got inFile" << endl;
 
 
-    name.str("");
-    name << resultsDir << date << "/" << core << "_fixed.root";
-    cout << "outFile = " << name.str() << endl;
-    TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
+    outName.str("");
+    outName << resultsDir << date << "/" << core << "_fixed.root";
+    cout << "outFile = " << outName.str() << endl;
+    TFile *outFile = TFile::Open(outName.str().c_str(),"recreate");
     if (!outFile || outFile->IsZombie()) {
-      cout << "File " << name.str() << " didn't open!" << endl;
+      cout << "File " << outName.str() << " didn't open!" << endl;
       continue;
     }
     cout << "got outFile" << endl;
@@ -73,6 +73,10 @@ void fixRootFiles(string date="06.28.17_15h") {
     CopyDir(inFile);
     inFile->Close();
     outFile->Close();
+
+    remove(inName.str().c_str());
+    rename(outName.str().c_str(),inName.str().c_str());
+
   }
 
 
