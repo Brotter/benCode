@@ -39,16 +39,18 @@
 #include "BlindDataset.h"
 #include "SpectrumAverage.h"
 #include "ProgressBar.h"
+#include "FilteredAnitaEvent.h"
 
 //my stuff
 #include "windowing.h"
+#include "templates.h"
 
 
 //lets handle SIGINT correctly so I can close the files
 #include "signal.h"
 
 
-TFile* outFile = NULL;
+TFile* outFile = NULL; //the pointer has to be global otherwise the inturrupts can't call it
 void emergencyClose(int sig) {
   
   /*
@@ -125,164 +127,6 @@ using namespace std;
 
  */
 
-
-TGraph *normalizeWaveform(TGraph *inGraph) {
-  
-  TGraph *outGraph = (TGraph*)inGraph->Clone();
-  
-  //normalize it ( as seen in macros/testTemplate.C )
-  double waveSum = 0;
-  for (int pt=0; pt<outGraph->GetN(); pt++) waveSum += pow(outGraph->GetY()[pt],2);
-  for (int pt=0; pt<outGraph->GetN(); pt++) outGraph->GetY()[pt] /= TMath::Sqrt(waveSum / (outGraph->GetN()/4));
-
-  return outGraph;
-
-}
-
-
-
-
-double *getCorrelationFromFFT(int length,const FFTWComplex *theFFT1, const FFTWComplex *theFFT2) 
-{
-
-
-    int newLength=(length/2)+1;
-//     cout << "newLength " << newLength << endl;
-    FFTWComplex *tempStep = new FFTWComplex [newLength];
-    int no2=length>>1;
-    for(int i=0;i<newLength;i++) {
-	double reFFT1=theFFT1[i].re;
-	double imFFT1=theFFT1[i].im;
-	double reFFT2=theFFT2[i].re;
-	double imFFT2=theFFT2[i].im;
-
-	//Real part of output 
-	tempStep[i].re=(reFFT1*reFFT2+imFFT1*imFFT2)/double(no2/2);
-	//Imaginary part of output 
-	tempStep[i].im=(imFFT1*reFFT2-reFFT1*imFFT2)/double(no2/2);
-    }
-//    cout << "finished messing around" << endl;
-    double *theOutput=FFTtools::doInvFFT(length,tempStep);
-//    cout << "got inverse" << endl;
-    delete [] tempStep;
-    return theOutput;
-
-}
-
-
-
-FFTWComplex* getImpulseResponseTemplate(int length) {
-  
-  //and get the "averaged" impulse response as the template"
-  char* templateDir = getenv("ANITA_UTIL_INSTALL_DIR");
-  stringstream name;
-  name.str("");
-  name << templateDir << "/share/AnitaAnalysisFramework/responses/SingleBRotter/all.imp";
-  TGraph *grTemplateRaw = new TGraph(name.str().c_str());
-  //waveforms are normally a little over 1024 so lets pad to 2048 (defined in length above)
-  TGraph *grTemplatePadded = FFTtools::padWaveToLength(grTemplateRaw,length);
-  delete grTemplateRaw;
-  //then cut it back down with a window function
-  //  int peakHilb = -1;
-  //  TGraph *grTemplateCut = windowDispersed(grTemplatePadded,peakHilb);
-  //  delete grTemplatePadded;
-  //and finally normalize it (last step!)
-  TGraph *grTemplate = normalizeWaveform(grTemplatePadded);
-  delete grTemplatePadded;
-
-  //save it quickly
-  outFile->cd();
-  grTemplate->SetName("templateImp");
-  grTemplate->Write();
-
-  cout << "Impulse Response Template Length: " << grTemplate->GetN() << endl;
-
-  //and get the FFT of it as well, since we don't want to do this every single event
-  FFTWComplex *theTemplateFFT=FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
-  delete grTemplate;
-  
-  return theTemplateFFT;
-}
-
-void getCRTemplates(int length, const int numTemplates,FFTWComplex** theTemplates) {
-
-  stringstream name;
-
-
-  //  TFile *inFile = TFile::Open("/Users/brotter/benCode/ZHAiresReader/convolveCRWithSigChain.root");
-  TFile *inFile = TFile::Open("convolveCRWithSigChain.root");
-  
-  for (int disp=0; disp<2; disp++) {
-    for (int i=0; i<numTemplates; i++) {
-      //want to get graphs 13 through 24 (like in makeTemplate.C)
-      int wave = i+13; //peak seems to be at around the 13th one, then by 23 it is basically zero
-      name.str("");
-      if (disp==0) name << "disp";
-      if (disp==1) name << "efield";
-      name << wave;
-      TGraph *grTemplateRaw = (TGraph*)inFile->Get(name.str().c_str());
-
-      //waveforms are super long so we can just cut it to the window dimentions
-      TGraph *grTemplateCut;
-      int peakHilb = -1;
-      //if (disp==0) grTemplateCut = windowDispersed(grTemplateRaw,peakHilb);
-      if (disp==0) grTemplateCut = windowCut(grTemplateRaw,length);
-      if (disp==1) grTemplateCut = windowEField(grTemplateRaw,peakHilb);
-      delete grTemplateRaw;
-       
-
-      //and finally normalize it (last step!)
-      TGraph *grTemplate = normalizeWaveform(grTemplateCut);
-      delete grTemplateCut;
-
-      //save it quickly
-      outFile->cd();
-      grTemplate->SetName(name.str().c_str());
-      grTemplate->Write();
-
-      cout << "CR Template " << i << "_" << disp << " Length: " << grTemplate->GetN() << endl;
-
-      //and get the FFT of it as well, since we don't want to do this every single event
-      FFTWComplex *theTemplateFFT=FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
-      delete grTemplate;
-      
-      theTemplates[i+numTemplates*disp] = theTemplateFFT;
-    }
-  }
-  inFile->Close();
-
-  return;
-}
-
-    
-FFTWComplex* getWaisTemplate(int length) {
-  
-  //and get the "averaged" impulse response as the template"
-  TFile *inFile = TFile::Open("waisTemplate.root");
-  TGraph *grTemplateRaw = (TGraph*)inFile->Get("wais01TH");
-  //the wais waveform is like N=2832, but most of it is dumb, so cut off the beginning
-  //actually just window it!
-  int peakHilb = -1;
-  TGraph *grTemplateCut = windowCut(grTemplateRaw,length);
-  delete grTemplateRaw;
-
-  //and then normalize it
-  TGraph *grTemplate = normalizeWaveform(grTemplateCut);
-  delete grTemplateCut;
-
-  //save it quickly  
-  outFile->cd();
-  grTemplate->SetName("templateWais");
-  grTemplate->Write();
-
-  cout << "Wais Template Length: " << grTemplate->GetN() << endl;
-
-  //and get the FFT of it as well, since we don't want to do this every single event
-  FFTWComplex *theTemplateFFT=FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
-  delete grTemplate;
-  
-  return theTemplateFFT;
-}
 
 
 void entryToRun(int entry, int &runOut, int &startEntry) {
@@ -439,11 +283,26 @@ int main(int argc, char** argv) {
   /*=================
   //get the templates
   */
-  FFTWComplex *theTemplateFFT = getImpulseResponseTemplate(length);
-  FFTWComplex *theWaisTemplateFFT = getWaisTemplate(length);
+  FFTWComplex *theImpTemplateFFT;
+  TGraph *theImpTemplate;
+  getImpulseResponseTemplate(length,theImpTemplateFFT,theImpTemplate);
+
+  FFTWComplex *theWaisTemplateFFT;
+  TGraph *theWaisTemplate;
+  getWaisTemplate(length,theWaisTemplateFFT,theWaisTemplate);
+
   const int numCRTemplates = 10;
-  FFTWComplex *theCRTemplates[numCRTemplates*2]; //LSB=dispersed, MSB=efield
-  getCRTemplates(length,numCRTemplates,theCRTemplates);
+  FFTWComplex *theCRTemplateFFTs[numCRTemplates];
+  TGraph *theCRTemplates[numCRTemplates];
+  getCRTemplates(length,numCRTemplates,theCRTemplateFFTs,theCRTemplates);
+
+  //also write them
+  outFile->cd();
+  theImpTemplate->Write();
+  theWaisTemplate->Write();
+  for (int i=0; i<numCRTemplates*2; i++) {
+    theCRTemplates[i]->Write();
+  }
   /*
     --------*/
 
@@ -516,6 +375,7 @@ int main(int argc, char** argv) {
       if (timeElapsed != 0) {
 	cout << float(entry-skippedEvs)/totalTime << "ev/sec (" << float(refreshRate-skippedEvsInst)/timeElapsed << " ev/sec instant)";
       }
+      cout << float(totalEntriesToDo-entry)/float(entry)/float(totalTime/60) << "minutes left";
       cout << " {" << entryToGet << "/" << entriesInCurrRun << "}";
 
       cout << endl;
@@ -619,7 +479,7 @@ int main(int argc, char** argv) {
       FFTWComplex *coherentFFT=FFTtools::doFFT(length,normCoherent->GetY());
       delete normCoherent; 
 
-      double *dCorr = getCorrelationFromFFT(length,theTemplateFFT,coherentFFT);
+      double *dCorr = getCorrelationFromFFT(length,theImpTemplateFFT,coherentFFT);
       double max = TMath::MaxElement(length,dCorr);
       double min = TMath::Abs(TMath::MinElement(length,dCorr));
 
@@ -640,7 +500,7 @@ int main(int argc, char** argv) {
       double maxCR[numCRTemplates];
       double minCR[numCRTemplates];
       for (int i=0; i<numCRTemplates; i++) {
-	double *dCorrCR = getCorrelationFromFFT(length,theCRTemplates[i],coherentFFT);
+	double *dCorrCR = getCorrelationFromFFT(length,theCRTemplateFFTs[i],coherentFFT);
 	maxCR[i] = TMath::MaxElement(length,dCorrCR);
 	minCR[i] = TMath::Abs(TMath::MinElement(length,dCorrCR));
 	delete[] dCorrCR;
@@ -669,7 +529,7 @@ int main(int argc, char** argv) {
 
     /*=============
       Deconvolved
-    */
+      fucked up right now
     //do everything once more for the deconvolved coherent waveform
     for (int poli=0; poli<2; poli++) {
 
@@ -725,7 +585,7 @@ int main(int argc, char** argv) {
 
       //      p.inc(entry, totalEntriesToDo); //BenS's status bar (I like mine better)
     }
-
+*/
 
     //okay all done, now I can write out and move to the next event
 
