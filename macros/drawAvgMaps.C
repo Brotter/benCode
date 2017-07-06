@@ -33,8 +33,8 @@ void drawAvgMaps(string date="07.05.17_22h/") {
       cnt++;
       c1->cd();
       c1->Clear();
-      noiseSum->avgMap[0]->SetStats(0);
-      noiseSum->avgMap[0]->Draw("colz");
+      noiseSum->avgMapProf[0]->SetStats(0);
+      noiseSum->avgMapProf[0]->Draw("colz");
 
       double sunTheta = eventSummary->sun.theta;
       double sunPhi = eventSummary->sun.phi;
