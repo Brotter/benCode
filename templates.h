@@ -1,7 +1,7 @@
 #ifndef ANITA_TEMPLATES
 #define ANITA_TEMPLATES
 
-#include "AnitaEventSummary.h"
+#include "AnitaTemplateResults.h"
 #include "AnitaConventions.h"
 
 TGraph *normalizeWaveform(TGraph *inGraph) {
@@ -49,7 +49,7 @@ double *getCorrelationFromFFT(int length,const FFTWComplex *theFFT1, const FFTWC
 
 
 
-void getImpulseResponseTemplate(int length, FFTWComplex *theTemplateFFT, TGraph *theTemplate) {
+void getImpulseResponseTemplate(int length, FFTWComplex* &theTemplateFFT, TGraph* &theTemplate) {
   
   //and get the "averaged" impulse response as the template"
   char* templateDir = getenv("ANITA_UTIL_INSTALL_DIR");
@@ -76,7 +76,7 @@ void getImpulseResponseTemplate(int length, FFTWComplex *theTemplateFFT, TGraph 
   cout << "Impulse Response Template Length: " << grTemplate->GetN() << endl;
 
   //and get the FFT of it as well, since we don't want to do this every single event
-  theTemplateFFT=FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
+  theTemplateFFT = FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
   
   return;
 }
@@ -93,7 +93,7 @@ void getCRTemplates(int length, const int numTemplates,FFTWComplex** theTemplate
     //want to get graphs 13 through 24 (like in makeTemplate.C)
     int wave = i+13; //peak seems to be at around the 13th one, then by 23 it is basically zero
     name.str("");
-    name << "dispersedCR" << wave;
+    name << "disp" << wave;
     TGraph *grTemplateRaw = (TGraph*)inFile->Get(name.str().c_str());
     
     //waveforms are super long so we can just cut it to the window dimentions
@@ -113,9 +113,8 @@ void getCRTemplates(int length, const int numTemplates,FFTWComplex** theTemplate
     
     //and get the FFT of it as well, since we don't want to do this every single event
     FFTWComplex *theTemplateFFT=FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
-    delete grTemplate;
     theTemplates[i] = grTemplate;
-      theTemplateFFTs[i] = theTemplateFFT;
+    theTemplateFFTs[i] = theTemplateFFT;
   }
   
   inFile->Close();
@@ -124,7 +123,7 @@ void getCRTemplates(int length, const int numTemplates,FFTWComplex** theTemplate
 }
 
     
-void getWaisTemplate(int length, FFTWComplex *theTemplateFFT, TGraph* theTemplate) {
+void getWaisTemplate(int length, FFTWComplex* &theTemplateFFT, TGraph* &theTemplate) {
   
   //and get the "averaged" impulse response as the template"
   TFile *inFile = TFile::Open("waisTemplate.root");
@@ -145,12 +144,13 @@ void getWaisTemplate(int length, FFTWComplex *theTemplateFFT, TGraph* theTemplat
   cout << "Wais Template Length: " << grTemplate->GetN() << endl;
 
   //and get the FFT of it as well, since we don't want to do this every single event
-  theTemplateFFT=FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
+  theTemplateFFT = FFTtools::doFFT(grTemplate->GetN(),grTemplate->GetY());
   theTemplate = grTemplate;
-  
+
   return;
 }
 
+ 
 
 class AnitaTemplates
 {
@@ -182,12 +182,9 @@ class AnitaTemplates
 
 
   /* Cosmic Ray Templates */
-  /* Number of points on the cone */
-  static const int numCRTemplates = 10;
 
-  /* Templates */
-  TGraph *theCRTemplates[numCRTemplates];
-  FFTWComplex *theCRTemplateFFTss[numCRTemplates];
+  TGraph *theCRTemplates[AnitaTemplateResults::numCRTemplates];
+  FFTWComplex *theCRTemplateFFTs[AnitaTemplateResults::numCRTemplates];
   
   /* CR Template Loader */
   void getCRTemplates(const int numTemplates, FFTWComplex** theTemplateFFTs, TGraph** grTemplates);
@@ -198,45 +195,6 @@ class AnitaTemplates
 
 };
 
-
-
-class AnitaTemplateResults
-{
- public:
-
-  
-  /** The maximum number of hypotheses storable per polarization */ 
-  //
-  static const Int_t maxDirectionsPerPol = AnitaEventSummary::maxDirectionsPerPol; 
-
-  /*The template correlatin values for a single coherent waveform comparison*/
-  class SingleTemplateResult {
-  public:
-    SingleTemplateResult() {; }
-    //impulse response
-    Double_t templateImp;
-    
-    //one for the WAIS template too
-    Double_t templateWais;
-    
-    //and for the bigger multi-coherence-angle one
-    Double_t templateCRay[AnitaTemplates::numCRTemplates];
-    
-    ClassDefNV(SingleTemplateResult,1);
-  };
-
-  
-  SingleTemplateResult coherentV[maxDirectionsPerPol];
-  SingleTemplateResult coherentH[maxDirectionsPerPol];
-  
-  SingleTemplateResult deconvolvedV[maxDirectionsPerPol];
-  SingleTemplateResult deconvolvedH[maxDirectionsPerPol];
-
-    
- private:
-  ClassDefNV(AnitaTemplateResults, 1); 
-};
- 
  
  
 

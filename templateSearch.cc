@@ -17,6 +17,7 @@
 #include "TStyle.h" 
 #include "TCanvas.h"
 #include "TStopwatch.h"
+#include "Compression.h"
 //anita
 #include "RawAnitaEvent.h"
 #include "RawAnitaHeader.h"
@@ -44,7 +45,8 @@
 //my stuff
 #include "windowing.h"
 #include "templates.h"
-
+#include "AnitaTemplateResults.h"
+#include "AnitaNoiseSummary.h"
 
 //lets handle SIGINT correctly so I can close the files
 #include "signal.h"
@@ -66,7 +68,7 @@ void emergencyClose(int sig) {
 
   if (outFile != NULL) {
     outFile->cd();
-    outFile->Write();
+    outFile->Write(); //I think this causes a segfault occasionally...
     outFile->Close();
     cout << "Saved successfully!" << endl;
   }
@@ -181,6 +183,7 @@ void fillStokes(int length,TGraph *window, TGraph *windowXpol, AnitaEventSummary
 
 int main(int argc, char** argv) {
 
+  //load wisdom crap that doesn't seem to do anything
   char* homeDir = getenv("HOME");
   stringstream wisdomDir;
   wisdomDir.str("");
@@ -191,10 +194,11 @@ int main(int argc, char** argv) {
   signal(SIGTERM, emergencyClose); 
   signal(SIGQUIT, emergencyClose); 
   signal(SIGINT, pauseSwitch);
-  
+    
   string outFileName;
   int startEntry,endEntry,totalEntriesToDo;
 
+  //figure out what you're doing
   if (argc==4) {
     outFileName = argv[1];
     startEntry = atoi(argv[2]);
@@ -219,6 +223,9 @@ int main(int argc, char** argv) {
   name << outFileName << ".root";
   cout << "Using " << name.str() << " as output file" << endl;
   outFile = TFile::Open(name.str().c_str(),"recreate");
+  outFile->SetCompressionLevel(9); //LZMA is the "fancy" compression, and 9 is the strongest
+  outFile->SetCompressionAlgorithm(ROOT::kLZMA);
+
 
   outFile->cd();
   TTree *outTree = new TTree("summaryTree","summaryTree");
@@ -229,6 +236,8 @@ int main(int argc, char** argv) {
   outTree->Branch("eventSummary",&eventSummary);
 
 
+
+  cout << "Making the filters" << endl;
   //Make a filter strategy
   //  with a debug file
   //  name.str("");
@@ -247,7 +256,7 @@ int main(int argc, char** argv) {
   //Sine subtract alghorithm (this is the complicated way to do it)
   UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(0.05,2);
   sineSub->makeAdaptive(specAvgLoader);
-  strategy->addOperation(sineSub);
+  //  strategy->addOperation(sineSub);
   // This seems like it should work and is easier
   //add "adsinsub_2_5_13" (default in MagicDisplay)
   //  UCorrelator::fillStrategyWithKey(strategy,"sinsub_05_1_ad_1");
@@ -257,7 +266,7 @@ int main(int argc, char** argv) {
   // UCorrelator::AdaptiveBrickWallFilter(const UCorrelator::SpectrumAverageLoader * spec, double thresh=2, bool fillNotch = true);  
   // Don't fill in the noise because whats the point of that really
   UCorrelator::AdaptiveBrickWallFilter *brickWall = new UCorrelator::AdaptiveBrickWallFilter(specAvgLoader,2,false);
-  //strategy->addOperation(brickWall);
+  strategy->addOperation(brickWall);
 
 
   //  with abby's list of filtering
@@ -265,6 +274,7 @@ int main(int argc, char** argv) {
 
 
 
+  cout << "Making the Analyzer" << endl;
   //and a configuration for the analysis
   UCorrelator::AnalysisConfig *config = new UCorrelator::AnalysisConfig(); 
   //set the response to my "single" response
@@ -280,18 +290,39 @@ int main(int argc, char** argv) {
 
 
 
+  cout << "Adding more stuff to output tree" << endl;
+  //and add a thing to store template results
+  AnitaTemplateResults *templateResults = new AnitaTemplateResults();
+  outTree->Branch("templateResults",&templateResults);
+
+  //and the noise summary too
+  AnitaNoiseSummary *noiseSummary = new AnitaNoiseSummary();
+  outTree->Branch("noiseSummary",&noiseSummary);
+
+  //the thing that calculates the summary is persistant between events
+  AnitaNoiseMachine *noiseMachine = new AnitaNoiseMachine();
+  noiseMachine->fillMap = true;
+
   /*=================
   //get the templates
   */
+  cout << "Getting the templates" << endl;
   FFTWComplex *theImpTemplateFFT;
   TGraph *theImpTemplate;
   getImpulseResponseTemplate(length,theImpTemplateFFT,theImpTemplate);
+  cout << "Got Impulse Response Template" << endl;
+  cout << theImpTemplateFFT << " " << theImpTemplate << endl;
 
   FFTWComplex *theWaisTemplateFFT;
   TGraph *theWaisTemplate;
   getWaisTemplate(length,theWaisTemplateFFT,theWaisTemplate);
+  outFile->cd();
+  cout << theWaisTemplate << " " << theWaisTemplateFFT << endl;
+  theWaisTemplate->Write();
+  cout << "Got Wais Template" << endl;
 
-  const int numCRTemplates = 10;
+  const int numCRTemplates = templateResults->numCRTemplates;
+  cout << "numCRTemplates = " << numCRTemplates << endl;
   FFTWComplex *theCRTemplateFFTs[numCRTemplates];
   TGraph *theCRTemplates[numCRTemplates];
   getCRTemplates(length,numCRTemplates,theCRTemplateFFTs,theCRTemplates);
@@ -299,37 +330,16 @@ int main(int argc, char** argv) {
   //also write them
   outFile->cd();
   theImpTemplate->Write();
-  theWaisTemplate->Write();
-  for (int i=0; i<numCRTemplates*2; i++) {
+
+  for (int i=0; i<numCRTemplates; i++) {
     theCRTemplates[i]->Write();
   }
+  cout << "Wrote templates to output file" << endl;
+
   /*
     --------*/
 
 
-
-  //and add a thing to store whatever it finds
-  Double_t templateImpV = 0;
-  Double_t templateImpH = 0;
-  outTree->Branch("templateImpV",&templateImpV);
-  outTree->Branch("templateImpH",&templateImpH);
-
-  //one for the WAIS template too
-  Double_t templateWaisV = 0;
-  Double_t templateWaisH = 0;
-  outTree->Branch("templateWaisV",&templateWaisV);
-  outTree->Branch("templateWaisH",&templateWaisH);
-
-  //and for the bigger multi-coherence-angle one
-  Double_t templateCRayV[numCRTemplates][2];
-  Double_t templateCRayH[numCRTemplates][2];
-  name.str("");
-  name << "templateCRayV[" << numCRTemplates << "][2]/D";
-  outTree->Branch("templateCRayV",&templateCRayV,name.str().c_str());
-  name.str("");
-  name << "templateCRayH[" << numCRTemplates << "][2]/D";
-  outTree->Branch("templateCRayH",&templateCRayH,name.str().c_str());
-        
   
   //find which run startEntry refers to
   int startRun,startEntryInRun;
@@ -346,8 +356,6 @@ int main(int argc, char** argv) {
 
 
 
-  /*==============================
-    Event Loop Begins Here      */
   cout << "templateSearch(): starting event loop" << endl;
 
   int skippedEvs=0;
@@ -356,8 +364,11 @@ int main(int argc, char** argv) {
   Acclaim::ProgressBar p(totalEntriesToDo);
   TStopwatch watch; //!< ROOT's stopwatch class, used to time the progress since object construction
   watch.Start(kTRUE);
-  int timeElapsed;
-  int totalTime;
+  int totalTimeSec;
+  
+
+  /*==============================
+    Event Loop Begins Here      */
   for (Long64_t entry=0; entry<totalEntriesToDo; entry++) {
     while(paused);
 
@@ -367,15 +378,25 @@ int main(int argc, char** argv) {
 
     //little bit longer progress bar that normal (Acclaim's is good too but I want my OWN)
     const int refreshRate = 100;
+ 
     if (entry%refreshRate==0 || entry<10) {
-      timeElapsed = watch.RealTime(); //+1 to prevent divide by zero error
-      totalTime += timeElapsed;
-      cout << entry << "/" << totalEntriesToDo << " evs in " << float(totalTime)/60 << "mins,";
+      int timeElapsed = watch.RealTime(); //+1 to prevent divide by zero error
+      totalTimeSec += timeElapsed;
+
+      double totalTimeMin = float(totalTimeSec)/60.;
+      double totalRateSec = float(entry-skippedEvs)/totalTimeSec;
+      double totalRateMin = float(entry-skippedEvs)/totalTimeMin;
+      double instRateSec = float(refreshRate-skippedEvsInst)/timeElapsed;
+      double minutesLeft =float(totalEntriesToDo-entry)/totalRateMin;
+      double secondsLeft =float(totalEntriesToDo-entry)/totalRateSec;
+
+      cout << std::setprecision(3);
+      cout << entry << "/" << totalEntriesToDo << " evs in " << totalTimeMin << "mins,";
       cout << " skipped " << skippedEvs << "(+" << skippedEvsInst << ") ";
       if (timeElapsed != 0) {
-	cout << float(entry-skippedEvs)/totalTime << "ev/sec (" << float(refreshRate-skippedEvsInst)/timeElapsed << " ev/sec instant)";
+	cout << totalRateSec << "ev/sec (" << instRateSec << " ev/sec instant)";
       }
-      cout << float(totalEntriesToDo-entry)/float(entry)/float(totalTime/60) << "minutes left";
+      cout << secondsLeft << " seconds (" << minutesLeft << " mins) remain";
       cout << " {" << entryToGet << "/" << entriesInCurrRun << "}";
 
       cout << endl;
@@ -406,9 +427,13 @@ int main(int argc, char** argv) {
     //get all the pointers set right
     data->getEntry(entryToGet);
     
+    // the trig type needs bit masking for annoying reasons
+    int trigType = data->header()->trigType&0x0F;
+
     //0) If I'm going to re-run this again, I want to at least cut it in half
     //    So no Vpol triggered events
-    if (!data->header()->l3TrigPatternH) {
+    //    do want to keep things that aren't rf though
+    if (!data->header()->l3TrigPatternH && trigType == 1) {
       skippedEvs++;
       skippedEvsInst++;
       continue;
@@ -422,6 +447,17 @@ int main(int argc, char** argv) {
     eventSummary->zeroInternals();
     //2) then analyze the filtered event!
     analyzer->analyze(filteredEvent, eventSummary); 
+
+    //do the noise analysis (only update it if it is a min bias though
+    if (trigType != 1) {
+      noiseSummary->isMinBias = true;
+      noiseMachine->fillAvgRMSNoise(filteredEvent);
+      noiseMachine->fillAvgMapNoise(analyzer);
+      noiseMachine->fillNoiseSummary(noiseSummary);
+    }
+    else {
+      noiseSummary->isMinBias = false;
+    }
     delete filteredEvent;
 
     /*==========
@@ -489,12 +525,12 @@ int main(int argc, char** argv) {
 
 
       if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal ) {
-	templateImpH = TMath::Max(max,min);
-	templateWaisH = TMath::Max(maxWais,minWais);
+	templateResults->coherentH->templateImp  = TMath::Max(max,min);
+	templateResults->coherentH->templateWais = TMath::Max(maxWais,minWais);
       }
       if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
-	templateImpV = TMath::Max(max,min);
-	templateWaisV = TMath::Max(maxWais,minWais);
+	templateResults->coherentV->templateImp  = TMath::Max(max,min);
+	templateResults->coherentV->templateWais = TMath::Max(maxWais,minWais);
       }
 
       double maxCR[numCRTemplates];
@@ -505,10 +541,10 @@ int main(int argc, char** argv) {
 	minCR[i] = TMath::Abs(TMath::MinElement(length,dCorrCR));
 	delete[] dCorrCR;
 	if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
-	  templateCRayV[i][0] = TMath::Max(maxCR[i],minCR[i]);
+	  templateResults->coherentV->templateCRay[i] = TMath::Max(maxCR[i],minCR[i]);
 	}
 	else if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal )  {
-	  templateCRayH[i][0] = TMath::Max(maxCR[i],minCR[i]);
+	  templateResults->coherentH->templateCRay[i] = TMath::Max(maxCR[i],minCR[i]);
 	}
 	else {
 	  cout << "Something is horrible wrong!  I don't know where to save the templates results! ";
@@ -593,16 +629,19 @@ int main(int argc, char** argv) {
     outTree->Fill();
     //  outTree->FlushBaskets(); //maybe will make writing at the end faster?
 
+    noiseSummary->deleteHists(); //I don't want to save histograms for every event I guess
+
     analyzer->clearInteractiveMemory();
   }
 
 
-  cout << endl << "Final Processing Rate: " << float(totalEntriesToDo)/totalTime << "ev/sec" << endl;
+  cout << endl << "Final Processing Rate: " << float(totalEntriesToDo)/totalTimeSec << "ev/sec" << endl;
 
   outFile->cd();
   cout << "Writing out to file..." << endl;
   outTree->Write();
   outFile->Close();
+
 
   delete eventSummary;
 
