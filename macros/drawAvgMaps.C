@@ -1,14 +1,16 @@
 #include "AnitaConventions.h"
 
-void drawAvgMaps() {
+void drawAvgMaps(string date="07.05.17_22h/") {
 
   stringstream name;
+
+  char* resultsDir = getenv("ANITA3_RESULTSDIR");
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
 
   for (int core=0; core<256; core++) {
     name.str("");
-    name << core << ".root";
+    name << resultsDir << date << core << ".root";
     summaryTree->Add(name.str().c_str());
   }
 
