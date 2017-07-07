@@ -1,5 +1,15 @@
 #include "AnitaConventions.h"
 
+void getDate(int realTime,char* date) {
+
+  time_t t = realTime;
+  struct tm *tm = localtime(&t);
+  strftime(date, sizeof(date), "%m.%d  %H:%M", tm);
+
+  return;
+}
+
+
 void drawAvgMaps(string date="07.05.17_22h/") {
 
   stringstream name;
@@ -33,7 +43,15 @@ void drawAvgMaps(string date="07.05.17_22h/") {
       cnt++;
       c1->cd();
       c1->Clear();
+
       noiseSum->avgMapProf[0]->SetStats(0);
+      noiseSum->avgMapProf[0]->GetZaxis()->SetRangeUser(0,0.025);
+      name.str("");
+      char currTime[64];
+      getDate(eventSummary->realTime,currTime);
+      name << "Average Interferometric Map - " << currTime;
+      noiseSum->avgMapProf[0]->SetTitle(name.str().c_str());
+
       noiseSum->avgMapProf[0]->Draw("colz");
 
       double sunTheta = eventSummary->sun.theta;
