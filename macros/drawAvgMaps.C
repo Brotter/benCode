@@ -29,10 +29,6 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="") {
  
   const int numZeros = 5;
   
-  AnitaNoiseFactory *noiseFactor = new AnitaNoiseFactory();
-  
-  
-  
   for (int entry=0; entry<summaryTree->GetEntries(); entry++) {
     cout << "entry:" << entry << "/" << summaryTree->GetEntries() << endl;
     summaryTree->GetEntry(entry);
@@ -74,6 +70,8 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="") {
 
   
   return;
+  }
+
 }
 
 
