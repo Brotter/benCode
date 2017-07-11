@@ -76,7 +76,7 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="") {
 
 
 
-TChain *loadWholeCluster(string date="07.05.17_22h") {
+TChain *loadWholeCluster(string date="07.05.17_22h/") {
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
   stringstream name;
