@@ -29,8 +29,12 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="") {
  
   const int numZeros = 5;
   
-  for (int entry=0; entry<summaryTree->GetEntries(); entry++) {
-    cout << "entry:" << entry << "/" << summaryTree->GetEntries() << endl;
+
+  int lenEntries = summaryTree->GetEntries();
+  cout << "lenEntries:" << lenEntries << endl;
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    cout << "entry:" << entry << "/" << lenEntries << " (" << cnt << ")" <<  endl;
     summaryTree->GetEntry(entry);
     
     
@@ -64,14 +68,11 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="") {
       name << "avgMaps/" << prefix << "_";
       name << setfill('0') << setw(numZeros) << cnt << ".png";
       c1->SaveAs(name.str().c_str());
-      //    }
-  }
-    
 
-  
+    }
+  }
+
   return;
-  }
-
 }
 
 
