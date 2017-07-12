@@ -157,7 +157,7 @@ void drawAvgMaps(int core=-1) {
   TChain *summaryTree = loadSingle(name.str());
 
   name.str("");
-  name << "core" << core;
+  name << "core" << setfill('0') << setw(3) << core;
   saveImagesFromTChain(summaryTree,name.str());
 
   return;
