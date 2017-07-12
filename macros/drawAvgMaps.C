@@ -103,3 +103,24 @@ TChain *loadSingle(string name) {
 
   return summaryTree;
 }
+
+
+void drawAvgMaps(int core=-1) {
+
+  if (core==-1) {
+    cout << "No core selected, doing nothing" << endl;
+    return;
+  }
+
+  char* resultsDir = getenv("ANITA3_RESULTSDIR");
+  stringstream name;
+  name.str("");
+  name << resultsDir << "07.05.17_22h/" << core << ".root";
+  TChain *summaryTree = loadSingle(name.str());
+
+  name.str("");
+  name << "core" << core;
+  saveImagesFromTChain(summaryTree,name.str());
+
+  return;
+}
