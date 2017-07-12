@@ -1,3 +1,28 @@
+TH2D* rotateMap(TH2D *inHist, double heading) {
+
+  /* Returns a rotated map where zero is north */
+
+  TH2D *outHist = (TH2D*)inHist->Clone();
+  outHist->Reset();
+
+  for (int binX=1; binX < inHist->GetNbinsX()+1; binX++) {
+    double binCenterX = inHist->GetXaxis()->GetBinCenter(binX);
+    binCenterX -= heading;
+    if (binCenterX <= 0) binCenterX += 360;
+    
+    for (int binY=1; binY < inHist->GetNbinsY()+1; binY++) {
+      double binCenterY = inHist->GetYaxis()->GetBinCenter(binY);
+      double value = inHist->GetBinContent(binX,binY);
+      
+      outHist->Fill(binCenterX,binCenterY,value);
+    }
+  }
+
+  return outHist;
+}
+
+  
+
 
 void getDateFromRealTime(int realTime,char* formattedDate,const int length) {
   
@@ -29,14 +54,16 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="") {
  
   const int numZeros = 5;
   
+  summaryTree->GetEntry(0);
+  AnitaDataset *data = new AnitaDataset(eventSummary->run);
+
 
   int lenEntries = summaryTree->GetEntries();
   cout << "lenEntries:" << lenEntries << endl;
 
   for (int entry=0; entry<lenEntries; entry++) {
     summaryTree->GetEntry(entry);
-    
-    
+
     if (noiseSum->isMinBias) {
       cnt++;
       if (cnt%60 != 0) continue; //only do every 60
@@ -45,23 +72,32 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="") {
 
       c1->cd();
       c1->Clear();
-      
-      
 
-      noiseSum->avgMapProf[0]->SetStats(0);
-      noiseSum->avgMapProf[0]->GetZaxis()->SetRangeUser(-0.02,0.05);
+
+    
+      int run = eventSummary->run;
+      if (data->currRun != run) {
+	data->loadRun(run);
+      }
+      data->getEvent(eventSummary->eventNumber);
+
+      double heading = data->gps()->heading;
+      TH2D *rotatedMap = rotateMap(noiseSum->avgMapProf[0],heading);
+
+      rotatedMap->SetStats(0);
+      rotatedMap->GetZaxis()->SetRangeUser(-0.02,0.04);
       name.str("");
       char currTime[64];
       getDateFromRealTime(eventSummary->realTime,currTime,64);
       cout << currTime << endl;
       name << "Average Interferometric Map - " << currTime;
-      noiseSum->avgMapProf[0]->SetTitle(name.str().c_str());
+      rotatedMap->SetTitle(name.str().c_str());
 
-      noiseSum->avgMapProf[0]->Draw("colz");
+      rotatedMap->Draw("colz");
 
       double sunTheta = eventSummary->sun.theta;
-      double sunPhi = eventSummary->sun.phi;
-      if (sunPhi < 0) sunPhi += 360;
+      double sunPhi = eventSummary->sun.phi - heading;
+      while (sunPhi < 0) sunPhi += 360;
       //      cout << sunPhi << " " << sunTheta << endl;
       gSun->SetPoint(0,sunPhi,-sunTheta);
       gSun->Draw("pSame");
@@ -71,6 +107,8 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="") {
       name << "avgMaps/" << prefix << "_";
       name << setfill('0') << setw(numZeros) << cnt/60 << ".png";
       c1->SaveAs(name.str().c_str());
+
+      delete rotatedMap;
 
     }
   }
