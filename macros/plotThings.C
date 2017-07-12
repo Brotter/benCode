@@ -1,8 +1,3 @@
-#include "AnitaConventions.h"
-#include "AnitaEventSummary.h"
- 
-
-
 
 TH1* makeNormCumulative(TH1* inHist) {
 
