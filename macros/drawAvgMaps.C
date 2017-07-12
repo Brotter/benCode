@@ -34,7 +34,6 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="") {
   cout << "lenEntries:" << lenEntries << endl;
 
   for (int entry=0; entry<lenEntries; entry++) {
-    cout << "entry:" << entry << "/" << lenEntries << " (" << cnt << ")" <<  endl;
     summaryTree->GetEntry(entry);
     
     
@@ -42,9 +41,13 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="") {
       cnt++;
       if (cnt%60 != 0) continue; //only do every 60
 
+      cout << "entry:" << entry << "/" << lenEntries << " (" << cnt << ")" <<  endl;
+
       c1->cd();
       c1->Clear();
       
+      
+
       noiseSum->avgMapProf[0]->SetStats(0);
       noiseSum->avgMapProf[0]->GetZaxis()->SetRangeUser(-0.02,0.05);
       name.str("");
@@ -66,7 +69,7 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="") {
 
       name.str("");
       name << "avgMaps/" << prefix << "_";
-      name << setfill('0') << setw(numZeros) << cnt << ".png";
+      name << setfill('0') << setw(numZeros) << cnt/60 << ".png";
       c1->SaveAs(name.str().c_str());
 
     }
