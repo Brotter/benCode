@@ -1,3 +1,5 @@
-for core in `seq 10 256`; do
-    root drawAvgMaps.C\(${core}\) &
+startCore=${1}
+stopCore=${2}
+for core in `seq ${startCore} ${stopCore}`; do
+    root -b -q drawAvgMaps.C\(${core}\) &> ${core}.log
 done
