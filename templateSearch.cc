@@ -43,15 +43,17 @@
 #include "FilteredAnitaEvent.h"
 
 //my stuff
-#include "windowing.h"
-#include "templates.h"
-#include "AnitaTemplateResults.h"
+//#include "windowing.h"
+//#include "templates.h"
+#include "AnitaTemplates.h"
 #include "AnitaNoiseSummary.h"
 #include "AnitaNoiseMachine.h"
 
 //lets handle SIGINT correctly so I can close the files
 #include "signal.h"
 
+
+using namespace std;
 
 TFile* outFile = NULL; //the pointer has to be global otherwise the inturrupts can't call it
 void emergencyClose(int sig) {
@@ -233,9 +235,11 @@ int main(int argc, char** argv) {
 
   //Lets make the summary object that I can shove into the output tree
   AnitaEventSummary *eventSummary = new AnitaEventSummary; 
-
   outTree->Branch("eventSummary",&eventSummary);
 
+  //and add gps data too, don't forget to fill this!
+  Adu5Pat *gpsEvent = NULL;
+  outTree->Branch("gpsEvent",&gpsEvent);
 
 
   cout << "Making the filters" << endl;
@@ -286,21 +290,19 @@ int main(int argc, char** argv) {
   UCorrelator::Analyzer *analyzer = new UCorrelator::Analyzer(config,true);
 
 
-  //The length every waveform I look at from now on will be length, until I window it I guess.
-  const int length = 2048;
-
 
 
   cout << "Adding more stuff to output tree:" << endl;
   //and add a thing to store template results
   cout << "+template results" << endl;
-  AnitaTemplateResults *templateResults = new AnitaTemplateResults();
-  outTree->Branch("templateResults",&templateResults);
+  AnitaTemplateSummary *templateSummary = new AnitaTemplateSummary();
+  outTree->Branch("templateSummary",&templateSummary);
 
   //and the noise summary too
   cout << "+noise summary" << endl;
   AnitaNoiseSummary *noiseSummary = new AnitaNoiseSummary();
   outTree->Branch("noiseSummary",&noiseSummary);
+
 
   //the thing that calculates the summary is persistant between events
   cout << "creating noise machine" << endl;
@@ -310,35 +312,19 @@ int main(int argc, char** argv) {
   /*=================
   //get the templates
   */
-  cout << "Getting the templates" << endl;
-  FFTWComplex *theImpTemplateFFT;
-  TGraph *theImpTemplate;
-  getImpulseResponseTemplate(length,theImpTemplateFFT,theImpTemplate);
-  cout << "Got Impulse Response Template" << endl;
-  cout << theImpTemplateFFT << " " << theImpTemplate << endl;
+  //The length every waveform I look at from now on will be length, until I window it I guess.
+  const int length = 2048;
 
-  FFTWComplex *theWaisTemplateFFT;
-  TGraph *theWaisTemplate;
-  getWaisTemplate(length,theWaisTemplateFFT,theWaisTemplate);
+  AnitaTemplateManager *templateManager = new AnitaTemplateManager(length);
+  templateManager->loadTemplates();
+
+  //should be able to write it to file too
   outFile->cd();
-  cout << theWaisTemplate << " " << theWaisTemplateFFT << endl;
-  theWaisTemplate->Write();
-  cout << "Got Wais Template" << endl;
+  templateManager->Write();
+  
 
-  const int numCRTemplates = templateResults->numCRTemplates;
-  cout << "numCRTemplates = " << numCRTemplates << endl;
-  FFTWComplex *theCRTemplateFFTs[numCRTemplates];
-  TGraph *theCRTemplates[numCRTemplates];
-  getCRTemplates(length,numCRTemplates,theCRTemplateFFTs,theCRTemplates);
-
-  //also write them
-  outFile->cd();
-  theImpTemplate->Write();
-
-  for (int i=0; i<numCRTemplates; i++) {
-    theCRTemplates[i]->Write();
-  }
-  cout << "Wrote templates to output file" << endl;
+  //well... this is a dumb object
+  AnitaTemplateAnalyzer *tmpltAnalyzer = new AnitaTemplateAnalyzer();
 
   /*
     --------*/
@@ -407,9 +393,11 @@ int main(int argc, char** argv) {
       fflush(stdout);
       watch.Start();
       skippedEvsInst=0;
-    }
+    }//end of progress bar
 
 
+
+    /* Check to see if you need to load a new AnitaDataset since this can span between runs */
     if (entry == 0 || entryToGet > entriesInCurrRun-1) {
       if (data != NULL) delete data;
       data = new AnitaDataset(runToGet,false);
@@ -443,6 +431,9 @@ int main(int argc, char** argv) {
       continue;
     }
 
+    //update the gps data!
+    gpsEvent = data->gps();
+
 
     //1) calibrate and then filter the event and get a FilteredAnitaEvent back
     FilteredAnitaEvent *filteredEvent = new FilteredAnitaEvent(data->useful(), strategy, data->gps(), data->header());
@@ -454,19 +445,22 @@ int main(int argc, char** argv) {
 
     //do the noise analysis (only update it if it is a min bias though
     if (trigType != 1) {
+      cout << "updating noiseMachine" << endl;
       noiseSummary->isMinBias = true;
-      noiseMachine->fillAvgRMSNoise(filteredEvent);
-      noiseMachine->fillAvgMapNoise(analyzer);
-      noiseMachine->fillNoiseSummary(noiseSummary);
+      noiseMachine->updateMachine(analyzer,filteredEvent);
     }
     else {
       noiseSummary->isMinBias = false;
+      noiseSummary->deleteHists(); //this might make it compress better if lots of things are zero;
     }
     delete filteredEvent;
 
-    //this should be filled every time
-    noiseMachine->fillEventSummary(eventSummary);
-
+    //fill stuff, but only if the noise machine has at least a single entry
+    if (!noiseMachine->isJustInitialized()){
+      cout << "noiseMachine: filling more stuff" << endl;
+      noiseMachine->fillNoiseSummary(noiseSummary);
+      noiseMachine->fillEventSummary(eventSummary);
+    }
 
     /*==========
       Remember:
@@ -477,96 +471,8 @@ int main(int argc, char** argv) {
     Coherent Waveform
     */
     for (int poli=0; poli<2; poli++) {
-      //get coherently aligned waveform
-      const AnalysisWaveform *coherentAnalysis = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0,false);
-      //I actually want to do SOME filtering though... so sine subtract a single one?
-      //      sineSub->processOne(coherentAnalysis,data->header(),);
-      const TGraphAligned *coherentAligned = coherentAnalysis->even();
-      TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
-      //make sure it is the same length as the template
-      TGraph *coherentPad = FFTtools::padWaveToLength(coherent,length);
-      delete coherent;
-
-
-      //-------stokes stuff
-      //window it for stokes parameters
-      int peakHilbert = -1;
-      TGraph *windowed = windowDispersed(coherentPad,peakHilbert);
-      //      delete coherentPad; //don't delete the padded one because its better for the template
-      int windLength = windowed->GetN();
-
-
-      //and xpol for stokes
-      const AnalysisWaveform *coherentAnalysisXpol = analyzer->getCoherentXpol((AnitaPol::AnitaPol_t)poli,0,false);
-      //I actually want to do SOME filtering though... so sine subtract a single one?
-      //      sineSub->processOne(coherentAnalysisXpol);
-      const TGraphAligned *coherentAlignedXpol = coherentAnalysisXpol->even();
-      TGraph *coherentXpol = new TGraph(coherentAlignedXpol->GetN(),coherentAlignedXpol->GetX(),coherentAlignedXpol->GetY());
-      //make sure it is the same length as the template
-      TGraph *coherentPadXpol = FFTtools::padWaveToLength(coherentXpol,length);
-      delete coherentXpol;
-      TGraph *windowedXpol = windowDispersed(coherentPadXpol,peakHilbert);
-      delete coherentPadXpol;
-      if (windLength != windowedXpol->GetN()) cout << "xpol is a different length" << endl;
-
-      //and do stokes for that, then you can throw out the windowed things because thats all I use them for
-      fillStokes(windowed->GetN(),windowed,windowedXpol,eventSummary->coherent[poli][1]);
-      delete windowedXpol;
-      delete windowed;
-      //--------done with stokes stuff
-
-
-      //==== Template stuff
-      //normalize coherently summed waveform
-      TGraph *normCoherent = normalizeWaveform(coherentPad);
-      delete coherentPad;
-      FFTWComplex *coherentFFT=FFTtools::doFFT(length,normCoherent->GetY());
-      delete normCoherent; 
-
-      double *dCorr = getCorrelationFromFFT(length,theImpTemplateFFT,coherentFFT);
-      double max = TMath::MaxElement(length,dCorr);
-      double min = TMath::Abs(TMath::MinElement(length,dCorr));
-
-      double *dCorrWais = getCorrelationFromFFT(length,theWaisTemplateFFT,coherentFFT);
-      double maxWais = TMath::MaxElement(length,dCorrWais);
-      double minWais = TMath::Abs(TMath::MinElement(length,dCorrWais));
-
-
-      if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal ) {
-	templateResults->coherentH->templateImp  = TMath::Max(max,min);
-	templateResults->coherentH->templateWais = TMath::Max(maxWais,minWais);
-      }
-      if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
-	templateResults->coherentV->templateImp  = TMath::Max(max,min);
-	templateResults->coherentV->templateWais = TMath::Max(maxWais,minWais);
-      }
-
-      double maxCR[numCRTemplates];
-      double minCR[numCRTemplates];
-      for (int i=0; i<numCRTemplates; i++) {
-	double *dCorrCR = getCorrelationFromFFT(length,theCRTemplateFFTs[i],coherentFFT);
-	maxCR[i] = TMath::MaxElement(length,dCorrCR);
-	minCR[i] = TMath::Abs(TMath::MinElement(length,dCorrCR));
-	delete[] dCorrCR;
-	if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
-	  templateResults->coherentV->templateCRay[i] = TMath::Max(maxCR[i],minCR[i]);
-	}
-	else if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal )  {
-	  templateResults->coherentH->templateCRay[i] = TMath::Max(maxCR[i],minCR[i]);
-	}
-	else {
-	  cout << "Something is horrible wrong!  I don't know where to save the templates results! ";
-	  cout << "poli=" << poli << endl;
-	}
-
-      }
-      
-      delete[] coherentFFT;
-      delete[] dCorr;
-      delete[] dCorrWais;
-
-
-      //      p.inc(entry, totalEntriesToDo); //BenS's status bar (I like mine better)
+      const AnalysisWaveform *waveform = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0);
+      tmpltAnalyzer->doTemplateAnalysis(waveform,templateManager,poli,templateSummary);
     }
     /*
       ----------*/
