@@ -47,6 +47,7 @@
 #include "templates.h"
 #include "AnitaTemplateResults.h"
 #include "AnitaNoiseSummary.h"
+#include "AnitaNoiseMachine.h"
 
 //lets handle SIGINT correctly so I can close the files
 #include "signal.h"
@@ -282,7 +283,7 @@ int main(int argc, char** argv) {
   config->response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseSingleBRotter;
 
   //and create an analyzer object
-  UCorrelator::Analyzer *analyzer = new UCorrelator::Analyzer(config,true); ;
+  UCorrelator::Analyzer *analyzer = new UCorrelator::Analyzer(config,true);
 
 
   //The length every waveform I look at from now on will be length, until I window it I guess.
@@ -290,16 +291,19 @@ int main(int argc, char** argv) {
 
 
 
-  cout << "Adding more stuff to output tree" << endl;
+  cout << "Adding more stuff to output tree:" << endl;
   //and add a thing to store template results
+  cout << "+template results" << endl;
   AnitaTemplateResults *templateResults = new AnitaTemplateResults();
   outTree->Branch("templateResults",&templateResults);
 
   //and the noise summary too
+  cout << "+noise summary" << endl;
   AnitaNoiseSummary *noiseSummary = new AnitaNoiseSummary();
   outTree->Branch("noiseSummary",&noiseSummary);
 
   //the thing that calculates the summary is persistant between events
+  cout << "creating noise machine" << endl;
   AnitaNoiseMachine *noiseMachine = new AnitaNoiseMachine();
   noiseMachine->fillMap = true;
 
@@ -459,6 +463,10 @@ int main(int argc, char** argv) {
       noiseSummary->isMinBias = false;
     }
     delete filteredEvent;
+
+    //this should be filled every time
+    noiseMachine->fillEventSummary(eventSummary);
+
 
     /*==========
       Remember:
