@@ -41,6 +41,7 @@
 #include "SpectrumAverage.h"
 #include "ProgressBar.h"
 #include "FilteredAnitaEvent.h"
+#include "SystemResponse.h"
 
 //my stuff
 //#include "windowing.h"
@@ -186,6 +187,10 @@ void fillStokes(int length,TGraph *window, TGraph *windowXpol, AnitaEventSummary
 
 int main(int argc, char** argv) {
 
+  cout << "Default AnitaVersion is " << AnitaVersion::get() << endl;
+  
+  AnitaVersion::set(3);
+
   //load wisdom crap that doesn't seem to do anything
   char* homeDir = getenv("HOME");
   stringstream wisdomDir;
@@ -215,7 +220,7 @@ int main(int argc, char** argv) {
     cout << "This will be a total of " << totalEntriesToDo << " events to process" << endl;
     }
   else {
-    cout << "Usage: " << argv[0] << " [output base filename] [start entry] [end entry]" << endl;
+    cout << "Usage: " << argv[0] << " [output base filename] [start entry] [end entry]" << endl;    
     return -1;
   }
 
@@ -243,6 +248,10 @@ int main(int argc, char** argv) {
 
 
   cout << "Making the filters" << endl;
+  //the spectrum average is used for a couple of filters to make them sort of "adaptive"
+  char* specAvgDir = getenv("UCORRELATOR_SPECAVG_DIR");
+  const UCorrelator::SpectrumAverageLoader *specAvgLoader = new UCorrelator::SpectrumAverageLoader(specAvgDir);
+
   //Make a filter strategy
   //  with a debug file
   //  name.str("");
@@ -253,15 +262,11 @@ int main(int argc, char** argv) {
   FilterStrategy *strategy = new FilterStrategy();
 
 
-  //the spectrum average is used for a couple of filters to make them sort of "adaptive"
-  char* specAvgDir = getenv("UCORRELATOR_SPECAVG_DIR");
-  const UCorrelator::SpectrumAverageLoader *specAvgLoader = new UCorrelator::SpectrumAverageLoader(specAvgDir);
-
 
   //Sine subtract alghorithm (this is the complicated way to do it)
-  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(0.05,2);
-  sineSub->makeAdaptive(specAvgLoader);
-  //  strategy->addOperation(sineSub);
+  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(10,3);
+  sineSub->makeAdaptive(specAvgLoader,2);
+  strategy->addOperation(sineSub);
   // This seems like it should work and is easier
   //add "adsinsub_2_5_13" (default in MagicDisplay)
   //  UCorrelator::fillStrategyWithKey(strategy,"sinsub_05_1_ad_1");
@@ -271,7 +276,7 @@ int main(int argc, char** argv) {
   // UCorrelator::AdaptiveBrickWallFilter(const UCorrelator::SpectrumAverageLoader * spec, double thresh=2, bool fillNotch = true);  
   // Don't fill in the noise because whats the point of that really
   UCorrelator::AdaptiveBrickWallFilter *brickWall = new UCorrelator::AdaptiveBrickWallFilter(specAvgLoader,2,false);
-  strategy->addOperation(brickWall);
+  //  strategy->addOperation(brickWall);
 
 
   //  with abby's list of filtering
@@ -279,15 +284,23 @@ int main(int argc, char** argv) {
 
 
 
-  cout << "Making the Analyzer" << endl;
+  /* CONFIGURATION FOR THE ANALYSIS!!!!!! */
   //and a configuration for the analysis
   UCorrelator::AnalysisConfig *config = new UCorrelator::AnalysisConfig(); 
   //set the response to my "single" response
-  //  config->response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseIndividualBRotter;
-  config->response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseSingleBRotter;
+  config->response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseIndividualBRotter;
+  //  config->response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseSingleBRotter;
+
+  AnitaResponse::AllPassDeconvolution *apd = new AnitaResponse::AllPassDeconvolution();
+  config->deconvolution_method = apd;
+
+
+
+
 
   //and create an analyzer object
-  UCorrelator::Analyzer *analyzer = new UCorrelator::Analyzer(config,true);
+  cout << "Making the Analyzer" << endl;
+  UCorrelator::Analyzer *analyzer = new UCorrelator::Analyzer(config,true); //interactive needs to be true
 
 
 
@@ -296,7 +309,7 @@ int main(int argc, char** argv) {
   //and add a thing to store template results
   cout << "+template results" << endl;
   AnitaTemplateSummary *templateSummary = new AnitaTemplateSummary();
-  outTree->Branch("templateSummary",&templateSummary);
+  outTree->Branch("template",&templateSummary);
 
   //and the noise summary too
   cout << "+noise summary" << endl;
@@ -307,7 +320,7 @@ int main(int argc, char** argv) {
   //the thing that calculates the summary is persistant between events
   cout << "creating noise machine" << endl;
   AnitaNoiseMachine *noiseMachine = new AnitaNoiseMachine();
-  noiseMachine->fillMap = true;
+  //  noiseMachine->fillMap = true;
 
   /*=================
   //get the templates
@@ -315,17 +328,15 @@ int main(int argc, char** argv) {
   //The length every waveform I look at from now on will be length, until I window it I guess.
   const int length = 2048;
 
-  AnitaTemplateManager *templateManager = new AnitaTemplateManager(length);
-  templateManager->loadTemplates();
+  AnitaTemplateMachine *templateMachine = new AnitaTemplateMachine(length);
+  templateMachine->loadTemplates();
+  templateMachine->deconvolveTemplates(apd);
 
   //should be able to write it to file too
   outFile->cd();
-  templateManager->Write();
+  cout << "Writing templates to file" << endl;
+  templateMachine->writeTemplatesToFile(outFile);
   
-
-  //well... this is a dumb object
-  AnitaTemplateAnalyzer *tmpltAnalyzer = new AnitaTemplateAnalyzer();
-
   /*
     --------*/
 
@@ -445,7 +456,6 @@ int main(int argc, char** argv) {
 
     //do the noise analysis (only update it if it is a min bias though
     if (trigType != 1) {
-      cout << "updating noiseMachine" << endl;
       noiseSummary->isMinBias = true;
       noiseMachine->updateMachine(analyzer,filteredEvent);
     }
@@ -457,7 +467,6 @@ int main(int argc, char** argv) {
 
     //fill stuff, but only if the noise machine has at least a single entry
     if (!noiseMachine->isJustInitialized()){
-      cout << "noiseMachine: filling more stuff" << endl;
       noiseMachine->fillNoiseSummary(noiseSummary);
       noiseMachine->fillEventSummary(eventSummary);
     }
@@ -470,72 +479,22 @@ int main(int argc, char** argv) {
     /*=============
     Coherent Waveform
     */
-    for (int poli=0; poli<2; poli++) {
-      const AnalysisWaveform *waveform = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,0);
-      tmpltAnalyzer->doTemplateAnalysis(waveform,templateManager,poli,templateSummary);
-    }
-    /*
-      ----------*/
 
-    /*=============
-      Deconvolved
-      fucked up right now
-    //do everything once more for the deconvolved coherent waveform
-    for (int poli=0; poli<2; poli++) {
+    templateSummary->zeroInternals();
 
-      //get coherently aligned waveform
-      const TGraphAligned *coherentAligned = analyzer->getDeconvolved((AnitaPol::AnitaPol_t)poli,0)->even();
-      TGraph *coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
-      //make sure it is the same length as the template
-      TGraph *coherent2 = FFTtools::padWaveToLength(coherent,length);
-      delete coherent;
-      int peakHilbert = -1;
-      TGraph *windowed = windowEField(coherent2,peakHilbert);
-      delete coherent2;
-      int windLength = windowed->GetN();
+    for (int dir=0; dir< AnitaEventSummary::maxDirectionsPerPol; dir++) {
+      for (int poli=0; poli<2; poli++) {
+	const AnalysisWaveform *waveform = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,dir);
+	templateMachine->doTemplateAnalysis(waveform,poli,dir,templateSummary);
 
-      //and xpol for stokes
-      coherentAligned = analyzer->getDeconvolvedXpol((AnitaPol::AnitaPol_t)poli,0)->even();
-      coherent = new TGraph(coherentAligned->GetN(),coherentAligned->GetX(),coherentAligned->GetY());
-      //make sure it is the same length as the template
-      coherent2 = FFTtools::padWaveToLength(coherent,length);
-      delete coherent;
-      TGraph *windowedXpol = windowEField(coherent2,peakHilbert);
-      delete coherent2;
-      if (windLength != windowedXpol->GetN()) cout << "xpol has a different length" << endl;
-
-      //and do stokes for that
-      fillStokes(windowed->GetN(),windowed,windowedXpol,eventSummary->deconvolved[poli][1]);
-      delete windowedXpol;
-       
-      //normalize it
-      TGraph *normCoherent = normalizeWaveform(windowed);
-      delete windowed;
-      FFTWComplex *coherentFFT=FFTtools::doFFT(windLength,normCoherent->GetY());
-      delete normCoherent; 
-
-
-      double maxCR[numCRTemplates];
-      double minCR[numCRTemplates];
-      for (int i=0; i<numCRTemplates; i++) {
-	double *dCorrCR = getCorrelationFromFFT(windLength,theCRTemplates[i+10],coherentFFT);
-	maxCR[i] = TMath::MaxElement(windLength,dCorrCR);
-	minCR[i] = TMath::Abs(TMath::MinElement(windLength,dCorrCR));
-	delete[] dCorrCR;
-	if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kVertical ) {
-	  templateCRayV[i][1] = TMath::Max(maxCR[i],minCR[i]);
-	}
-	if ( (AnitaPol::AnitaPol_t)poli == AnitaPol::kHorizontal )  {
-	  templateCRayH[i][1] = TMath::Max(maxCR[i],minCR[i]);
+	if (dir==0) {
+	  const AnalysisWaveform *waveform_deconv = analyzer->getDeconvolved((AnitaPol::AnitaPol_t)poli,dir);
+	  const AnitaResponse::DeconvolutionMethod *deconv = analyzer->getResponseManager()->getDeconvolutionMethod();
+	  templateMachine->doDeconvolvedTemplateAnalysis(waveform_deconv,deconv,poli,dir,templateSummary);
 	}
       }
-      
-      delete[] coherentFFT;
-
-
-      //      p.inc(entry, totalEntriesToDo); //BenS's status bar (I like mine better)
     }
-*/
+
 
     //okay all done, now I can write out and move to the next event
 
