@@ -155,16 +155,20 @@ int main(int argc, char** argv) {
   
   double waisTheta,waisPhi;
 
+  TGraph *savedGraphs[48][5000];
 
   //lets make a counter for the phi sector
-  int counter = 0;
+  int counter[48];
+  for (int i=0; i<48; i++) {
+    counter[i]=0;
+  }
 
   //make a "test" output file
   TFile *outFile = TFile::Open("waisCorrelationTest.root","recreate");
     
   for (int entry=startEntry; entry<stopEntry; entry++) {
     if (entry%10 == 0) {
-      cout << entry << " / " << numWaisEntries <<  " (" << counter << ")\r";
+      cout << entry << " / " << numWaisEntries << "\r";
       fflush(stdout);
     }
 
@@ -191,67 +195,50 @@ int main(int argc, char** argv) {
     int phi = int((waisPhi*TMath::RadToDeg())/22.5)+2;
     if (phi>=16) phi -= 16;    
 
-    //I'm only interested in phi 0 for this test code
-    if (phi == 0) {
-
-      for (int ringi=0; (AnitaRing::AnitaRing_t)ringi != AnitaRing::kNotARing; ringi++) {
-	AnitaRing::AnitaRing_t ring = (AnitaRing::AnitaRing_t)ringi;
-      
-	//I want to get the interpolated graph (impulse response is at 0.1ps)
-	TGraph *currRawGraph = usefulEvent->getGraph(ring,phi,AnitaPol::kHorizontal);
-	TGraph *currGraph = FFTtools::getInterpolatedGraph(currRawGraph,0.1);
-	delete currRawGraph;
+    for (int ringi=0; (AnitaRing::AnitaRing_t)ringi != AnitaRing::kNotARing; ringi++) {
+      AnitaRing::AnitaRing_t ring = (AnitaRing::AnitaRing_t)ringi;
+      int index = phi*3 + ringi;
+      //I want to get the interpolated graph (impulse response is at 0.1ps)
+      TGraph *currRawGraph = usefulEvent->getGraph(ring,phi,AnitaPol::kHorizontal);
+      savedGraphs[index][counter[index]] = FFTtools::getInterpolatedGraph(currRawGraph,0.1);
+      delete currRawGraph;
 	
-	TGraph *grToCorrelate[2];
-	grToCorrelate[0] = new TGraph(*impulseResponse);
-	grToCorrelate[1] = new TGraph(*currGraph);
-	delete impulseResponse;
-
-	//	cout << counter << " " <<  grToCorrelate[1]->GetY()[100];
-	//	for (int pt=0; pt<grToCorrelate[1]->GetN(); pt++) {
-	  //	  grToCorrelate[1]->GetY()[pt] /= counter+1;
-	//	}
-	//	cout << " " << grToCorrelate[1]->GetY()[100] << " " << grToCorrelate[1]->GetY()[100]*(counter+1) << endl;
-
-	//Trying to get these dumb things normalized
-	name.str("");
-	name << "impulseResponse" << counter;
-	grToCorrelate[0]->SetName(name.str().c_str());
-	name.str("");
-	name << "surf" << counter;
-	grToCorrelate[1]->SetName(name.str().c_str());
-	outFile->cd();
-	grToCorrelate[0]->Write();
-	grToCorrelate[1]->Write();
-
-	TGraph *correlated = FFTtools::correlateAndAverage(2,grToCorrelate);
-	impulseResponse = new TGraph(*correlated);
+	counter[index]++;
 	
-	delete correlated;
-	delete grToCorrelate[0];
-	delete grToCorrelate[1];
-	//    }
-	
-	delete currGraph;
-	counter++;
-	
-      } //end ring loop
-      
-    }
-
+    } //end ring loop
+    
+    
+    
     //Got what I wanted, done with those classes
     delete usefulEvent;
     
-
+    
   } //end entry loop
+  
+  
+  for (int phi=0; phi<16; phi++) {
+    for (int ring=0; ring<3; ring++) {
+      int index = phi*3 + ring;
+      TGraph *correlated = FFTtools::correlateAndAverage(counter[index],savedGraphs[index]);
+      name.str("");
+      name << "Phi" << phi << "Ring" << ring;
+      correlated->SetName(name.str().c_str());
+      outFile->cd();
+      correlated->Write();
+      delete correlated;
+    }
+  }
 
 
   outFile->Close();
 
   //Thats all folks!
   cout << "Okay I quit because I did everything you told me, goodbye!" << endl;
-
-    delete impulseResponse;
+  for (int index=0; index<48; index++) {
+    for (int i=0; i<counter[index]; i++) {
+      delete savedGraphs[index][i];
+    }
+  }
 
   return 1;
 }
