@@ -28,6 +28,8 @@ else
     exit
 fi
 
+echo "Doing runs "${startRun}" through "${stopRun}
+
 for run in `seq ${startRun} ${endRun}`; do
     nice -n 10 ./noiseSummary ${run} ${sharedDir}/${run} 1> ${sharedDir}/log/${run}.log 2>&1 &
 done
