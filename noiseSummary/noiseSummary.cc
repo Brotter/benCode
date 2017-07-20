@@ -47,6 +47,7 @@ int main(int argc,char** argv) {
   }
   else {
     cout << "Usage: " << argv[0] << " [run number] [output file base name]" << endl;
+    return -1;
   }
 
   cout << " Hello! :D" << endl;
@@ -72,14 +73,13 @@ int main(int argc,char** argv) {
   AnitaEventSummary *eventSummary = new AnitaEventSummary();
   summaryTree->Branch("eventSummary",&eventSummary);
 
-  TFile* noiseOutFile = TFile::Open("noiseTestFile.root","recreate");
-  TTree *noiseTree = new TTree("noiseTree","noiseTree");
   AnitaNoiseSummary *noiseSummary = new AnitaNoiseSummary();
-  noiseTree->Branch("noiseSummary",&noiseSummary);
+  summaryTree->Branch("noiseSummary",&noiseSummary);
 
   //make the noise analyzer
   AnitaNoiseMachine *noiseMachine = new AnitaNoiseMachine();
   noiseMachine->fillMap = true;
+  noiseMachine->quiet = false;
   
   //make the analyzer  
   cout << "Making the Analyzer" << endl;
@@ -103,10 +103,11 @@ int main(int argc,char** argv) {
 
     //only want minbias stuff, skip it otherwise
     int trigType = data->header()->trigType&0x0F;
-    //    if (trigType == 1) continue;
+    if (trigType == 1) continue;
 
     cout << entry << " / " << numEntries << endl;
       
+   
     FilteredAnitaEvent *filteredEvent = new FilteredAnitaEvent(data->useful(), strategy, data->gps(), data->header());
 
     //clear the eventSummary so that I can fill it up with the analyzer
@@ -119,27 +120,23 @@ int main(int argc,char** argv) {
       noiseSummary->isMinBias = false;
     }
     else {
+      cout << "updating" << endl;
       noiseSummary->isMinBias = true;
       noiseMachine->updateMachine(analyzer,filteredEvent);
     }
 
-    delete filteredEvent;
-    analyzer->clearInteractiveMemory();
-
     noiseMachine->fillNoiseSummary(noiseSummary);
     noiseMachine->fillEventSummary(eventSummary);
     summaryTree->Fill();
-    noiseTree->Fill();
+
+    delete filteredEvent;
+    analyzer->clearInteractiveMemory();
     
   }
 
   outFile->cd();
   summaryTree->Write();
   outFile->Close();
-
-  noiseOutFile->cd();
-  noiseTree->Write();
-  noiseOutFile->Close();
 
   cout << "Done!  Thanks :) " << endl;
 
