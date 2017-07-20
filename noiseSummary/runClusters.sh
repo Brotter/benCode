@@ -28,7 +28,7 @@ else
     exit
 fi
 
-for run in `seq ${startRun} ${endRun}`
+for run in `seq ${startRun} ${endRun}`; do
     nice -n 10 ./noiseSummary ${run} ${sharedDir}/${run} 1> ${sharedDir}/log/${run}.log 2>&1 &
 done
     
