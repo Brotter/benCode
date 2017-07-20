@@ -15,13 +15,17 @@ mkdir ${sharedDir}
 mkdir ${sharedDir}"/log"
 
 if [ `hostname | cut -d"." -f1` == "anitaI" ]; then
-    startRun=130; stopRun=207
+    startRun=130
+    stopRun=213
 elif [ `hostname | cut -d"." -f1` == "anitaII" ]; then
-    startRun=208; stopRun=285
+    startRun=214
+    stopRun=298
 elif [ `hostname | cut -d"." -f1` == "anitaIII" ]; then
-    startRun=286; stopRun=362
+    startRun=299
+    stopRun=364
 elif [ `hostname | cut -d"." -f1` == "anitaIV" ]; then
-    startRun=362; stopRun=440
+    startRun=365
+    stopRun=440
 else
     echo "The server isn't an anita cluster server, so you shouldn't use this script"	
 
@@ -30,7 +34,7 @@ fi
 
 echo "Doing runs "${startRun}" through "${stopRun}
 
-for run in `seq ${startRun} ${endRun}`; do
+for run in `seq ${startRun} ${stopRun}`; do
     nice -n 10 ./noiseSummary ${run} ${sharedDir}/${run} 1> ${sharedDir}/log/${run}.log 2>&1 &
 done
     
