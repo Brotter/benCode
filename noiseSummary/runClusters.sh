@@ -19,9 +19,9 @@ if [ `hostname | cut -d"." -f1` == "anitaI" ]; then
 elif [ `hostname | cut -d"." -f1` == "anitaII" ]; then
     startRun=208; stopRun=285
 elif [ `hostname | cut -d"." -f1` == "anitaIII" ]; then
-    startCore=286; stopRun=362
+    startRun=286; stopRun=362
 elif [ `hostname | cut -d"." -f1` == "anitaIV" ]; then
-    startCore=362; stopRun=440
+    startRun=362; stopRun=440
 else
     echo "The server isn't an anita cluster server, so you shouldn't use this script"	
 
