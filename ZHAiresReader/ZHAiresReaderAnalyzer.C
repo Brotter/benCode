@@ -55,13 +55,18 @@ void ZHAiresReaderAnalyzer() {
     }
   }
 
+  //the "exposure events" seem really big for some reason... 0.3? the others are like peak 0.08V/m
+  for (int ant=0; ant<numAntennas; ant++) {
+    for (int pt=0; pt<numPts; pt++) gWavesInterp[ant]->GetY()[pt] *= (8./30);
+  }
+
   //find the maximum pulse height of all those
   int x,maxAnt,z;
   hWaves->GetBinXYZ(hWaves->GetMaximumBin(),x,maxAnt,z);
 
 
   //get the impulse response
-  TGraph *impulse = new TGraph("/Users/brotter/benCode/impulseResponse/integratedTF/transferFunctions/normTF_01BV.txt");
+  TGraph *impulse = new TGraph("/Users/brotter/anita16/local/share/UCorrelator/responses/SingleBRotter/all.imp");
 
   /*
   cout << "impulse dT:" << impulseRaw->GetX()[1]-impulseRaw->GetX()[0] << endl;
@@ -104,7 +109,7 @@ void ZHAiresReaderAnalyzer() {
 
   impulse->SetLineColor(kBlue);
   impulse->SetTitle("System Impulse Response; ; Amplitude (Volts-ish)");
-    impulse->GetXaxis()->SetRangeUser(0,150);
+  impulse->GetXaxis()->SetRangeUser(0,150);
   cConvLeg->AddEntry(impulse,"System response","l");
   impulse->Draw("al");
 

@@ -81,7 +81,8 @@ void convolveWithSigChain(int energy=195) {
 
 
   //get the impulse response
-  TGraph *impulse = new TGraph("/Users/brotter/benCode/impulseResponse/integratedTF/transferFunctions/normTF_01BV.txt");
+  //  TGraph *impulse = new TGraph("/Users/brotter/benCode/impulseResponse/integratedTF/transferFunctions/normTF_01BV.txt");
+  TGraph* impulse = new TGraph("~/anita16/local/share/AnitaAnalysisFramework/responses/SingleBRotter/all.imp");
 
   /*
   cout << "impulse dT:" << impulseRaw->GetX()[1]-impulseRaw->GetX()[0] << endl;
@@ -112,6 +113,25 @@ void convolveWithSigChain(int energy=195) {
   }
 
 
+  //Save all that stuff!
+  TFile *outFile = TFile::Open("convolveCRWithSigChain.root","recreate");
+  for (int wave=0; wave<numWaveforms; wave++) {
+    name.str("");
+    name << "disp" << wave;
+    gWavesConv[wave]->SetName(name.str().c_str());
+    gWavesConv[wave]->Write();
+
+    name.str("");
+    name << "efield" << wave;
+    gWavesInterp[wave]->SetName(name.str().c_str());
+    gWavesInterp[wave]->Write();
+
+
+  }
+  outFile->Close();
+
+
+
   //Draw all that stuff!
   TCanvas *cConv = new TCanvas("cConv","cConv",1000,800);
   stringstream filename;
@@ -133,7 +153,7 @@ void convolveWithSigChain(int energy=195) {
   gWavesConv[drawWave]->GetXaxis()->SetRangeUser(200,400);
   gWavesConv[drawWave]->SetTitle("Convolution; ;Amplitude (Volts-ish)");
   gWavesConv[drawWave]->Draw("al");
-  gWavesConv[drawWave]->GetYaxis()->SetRangeUser(-.03,.03);
+  gWavesConv[drawWave]->GetYaxis()->SetRangeUser(-1.5,1.5);
 
   cConv->cd(3);
   gWavesInterp[drawWave]->SetLineColor(kRed);
@@ -141,7 +161,7 @@ void convolveWithSigChain(int energy=195) {
   gWavesInterp[drawWave]->GetXaxis()->SetRangeUser(200,400);
   cConvLeg->AddEntry(gWavesInterp[drawWave],"Simulated Ey field","l");
   gWavesInterp[drawWave]->Draw("al");
-  gWavesInterp[drawWave]->GetYaxis()->SetRangeUser(-0.001,0.0002);
+  gWavesInterp[drawWave]->GetYaxis()->SetRangeUser(-0.05,0.003);
 
   cConv->cd(1);
   cConvLeg->Draw("Same");
