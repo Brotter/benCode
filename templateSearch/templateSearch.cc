@@ -320,7 +320,7 @@ int main(int argc, char** argv) {
   //the thing that calculates the summary is persistant between events
   cout << "creating noise machine" << endl;
   AnitaNoiseMachine *noiseMachine = new AnitaNoiseMachine();
-  //  noiseMachine->fillMap = true;
+  noiseMachine->fillMap = false;
 
   /*=================
   //get the templates
