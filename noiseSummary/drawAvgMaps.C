@@ -137,7 +137,7 @@ void drawAvgMaps(int run=-1) {
   char* resultsDir = getenv("ANITA3_RESULTSDIR");
   stringstream name;
   name.str("");
-  name << resultsDir << "07.05.17_22h/" << run << ".root";
+  name << resultsDir << "07.19.17_16h/" << run << ".root";
   TChain *summaryTree = loadSingle(name.str());
 
   name.str("");
