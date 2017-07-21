@@ -61,9 +61,9 @@ TChain *loadWholeCluster(string date="07.19.17_16h/") {
 
   char* resultsDir = getenv("ANITA3_RESULTSDIR");
 
-  for (int core=0; core<256; core++) {
+  for (int core=130; core<440; core++) {
     name.str("");
-    name << resultsDir << date << core << ".root";
+    name << resultsDir << "noiseSummary/" << date << core << ".root";
     summaryTree->Add(name.str().c_str());
   }
   
