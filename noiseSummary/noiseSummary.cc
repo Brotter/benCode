@@ -96,7 +96,7 @@ int main(int argc,char** argv) {
   UCorrelator::AdaptiveBrickWallFilter *brickWall = new UCorrelator::AdaptiveBrickWallFilter(specAvgLoader,2,false);
   strategy->addOperation(brickWall);
 
-
+  int cnt=0;
   cout << "Okay lets go" << endl;
   for (int entry=0; entry<numEntries; entry++) {
     data->getEntry(entry);
@@ -104,8 +104,9 @@ int main(int argc,char** argv) {
     //only want minbias stuff, skip it otherwise
     int trigType = data->header()->trigType&0x0F;
     if (trigType == 1) continue;
+    cnt++;
 
-    cout << entry << " / " << numEntries << endl;
+    cout << entry << " / " << numEntries << " (" << cnt << ")" << endl;
       
    
     FilteredAnitaEvent *filteredEvent = new FilteredAnitaEvent(data->useful(), strategy, data->gps(), data->header());
