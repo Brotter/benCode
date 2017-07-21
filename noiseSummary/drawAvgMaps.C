@@ -7,32 +7,6 @@ void getDateFromRealTime(int realTime,char* formattedDate,const int length) {
   return;
 }
 
-void showImagesFromTChain(TChain *summaryTree) {
-
-  AnitaNoiseSummary *noiseSum = NULL;
-  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
-
-  int lenEntries = summaryTree->GetEntry();
-
-  TCanvas *c1 = new TCanvas("c1","c1",1920,1080);
-  c1->Draw();
-  for (int entry=0; entry<lenEntries; entry++) {
-    summaryTree->GetEntry(entry);
-    c1->cd();
-    if (noiseSum->avgMapProf[0] != NULL) { 
-      noiseSum->avgMapProf[0]->Draw("colz");
-      c1->Modified();
-      c1->Update();
-      cout << "drawn, waiting for enter" << endl;
-      cin.get(); 
-    }
-    else { cout << "empty" << endl; }
-  }
-
-  return;
-}
-
-
 void saveImagesFromTChain(TChain *summaryTree,string prefix="",bool saveImages=true) {
   
   stringstream name;
@@ -52,21 +26,6 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="",bool saveImages=t
   int cnt = 0;
  
   const int numZeros = 5;
-  
-  TChain *gpsTree = new TChain("adu5PatTree","adu5PatTree");
-  for (int run=130; run<440; run++) {
-    name.str("");
-    char* anitaData = getenv("ANITA3_DATA");
-    name << anitaData << "/run" << run << "/gpsEvent" << run << ".root";
-
-    gpsTree->Add(name.str().c_str());
-  }
-
-  cout << "Building gps index" << endl;
-  gpsTree->BuildIndex("eventNumber");
-
-  Adu5Pat *pat = NULL;
-  gpsTree->SetBranchAddress("pat",&pat);
 
   TProfile2D *mapProfile = NULL;
 
@@ -74,20 +33,12 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="",bool saveImages=t
   cout << "lenEntries:" << lenEntries << endl;
 
 
-
   for (int entry=0; entry<lenEntries; entry++) {
     summaryTree->GetEntry(entry);
     
     if (cnt%60 == 0) {
       mapProfile->Draw("colz");
-      
-      double sunTheta = eventSummary->sun.theta;
-      double sunPhi = eventSummary->sun.phi - heading;
-      while (sunPhi < 0) sunPhi += 360;
-      gSun->SetPoint(0,sunPhi,-sunTheta);
-      gSun->Draw("pSame");
-      
-      
+            
       name.str("");
       name << "avgMaps/" << prefix << "_";
       name << setfill('0') << setw(numZeros) << cnt/60 << ".png";
@@ -97,14 +48,13 @@ void saveImagesFromTChain(TChain *summaryTree,string prefix="",bool saveImages=t
     cnt++;
 
   }
-}
 
   return;
 }
 
 
 
-TChain *loadWholeCluster(string date="07.05.17_22h/") {
+TChain *loadWholeCluster(string date="07.19.17_16h/") {
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
   stringstream name;
