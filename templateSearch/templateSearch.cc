@@ -154,37 +154,6 @@ void entryToRun(int entry, int &runOut, int &startEntry) {
 }
 
 
-void fillStokes(int length,TGraph *window, TGraph *windowXpol, AnitaEventSummary::WaveformInfo wave) {
-
-    //calculate the windowed stokes parameters
-    double *I = new double;
-    double *Q = new double;
-    double *U = new double;
-    double *V = new double;
-    double *hilbertForStokes = FFTtools::getHilbertTransform(length,window->GetY());
-    double *hilbertForStokesXpol = FFTtools::getHilbertTransform(length,windowXpol->GetY());
-    FFTtools::stokesParameters(length,window->GetY(),hilbertForStokes,windowXpol->GetY(),hilbertForStokesXpol,
-			       I,Q,U,V);
-
-    delete[] hilbertForStokes;
-    delete[] hilbertForStokesXpol;
-
-    wave.I = *I;
-    wave.Q = *Q;
-    wave.U = *U;
-    wave.V = *V;
-
-    delete I;
-    delete Q;
-    delete U;
-    delete V;
-
-  return;
-}
-
-
-
-
 int main(int argc, char** argv) {
 
   cout << "Default AnitaVersion is " << AnitaVersion::get() << endl;
@@ -253,34 +222,33 @@ int main(int argc, char** argv) {
   const UCorrelator::SpectrumAverageLoader *specAvgLoader = new UCorrelator::SpectrumAverageLoader(specAvgDir);
 
   //Make a filter strategy
+  FilterStrategy *fStrat = UCorrelator::getStrategyWithKey("sinsub_10_3_ad_2");
+
+  /** doing it by construction instead of by key which doesn't work for whatever reason */
   //  with a debug file
   //  name.str("");
   //  name << outFileName << "_filtOutFile.root";
   //  TFile *filterOutFile = TFile::Open(name.str().c_str(),"recreate"); 
   //  FilterStrategy strategy(filterOutFile);
   //  without a debug file
-  FilterStrategy *strategy = new FilterStrategy();
-
-
-
+  //  FilterStrategy *fStrat = new FilterStrategy();
+  //
   //Sine subtract alghorithm (this is the complicated way to do it)
-  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(10,3);
-  sineSub->makeAdaptive(specAvgLoader,2);
-  strategy->addOperation(sineSub);
+  //  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(10,3);
+  //  sineSub->makeAdaptive(specAvgLoader,2);
+  //  fStrat->addOperation(sineSub);
   // This seems like it should work and is easier
   //add "adsinsub_2_5_13" (default in MagicDisplay)
-  //  UCorrelator::fillStrategyWithKey(strategy,"sinsub_05_1_ad_1");
-  
-
+  //  UCorrelator::fillStrategyWithKey(fStrat,"sinsub_05_1_ad_1");
+  //
   //Brick wall filter, should be way faster
   // UCorrelator::AdaptiveBrickWallFilter(const UCorrelator::SpectrumAverageLoader * spec, double thresh=2, bool fillNotch = true);  
   // Don't fill in the noise because whats the point of that really
-  UCorrelator::AdaptiveBrickWallFilter *brickWall = new UCorrelator::AdaptiveBrickWallFilter(specAvgLoader,2,false);
-  //  strategy->addOperation(brickWall);
-
-
+  //  UCorrelator::AdaptiveBrickWallFilter *brickWall = new UCorrelator::AdaptiveBrickWallFilter(specAvgLoader,2,false);
+  //  fStrat->addOperation(brickWall);
+  //
   //  with abby's list of filtering
-  //  UCorrelator::applyAbbysFilterStrategy(&strategy);
+  //  UCorrelator::applyAbbysFilterStrategy(&fStrat);
 
 
 
@@ -447,7 +415,7 @@ int main(int argc, char** argv) {
 
 
     //1) calibrate and then filter the event and get a FilteredAnitaEvent back
-    FilteredAnitaEvent *filteredEvent = new FilteredAnitaEvent(data->useful(), strategy, data->gps(), data->header());
+    FilteredAnitaEvent *filteredEvent = new FilteredAnitaEvent(data->useful(), fStrat, data->gps(), data->header());
 
     //clear the eventSummary so that I can fill it up with the analyzer
     eventSummary->zeroInternals();
