@@ -1,6 +1,6 @@
 
 
-TChain* loadAll(string date = "07.05.17_22h/"){
+TChain* loadAll(string date = "07.20.17_17h/"){
   //crab
   //kwaabz
   //crab
@@ -21,7 +21,7 @@ TChain* loadAll(string date = "07.05.17_22h/"){
   for (int run=0; run<256; run++) {
 
     name.str("");
-    name << resultsDir << date << "/" << run << ".root";
+    name << resultsDir << "templateSearch/" << date << "/" << run << ".root";
 
     summaryTree->Add(name.str().c_str());
 
