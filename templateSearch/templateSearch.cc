@@ -386,6 +386,8 @@ int main(int argc, char** argv) {
       
       completedRunEvs = entry;
       runToGet++;
+      if ( (runToGet >= 257) && (runToGet <= 262) ) runToGet = 263; //dead runs that kill processes
+      if (  runToGet == 440) break; //440 doesn't exist, if you get there then break the event loop
       entriesInCurrRun = data->N();
       if (entry != 0) entryToStartAt = 0; //startEntryInRun becomes zero after the first runswitch
 
