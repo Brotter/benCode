@@ -93,13 +93,13 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
   TH2D *cutTmplt = new TH2D("cutTmplt","Cosmic Ray Template +4 Correlation - Simple Cut; Interferometric Peak; Template Corr",
 			    500,0,0.5,500,0,1);
 
-  summaryTree->Draw("templateResults.coherentH[0].templateCRay[5]:peak[0][0].value >> noiseTmplt",
+  summaryTree->Draw("template.coherentH[0][0].templateCRay[5]:peak[0][0].value >> noiseTmplt",
 		    "flags.pulser == 0","colz");
-  summaryTree->Draw("templateResults.coherentH[0].templateCRay[5]:peak[0][0].value >> waisTmplt",
+  summaryTree->Draw("template.coherentH[0][0].templateCRay[5]:peak[0][0].value >> waisTmplt",
 		    "flags.pulser == 1","colzSame");
-  summaryTree->Draw("templateResults.coherentH[0].templateCRay[5]:peak[0][0].value >> ldbTmplt",
+  summaryTree->Draw("template.coherentH[0][0].templateCRay[5]:peak[0][0].value >> ldbTmplt",
 		    "flags.pulser == 2","colzSame");
-  summaryTree->Draw("templateResults.coherentH[0].templateCRay[5]:peak[0][0].value >> cutTmplt",
+  summaryTree->Draw("template.coherentH[0][0].templateCRay[5]:peak[0][0].value >> cutTmplt",
 		    "flags.pulser == 0 && templateCRayH[5] > 0.5 && peak[0][0].value > 0.05","colz");
 
   outFile->cd();
