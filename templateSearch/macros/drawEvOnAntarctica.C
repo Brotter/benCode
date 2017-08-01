@@ -395,6 +395,8 @@ void drawNotableOnAntarctica(string fileName="notableEvents.root") {
 
    */
 
+  stringstream name;
+
   TFile *inFile = TFile::Open(fileName.c_str());
   TTree *summaryTree = (TTree*)inFile->Get("cutSummary");
 
@@ -408,7 +410,7 @@ void drawNotableOnAntarctica(string fileName="notableEvents.root") {
   AnitaTemplateSummary *templateSummary = NULL;
   summaryTree->SetBranchAddress("template",&templateSummary);
 
-  cout << "found " << summaryTree->GetN() << " events in " << fileName << endl;
+  cout << "found " << summaryTree->GetEntries() << " events in " << fileName << endl;
 
   
   Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
@@ -431,7 +433,7 @@ void drawNotableOnAntarctica(string fileName="notableEvents.root") {
     double lonEv = summary->peak[0][0].longitude;
     cout << "event position: " << latEv << " , " << lonEv << endl;
     aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
-    gEv->SetPoint(ev,xEv,yEv);
+    gEv->SetPoint(entry,xEv,yEv);
     aMap->Fill(latEv,lonEv);
   }
 
