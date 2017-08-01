@@ -422,7 +422,7 @@ void drawNotableOnAntarctica(string fileName="notableEvents.root") {
   TH2D *myHist = aMap->addHistogram("hist","hist",1000,1000);
   
 
-  for (int entry=0; entry<summaryTree->GetN(); entry++) {
+  for (int entry=0; entry<summaryTree->GetEntries(); entry++) {
     summaryTree->GetEntry(entry);
 
     //cut on dense event numbers
