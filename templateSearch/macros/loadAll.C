@@ -1,6 +1,6 @@
 
 
-TChain* loadAll(string date = "07.20.17_17h/"){
+TChain* loadAll(string date = "07.28.17_17h/"){
   //crab
   //kwaabz
   //crab
@@ -34,16 +34,35 @@ TChain* loadAll(string date = "07.20.17_17h/"){
 }
 
 
-TH1* makeCutStrengthPlot(TH1* inHist) {
+TChain* loadWais(string date = "07.28.17_17h/"){
+  //crab
+  //kwaabz
+  //crab
+  //crabcrab
+  //kiki
+  //popo
+  //bert
+  //kona
+  //tate
 
-  TH1* copyHist = (TH1*)inHist->Clone();
+  TChain *summaryTree = new TChain("summaryTree");
   
-  copyHist->Scale(1./copyHist->GetIntegral()[copyHist->GetNbinsX()]);
+  gROOT->ProcessLine(".x setupProof.C");
 
-  TH1* outHist = copyHist->GetCumulative();
-  delete copyHist;
+  char* resultsDir = getenv("ANITA3_RESULTSDIR");
 
-  return outHist;
+  stringstream name;
+  for (int core=145; core<181; core++) {
+
+    name.str("");
+    name << resultsDir << "templateSearch/" << date << "/" << core << ".root";
+
+    summaryTree->Add(name.str().c_str());
+
+  }
+
+    summaryTree->SetProof();
+
+  return summaryTree;
+
 }
-
-  
