@@ -426,7 +426,7 @@ void fillBaseList(Acclaim::AntarcticaMapPlotter *aMap,TGraph *gBaseList) {
   return;
 }
 
-void drawNotableOnAntarctica(string fileName="notableEvents.root") {
+Acclaim::AntarcticaMapPlotter* drawNotableOnAntarctica(string fileName="notableEvents.root") {
 
   /*
 
@@ -441,7 +441,7 @@ void drawNotableOnAntarctica(string fileName="notableEvents.root") {
 
   if (summaryTree == NULL) {
     cout << "Couldn't find cutSummary in file " << fileName << "!  Quitting" << endl;
-    return;
+    return 0;
   }
 
   AnitaEventSummary *summary = NULL;
@@ -456,6 +456,7 @@ void drawNotableOnAntarctica(string fileName="notableEvents.root") {
 
   aMap->addTGraph("anitaPosition","anitaPosition");
   TGraph *anitaPosition = aMap->getCurrentTGraph();
+  anitaPosition->SetMarkerColor(kWhite);
 
   aMap->addTGraph("eventLocation","eventLocation");
   TGraph *eventLocation = aMap->getCurrentTGraph();
@@ -463,6 +464,8 @@ void drawNotableOnAntarctica(string fileName="notableEvents.root") {
   vector<string> graphNames;
 
   vector<TArrow*> arrows;
+
+  TGraph *gEv;
 
   int cnt=0;
   for (int entry=0; entry<summaryTree->GetEntries(); entry++) {
@@ -476,23 +479,39 @@ void drawNotableOnAntarctica(string fileName="notableEvents.root") {
 
     cnt++;
 
-    //make a new graph
-    name.str("");
-    name << "event" << summary->eventNumber;
-    aMap->addTGraph(name.str(),name.str());
-    TGraph *gEv = aMap->getCurrentTGraph();
-    graphNames.push_back(name.str());
-    gEv->SetMarkerStyle(29); //29=star
-    gEv->SetMarkerColor(cnt);
-    
-    //fill it with the location
+
+    //get the event source location
     double xEv,yEv;
     double latEv = summary->peak[0][0].latitude;
     double lonEv = summary->peak[0][0].longitude;
-    cout << "eventNumber: " << summary->eventNumber << " position: " << latEv << " , " << lonEv << endl;
     aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
-    gEv->SetPoint(entry,xEv,yEv);
     eventLocation->SetPoint(eventLocation->GetN(),xEv,yEv);
+
+    //    cout << "eventNumber: " << summary->eventNumber << " position: " << latEv << " , " << lonEv << endl;
+
+
+    //make a new graph maybe
+    if (summary->eventNumber == 6347570  ||
+	summary->eventNumber == 11116669 ||
+	summary->eventNumber == 15717147 ||
+	summary->eventNumber == 19459851 ||
+	summary->eventNumber == 23695286 ||
+	summary->eventNumber == 32907848 ||
+	summary->eventNumber == 33484995 ||
+	summary->eventNumber == 40662432 ||
+	summary->eventNumber == 66313844 ||
+	summary->eventNumber == 68298837 ||
+	summary->eventNumber == 77363939) {
+      name.str("");
+      name << "event" << summary->eventNumber;
+      aMap->addTGraph(name.str(),name.str());
+      cout << name.str() << " " << latEv << "|" << lonEv << endl;
+      gEv = aMap->getCurrentTGraph();
+      graphNames.push_back(name.str());
+      gEv->SetMarkerStyle(29); //29=star
+      gEv->SetMarkerColor(kGreen);
+      gEv->SetPoint(gEv->GetN(),xEv,yEv);
+    }
 
     //fill the position graph with ANITA's location
     double xA,yA;
@@ -519,17 +538,20 @@ void drawNotableOnAntarctica(string fileName="notableEvents.root") {
   aMap->setCurrentTGraph("anitaPosition");
   aMap->DrawTGraph("p");
 
-  for (int i=0; i<graphNames.size(); i++) {
-    //    aMap->setCurrentTGraph(graphNames[i].c_str());
-    //    aMap->DrawTGraph("psame");
+  for (int i=0; i<arrows.size(); i++) {
     arrows[i]->Draw("");
   }
-  gBaseList->Draw("psame");
+
+  for (int i=0; i<graphNames.size(); i++) {
+    aMap->setCurrentTGraph(graphNames[i].c_str());
+    aMap->DrawTGraph("psame");
+  }
+  //  gBaseList->Draw("psame");
 
 
 
 
-  return;
+  return aMap;
 }
 
 
