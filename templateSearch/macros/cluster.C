@@ -46,6 +46,7 @@ void cluster() {
 
   TH2D* hCluster = new TH2D("hCluster","hCluster",lenEntries,-0.5,lenEntries-0.5,1000,0,1000);
 
+  vector<int> singlets;
 
   for (int entryA=0; entryA<lenEntries; entryA++) {
 
@@ -73,6 +74,9 @@ void cluster() {
     int close = 0;
     int eventNum = summary->eventNumber;
     for (int entryB=0; entryB<lenEntries; entryB++) {
+      
+      //will always be zero
+      if (entryA == entryB) continue;
       
       summaryTree->GetEntry(entryB);
       if (notNotable(summary,templateSummary)) continue;
@@ -146,11 +150,21 @@ void cluster() {
     
     cout << "eventNumber " << eventNum << " close:" << close << endl;
 
+    if (close == 0) singlets.push_back(eventNum);
   }
   
-  
   hCluster->Draw("colz");
+
   
+  cout << "Close Event Numbers:" << endl;
+  for (int i=0; i<singlets.size(); i++) {
+    cout << singlets[i] << endl;
+  }
+
+  TFile* outFile = new TFile("cluster.root","recreate");
+  hCluster->Write();
+  singlets->Write();
+  outFile->Close();
   
   return;
 }
