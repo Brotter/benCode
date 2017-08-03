@@ -16,7 +16,7 @@ bool notNotable(AnitaEventSummary *summary, AnitaTemplateSummary *templateSummar
     interesting (cluster) = false
   */
 
-  if (summary->anitaLocation.latitude <= -999) return true;
+  if (summary->peak[0][0].latitude <= -999) return true;
   if (templateSummary->deconvolved[0][0].impulse < 0.6) return true;
 
   return false;
@@ -46,11 +46,10 @@ void cluster() {
 
   TH2D* hCluster = new TH2D("hCluster","hCluster",lenEntries,-0.5,lenEntries-0.5,1000,0,1000);
 
-  vector<int> singlets;
+  TGraph *singlets = new TGraph();
+  singlets->SetName("singlets");
 
   for (int entryA=0; entryA<lenEntries; entryA++) {
-
-    cout << "entryA:" << entryA << endl;
 
     summaryTree->GetEntry(entryA);
     if (notNotable(summary,templateSummary)) continue;
@@ -131,34 +130,37 @@ void cluster() {
       
       //	cout << entryA << " vs " << entryB << " = " << diff << endl;
 
-      if (diff < 200) close++;
+      if (diff < 50) close++;
       
       hCluster->Fill(entryA,diff);
       
       delete gpsB;
       delete usefulGPSB;
-      /*
+      
       cout << entryA << "," << entryB << " | ";
-      cout << phiAB << "," << phiB << " - " << phiBA << " " << phiA << " " << diffPhi << " | ";
+      cout << phiAB << "," << phiB << " - " << phiBA << "," << phiA << " " << diffPhi << " | ";
       cout << thetaA << "," << thetaB << " - " << diffBAtheta << " " << diffABtheta << " " << diffTheta << " | ";
       cout << distance << endl;
-      */
+      
     }
 
     delete gpsA;
     delete usefulGPSA;
     
-    cout << "eventNumber " << eventNum << " close:" << close << endl;
+    cout << "entryA:" << entryA << " eventNumber " << eventNum << " close:" << close << endl;
 
-    if (close == 0) singlets.push_back(eventNum);
+    if (close == 0) {
+      cout << "Close! " << singlets->GetN() << " so far " << endl;
+      singlets->SetPoint(singlets->GetN(),singlets->GetN(),eventNum);
+    }
   }
   
   hCluster->Draw("colz");
 
   
   cout << "Close Event Numbers:" << endl;
-  for (int i=0; i<singlets.size(); i++) {
-    cout << singlets[i] << endl;
+  for (int i=0; i<singlets->GetN(); i++) {
+    cout << singlets->GetY()[i] << endl;
   }
 
   TFile* outFile = new TFile("cluster.root","recreate");
