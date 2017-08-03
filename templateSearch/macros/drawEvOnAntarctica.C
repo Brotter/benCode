@@ -460,7 +460,13 @@ Acclaim::AntarcticaMapPlotter* drawNotableOnAntarctica(string fileName="notableE
 
   aMap->addTGraph("eventLocation","eventLocation");
   TGraph *eventLocation = aMap->getCurrentTGraph();
-  
+
+  aMap->addTGraph("allEvs","allEvs");
+  TGraph *allEvs = aMap->getCurrentTGraph();
+  allEvs->SetMarkerStyle(29); //star
+  allEvs->SetMarkerSize(1);
+  allEvs->SetMarkerColor(kOrange);
+
   vector<string> graphNames;
 
   vector<TArrow*> arrows;
@@ -476,6 +482,9 @@ Acclaim::AntarcticaMapPlotter* drawNotableOnAntarctica(string fileName="notableE
 
     //cut on things that don't point at the continent
     if (summary->peak[0][0].latitude < -999) continue;
+
+    if (TMath::Abs(summary->deconvolved[0][0].linearPolAngle()) > 20) continue;
+    if (TMath::Abs(summary->deconvolved[0][0].linearPolFrac()) < 0.6) continue;
 
     cnt++;
 
@@ -513,6 +522,8 @@ Acclaim::AntarcticaMapPlotter* drawNotableOnAntarctica(string fileName="notableE
       gEv->SetPoint(gEv->GetN(),xEv,yEv);
     }
 
+    allEvs->SetPoint(allEvs->GetN(),xEv,yEv);
+
     //fill the position graph with ANITA's location
     double xA,yA;
     latEv = summary->anitaLocation.latitude;
@@ -538,14 +549,17 @@ Acclaim::AntarcticaMapPlotter* drawNotableOnAntarctica(string fileName="notableE
   aMap->setCurrentTGraph("anitaPosition");
   aMap->DrawTGraph("p");
 
+  aMap->setCurrentTGraph("allEvs");
+  aMap->DrawTGraph("psame");
+
   for (int i=0; i<arrows.size(); i++) {
     arrows[i]->Draw("");
   }
 
-  for (int i=0; i<graphNames.size(); i++) {
-    aMap->setCurrentTGraph(graphNames[i].c_str());
-    aMap->DrawTGraph("psame");
-  }
+  //  for (int i=0; i<graphNames.size(); i++) {
+  //    aMap->setCurrentTGraph(graphNames[i].c_str());
+  //    aMap->DrawTGraph("psame");
+  //  }
   //  gBaseList->Draw("psame");
 
 
