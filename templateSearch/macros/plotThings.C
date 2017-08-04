@@ -1,5 +1,139 @@
+/*
+  Ben Strutt has a cut on the p2/p1 peak ratio.  Might as well make that plot
+
+  I think the "double peak" thing he sees is dominated by CW, which the sine subtract gets rid of
+
+ */
+
+
+
+
+
+void oneDimHistos(TChain *summaryTree, TFile *outFile, const char* cuts="flags.pulser == 0") {
+
+  TH1D *histogram;
+
+  
+  //PointingHypothesis
+  histogram = new TH1D("peakPhi","Map Peak Phi;Map Peak Phi;Count",360,0,360);
+  summaryTree->Draw("peak[0][0].phi >> peakPhi",cuts);
+  outFile->cd();
+  histogram->Write();
+
+  histogram = new TH1D("peakTheta","Map Peak Theta;Map Peak Theta;Count",181,-90,90);
+  summaryTree->Draw("peak[0][0].theta >> peakTheta",cuts);
+  outFile->cd();
+  histogram->Write();
+
+  histogram = new TH1D("mapPeak","Map Peak Value;Map Peak Value;Count",1000,0,1);
+  summaryTree->Draw("peak[0][0].value >> mapPeak",cuts);
+  outFile->cd();
+  histogram->Write();
+
+  histogram = new TH1D("mapSNR","Map SNR; Map SNR;; Count",180,-90,90);
+  summaryTree->Draw("peak[0][0].snr >> mapSNR",cuts);
+  outFile->cd();
+  histogram->Write();
+  
+  histogram = new TH1D("peakRatio","Peak Ratio - p2/p1; Peak Ratio (p2/p1); Count",1000,0,100);
+  summaryTree->Draw("peak[0][1].value/peak[0][0].value >> peakRatio",cuts);
+  outFile->cd();
+  histogram->Write();
+  
+
+  //WaveformInfo
+  histogram = new TH1D("linPolFrac","Linear Polarization Fraction; Linear Polarization Fraction; Count",1000,0,1);
+  summaryTree->Draw("coherent[0][0].linearPolFrac() >> linPolFrac",cuts);
+  outFile->cd();
+  histogram->Write();
+  
+  histogram = new TH1D("linPolAng","Linear Polarization Angle; Linear Polarization Angle; Count",180,-90,90);
+  summaryTree->Draw("coherent[0][0].linearPolAngle() >> linPolAngle",cuts);
+  outFile->cd();
+  histogram->Write();
+  
+  histogram = new TH1D("waveSNR","Coherently Summed Waveform SNR;SNR;Count",1000,0,100);
+  summaryTree->Draw("coherent[0][0].snr >> waveSNR",cuts);
+  outFile->cd();
+  histogram->Write();
+  
+  histogram = new TH1D("wavePeakVal","Coherently Summed Waveform Peak Value; Peak (mV);Count",1000,0,100);
+  summaryTree->Draw("coherent[0][0].peakVal >> wavePeakVal",cuts);
+  outFile->cd();
+  histogram->Write();
+  
+  histogram = new TH1D("wavePeakHilb","Coherently Summed Waveform Peak Hilbert;Peak Hilbert;Count",1000,0,100);
+  summaryTree->Draw("coherent[0][0].peakHilbert >> wavePeakHilb",cuts);
+  outFile->cd();
+  histogram->Write();
+  
+  histogram = new TH1D("impulsivity","Impulsivity Measurement;Impulsivity;Count",1000,0,100);
+  summaryTree->Draw("coherent[0][0].impulsivityMEasure >> impulsivity",cuts);
+  outFile->cd();
+  histogram->Write();
+
+
+
+  //WaveformInfo (Deconvolved)
+  histogram = new TH1D("linPolFrac_D","Linear Polarization Fraction; Linear Polarization Fraction; Count",1000,0,1);
+  summaryTree->Draw("deconvolved[0][0].linearPolFrac() >> linPolFrac_D",cuts);
+  outFile->cd();
+  histogram->Write();
+  
+  histogram = new TH1D("linPolAng_D","Linear Polarization Angle; Linear Polarization Angle; Count",180,-90,90);
+  summaryTree->Draw("deconvolved[0][0].linearPolAngle() >> linPolAngle_D",cuts);
+  outFile->cd();
+  histogram->Write();
+  
+  histogram = new TH1D("waveSNR_D","Deconvolved Waveform SNR;SNR;Count",1000,0,100);
+  summaryTree->Draw("deconvolved[0][0].snr >> waveSNR_D",cuts);
+  outFile->cd();
+  histogram->Write();
+  
+  histogram = new TH1D("wavePeakVal_D","Deconvolved Waveform Peak Value; Peak (mV);Count",1000,0,100);
+  summaryTree->Draw("deconvolved[0][0].peakVal >> wavePeakVal_D",cuts);
+  outFile->cd();
+  histogram->Write();
+  
+  histogram = new TH1D("wavePeakHilb_D","Deconvolved Waveform Peak Hilbert;Peak Hilbert;Count",1000,0,100);
+  summaryTree->Draw("deconvolved[0][0].peakHilbert >> wavePeakHilb_D",cuts);
+  outFile->cd();
+  histogram->Write();
+  
+  histogram = new TH1D("impulsivity_D","Impulsivity Measurement;Impulsivity;Count",1000,0,100);
+  summaryTree->Draw("deconvolved[0][0].impulsivityMEasure >> impulsivity_D",cuts);
+  outFile->cd();
+  histogram->Write();
+
+
+
+}
+
+
+void peakRatio(TChain *summaryTree, TFile *outFile) {
+
+  TH1D *peakRatio = new TH1D("peakRatio","Peak Ratio - p2/p1 - Noise",1000,0,100);
+  summaryTree->Draw("peak[0][1].value/peak[0][0].value >> peakRatio","flags.pulser==0");
+  outFile->cd();
+  peakRatio->Write();
+
+  TH1D *peakRatioWais = new TH1D("peakRatioWais","Peak Ratio - p2/p1 - Wais",100,0,10);
+  summaryTree->Draw("peak[0][1].value/peak[0][0].value >> peakRatio","flags.pulser==1");
+  outFile->cd();
+  peakRatioWais->Write();
+
+  return;
+}
+
+
 
 TH1* makeNormCumulative(TH1* inHist) {
+  /*
+    Makes a "normalized cumulative cut fraction" graph I think
+
+    Should let me set cuts on a specific amount of "reduction"
+   */
+
 
   TH1* copyHist = (TH1*)inHist->Clone();
   
@@ -16,8 +150,6 @@ TH1* makeNormCumulative(TH1* inHist) {
     double value = outHist->GetBinContent(i);
     outHist->SetBinContent(i,1.-value);
   }
-
-
 
 
   delete copyHist;
@@ -78,7 +210,7 @@ void makeMovies(TChain *summaryTree) {
 
 
 
-void plotCorr(TChain *summaryTree,TFile *outFile) {
+void plotTemplate(TChain *summaryTree,TFile *outFile) {
   /*================
     Template Correlation Stuff
   */
@@ -364,7 +496,7 @@ void waisVsWais(TChain* summaryTree, TFile* outFile) {
 
   TH2D *waisVsWais = new TH2D("waisVsWais","wais pulser events vs wais template",500,0,0.5, 500,0,1);
 
-  summaryTree->Draw("templateWaisH:peak[0][0].value >> waisVsWais","flags.pulser==1","colz");
+  summaryTree->Draw("template.coherent[0][0].wais:peak[0][0].value >> waisVsWais","flags.pulser==1","colz");
 
   waisVsWais->Write();
 
@@ -372,15 +504,16 @@ void waisVsWais(TChain* summaryTree, TFile* outFile) {
 }
 
 
-void plotThings(int movie=false) {
+void plotAllTheThings() {
 
   TFile *outFile = TFile::Open("plotThings.root","recreate");
   TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
-  if (movie) makeMovies(summaryTree);
-  plotPol(summaryTree,outFile);
-  plotCorr(summaryTree,outFile);
-  plotSNR(summaryTree,outFile);
+  //  plotPol(summaryTree,outFile);
+  //  plotTemplate(summaryTree,outFile);
+  //  plotSNR(summaryTree,outFile);
+
+  oneDimHistos(summaryTree,outFile);
 
   outFile->Close();
 

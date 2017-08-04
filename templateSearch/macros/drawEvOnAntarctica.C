@@ -29,364 +29,6 @@ int evToRun(int ev) {
 }
 
 
-  
-TGraph *loadBases(Acclaim::AntarcticaMapPlotter *aMap) {
-
-
-  TGraph *gBases = new TGraph();
-
-  stringstream name;
-  char* anitaInstallDir = getenv("ANITA_UTIL_INSTALL_DIR");
-  name.str("");
-  name << anitaInstallDir << "/share/anitaCalib/baseListA3.root";
-  TFile *fBaseList = TFile::Open(name.str().c_str());
-  if (fBaseList == NULL) {
-    cout << "Couldn't find base list in " << name.str().c_str() << ". Not drawing bases." << endl;
-    return gBases;
-  }
-
-  TTree *baseCampTree = (TTree*)fBaseList->Get("baseCampTree");
-  TTree *awsTree = (TTree*)fBaseList->Get("awsTree");
-  TTree *fixedWingTree = (TTree*)fBaseList->Get("fixedWingTree");
-  TList *treeList = new TList();
-  treeList->Add(baseCampTree);
-  treeList->Add(awsTree);
-  treeList->Add(fixedWingTree);
-  TTree *allBases = TTree::MergeTrees(treeList);
-  double lat,lon;
-  allBases->SetBranchAddress("fullLong",&lon);
-  allBases->SetBranchAddress("fullLat",&lat);
-  
-  for (int entry=0; entry<allBases->GetEntries(); entry++) {
-    allBases->GetEntry(entry);
-    double x,y;
-    aMap->getRelXYFromLatLong(lat,lon,x,y);    
-    gBases->SetPoint(entry,x,y);
-  }
-
-  delete treeList;
-  fBaseList->Close();
-
-  return gBases;
-
-}
-
-
-
-void drawOnAntarcticaFromLatLonFile(string inFileName="passingLocations") {
-
-  TFile* inFile = TFile::Open("passingLatLons.root");
-
-  TH2D* latLons = (TH2D*)inFile->Get("passingLatLons");
-
-
-  return;
-}
-
-
-void drawOnAntarcticaFromLatLonList() {
-
-  ifstream inFile("passingEvs.txt");
-
-  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
-  TH2D *evMap = aMap->addHistogram("evMap","evMap",250,250);
-
-  TGraph *gBases = loadBases(aMap);
-  gBases->SetMarkerColor(kRed);
-  gBases->SetMarkerStyle(3);
-  
-  int row,instance,evNum;
-  double lat,lon;
-  while (inFile >> row >> instance >> evNum >> lat >> lon) {
-    if (lat != -9999 && lon != -9999) continue;
-    double x,y;
-    aMap->getRelXYFromLatLong(lat,lon,x,y);
-    evMap->Fill(x,y);
-  }
-  
-  aMap->DrawHist("colz");
-  aMap->DrawTGraph("pSame");
-
-
-}
-
-
-
-TProfile2D* makeTemplateHeatmap() {  
-
-  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
-
-  AnitaEventSummary *summary = NULL;
-  summaryTree->SetBranchAddress("eventSummary",&summary);
-  double templateCRayH[10][2];
-  summaryTree->SetBranchAddress("templateCRayH",&templateCRayH);
-
-  TProfile2D *cutLatLon = new TProfile2D("cutLatLon","cutLatLon",250,-90,-65, 360,-180,180);
-
-  int lenEntries = summaryTree->GetEntries();
-
-  for (int entry=0; entry<lenEntries; entry++) {
-    if (entry%100000 == 0) cout << entry << "/" << lenEntries << endl;
-    summaryTree->GetEntry(entry);
-    cutLatLon->Fill(summary->peak[0][0].latitude , summary->peak[0][0].longitude , templateCRayH[4][0]);
-  }
-  
-  cout << cutLatLon->GetEntries() << endl;
-
-  return cutLatLon;
-}
-
-
-
-TH2D* mapOnAntarcticaFromLatLonHist(TProfile2D* latLons,Acclaim::AntarcticaMapPlotter *aMap,string name="evMap") {
-
-
-  TH2D *evMap = aMap->addHistogram(name.c_str(),name.c_str(),250,250);
-
-  cout << "hello" << endl;
-  cout << latLons->GetNbinsX() << " " << latLons->GetNbinsY() << endl;
-  for (int latBin=0; latBin<latLons->GetNbinsX(); latBin++) {
-    for (int lonBin=0; lonBin<latLons->GetNbinsY(); lonBin++) {
-      double binValue = latLons->GetBinContent(latBin,lonBin);
-      double lonValue = latLons->GetYaxis()->GetBinCenter(lonBin);
-      double latValue = latLons->GetXaxis()->GetBinCenter(latBin);
-      double x,y;
-      aMap->getRelXYFromLatLong(latValue,lonValue,x,y);
-      cout << latBin << " " << lonBin <<  " " << x << " " << y << " " << binValue << endl;
-      evMap->Fill(x,y,binValue);
-    }
-  }
-
-  return evMap;
-}
-
-
-
-void drawTemplateHeatmap() {
-
-  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
-
-  TProfile2D *cutHist = makeTemplateHeatmap();
-  cout << "made cut histogram" << endl;
-  TH2D* antCutHist = mapOnAntarcticaFromLatLonHist(cutHist,aMap,"template");
-  cout << "projected it onto antarctica" << endl;
-
-  
-  aMap->setCurrentHistogram("template");
-  TCanvas *c1 = aMap->DrawHist("colz");
-
-  c1->SaveAs("antTemplateMap.png");
-
-  return;
-}  
-
-
-
-
-    
-/*===========================
- */
-
-void drawHistOnAntarcticaFromCuts_old(){
-  
-  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
-
-  const int latBins = 250;
-  const int lonBins = 360;
-  TH2D *cutLatLon = new TH2D("cutLatLon","cutLatLon",latBins,-90,-65,lonBins,-180,180);
-
-  stringstream cuts;
-
-  //evs not associated with a cal pulser
-  cuts << "flags.pulser == 0";
-  //polarization angle within 15 degs of horizontal
-  cuts << " && ";
-  cuts << "TMath::Abs(TMath::RadToDeg()*TMath::ATan(coherent[0][0].U/coherent[0][0].Q)/2) < 30";
-  //linear polarization fraction
-  cuts << " && ";
-  cuts << "TMath::Sqrt(pow(coherent[0][0].Q,2)+pow(coherent[0][0].U,2))/coherent[0][0].I > 0.4";
-  //template
-  cuts << " && ";
-  cuts << "templateCRayH[5] > 0.7";
-  //map peak
-  cuts << " && ";
-  cuts << "peak[0][0].value > 0.06";
-  //not close to ldb
-  cuts << " && ";
-  cuts << "TMath::Abs(peak[0][0].phi - ldb.phi) > 5";
-  //not close to wias
-  cuts << " && ";
-  cuts << "TMath::Abs(peak[0][0].phi - ldb.phi) > 5";
-  //hits the continent
-  cuts << " && ";
-  cuts << "peak[0][0].latitude > -999";
-  //not close to some super loud base
-  //  cuts << " && ";
-  //  cuts << "!( (peak[0][0].latitude < -78 && peak[0][0].latitude > -82) && (peak[0][0].longitude < -105 && peak[0][0].longitude > -115) )";
-    
-
-  summaryTree->Draw("peak[0][0].longitude:peak[0][0].latitude >> cutLatLon",cuts.str().c_str(),"colz");
-
-  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
-  TH2D *evMap = aMap->addHistogram("evMap","evMap",250,250);
-
-  TGraph *gBases = loadBases(aMap);
-  gBases->SetMarkerColor(kRed);
-  gBases->SetMarkerStyle(3);
-
-
-  for (int latBin=0; latBin<latBins; latBin++) {
-    for (int lonBin=0; lonBin<lonBins; lonBin++) {
-      int binValue = cutLatLon->GetBinContent(latBin,lonBin);
-      double lonValue = cutLatLon->GetYaxis()->GetBinCenter(lonBin);
-      double latValue = cutLatLon->GetXaxis()->GetBinCenter(latBin);
-      double x,y;
-      aMap->getRelXYFromLatLong(latValue,lonValue,x,y);
-      evMap->Fill(x,y,binValue);
-    }
-  }
-
-  aMap->DrawHist("colz");
-  gBases->Draw("psame");
-
-}
-  
-
-  
-
-
-
-
-void drawOnAntarctica_slow(string fileName="") {
-
-  /*
-
-    This is a stupidly slow way of drawing the events.
-
-    TChain::Draw() is way faster, then I can just parse the resulting TH2D
-
-   */
-
-  char* resultsDir = getenv("ANITA3_RESULTSDIR");
-  string date="06.11.17_19h/";
-
-  TChain *summaryTree = new TChain("summaryTree","summaryTree");
-  AnitaEventSummary *summary = NULL;
-
-  stringstream name;
-
-  TGraph *passingEvs;
-
-  if (fileName != "") {
-    for (int run=130;run<440;run++) {
-      name.str("");
-      name << resultsDir << date << run << ".root";
-      summaryTree->Add(name.str().c_str());
-    }
-    cout << "There are " << summaryTree->GetEntries() << " entries in the summary tree" << endl;
-
-    summaryTree->SetBranchAddress("eventSummary",&summary);
-
-    cout << "Building index..."; 
-    fflush(stdout);
-    summaryTree->BuildIndex("eventNumber");
-    cout << " done!" << endl;
-
-
-
-    if (fileName != "") {
-      passingEvs = new TGraph(fileName.c_str(),"%lg %lg*");
-      cout << "found " << passingEvs->GetN() << " passing events in " << fileName << endl;
-    }
-    
-  }
-  else {
-    passingEvs = new TGraph();
-    cout << "not doing any events" << endl;
-  }
-  
-
-
-  
-  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
-  aMap->addTGraph("event","event");
-  TGraph *gEv = aMap->getCurrentTGraph();
-  gEv->SetMarkerStyle(29); //29=star
-  gEv->SetMarkerColor(kGreen);
-  
-  TH2D *myHist = aMap->addHistogram("hist","hist",1000,1000);
-  
-
-  for (int ev=0; ev<passingEvs->GetN(); ev++) {
-    int summaryEntry = summaryTree->GetEntryNumberWithBestIndex(passingEvs->GetY()[ev]);
-    cout << ev << " summaryEntry=" << summaryEntry << endl;
-    summaryTree->GetEntry(summaryEntry);
-
-    double xEv,yEv;
-    double latEv = summary->peak[0][0].latitude;
-    double lonEv = summary->peak[0][0].longitude;
-    cout << "event position: " << latEv << " , " << lonEv << endl;
-    aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
-    gEv->SetPoint(ev,xEv,yEv);
-    aMap->Fill(latEv,lonEv);
-  }
-
-  aMap->addTGraph("baseList","baseList");
-  TGraph *gBaseList = aMap->getCurrentTGraph();
-  gBaseList->SetMarkerStyle(20); //20=filled circle
-  gBaseList->SetMarkerSize(1);
-  gBaseList->SetMarkerColor(kRed);
-
-  char* anitaInstallDir = getenv("ANITA_UTIL_INSTALL_DIR");
-  name.str("");
-  name << anitaInstallDir << "/share/anitaCalib/baseListA3.root";
-  cout << "looking for base list in " << name.str() << endl;
-  TFile *fBaseList = TFile::Open(name.str().c_str());
-  TTree *baseCampTree = (TTree*)fBaseList->Get("baseCampTree");
-  TTree *awsCampTree = (TTree*)fBaseList->Get("awsTree");
-  double fullLat,fullLong;
-  double fullLataws,fullLongaws;
-  baseCampTree->SetBranchAddress("fullLat",&fullLat);
-  baseCampTree->SetBranchAddress("fullLong",&fullLong);
-
-  awsCampTree->SetBranchAddress("fullLat",&fullLataws);
-  awsCampTree->SetBranchAddress("fullLong",&fullLongaws);
-
-  cout << "baseCampTree->GetEntries() = " << baseCampTree->GetEntries() << endl;
-  for (int entry=0; entry<baseCampTree->GetEntries(); entry++) {
-    baseCampTree->GetEntry(entry);
-    double x,y;
-    aMap->getRelXYFromLatLong(fullLat,fullLong,x,y);
-    gBaseList->SetPoint(entry,x,y);
-  }
-
-
-  cout << "awsCampTree->GetEntries() = " << awsCampTree->GetEntries() << endl;
-  for (int entry=0; entry<awsCampTree->GetEntries(); entry++) {
-    awsCampTree->GetEntry(entry);
-    double x,y;
-    aMap->getRelXYFromLatLong(fullLataws,fullLongaws,x,y);
-    gBaseList->SetPoint(gBaseList->GetN(),x,y);
-  }
-
-
-  aMap->setCurrentHistogram("hist");
-  aMap->DrawHist("colz");
-
-  new TCanvas();
-  aMap->setCurrentTGraph("event");
-  aMap->DrawTGraph("pSame");
-  gBaseList->Draw("pSame");
-
-
-
-
-  return;
-}
-
-
-
-
 void fillBaseList(Acclaim::AntarcticaMapPlotter *aMap,TGraph *gBaseList) {
 
   stringstream name;
@@ -426,7 +68,7 @@ void fillBaseList(Acclaim::AntarcticaMapPlotter *aMap,TGraph *gBaseList) {
   return;
 }
 
-Acclaim::AntarcticaMapPlotter* drawNotableOnAntarctica(string fileName="notableEvents.root") {
+void drawEvOnAntarctica(string fileName="notableEvents.root") {
 
   /*
 
@@ -440,8 +82,7 @@ Acclaim::AntarcticaMapPlotter* drawNotableOnAntarctica(string fileName="notableE
   TTree *summaryTree = (TTree*)inFile->Get("cutSummary");
 
   if (summaryTree == NULL) {
-    cout << "Couldn't find cutSummary in file " << fileName << "!  Quitting" << endl;
-    return 0;
+    cout << "Couldn't find cutSummary in file " << fileName << endl;
   }
 
   AnitaEventSummary *summary = NULL;
@@ -458,22 +99,21 @@ Acclaim::AntarcticaMapPlotter* drawNotableOnAntarctica(string fileName="notableE
   TGraph *anitaPosition = aMap->getCurrentTGraph();
   anitaPosition->SetMarkerColor(kWhite);
 
-  aMap->addTGraph("eventLocation","eventLocation");
-  TGraph *eventLocation = aMap->getCurrentTGraph();
-
-  aMap->addTGraph("allEvs","allEvs");
+  aMap->addTGraph("eventLocations","eventLocations");
   TGraph *allEvs = aMap->getCurrentTGraph();
   allEvs->SetMarkerStyle(29); //star
   allEvs->SetMarkerSize(1);
   allEvs->SetMarkerColor(kOrange);
 
-  vector<string> graphNames;
+
 
   vector<TArrow*> arrows;
 
+  vector<TGraph*> highlights;
+
   TGraph *gEv;
 
-  int cnt=0;
+  int eventCount=0;
   for (int entry=0; entry<summaryTree->GetEntries(); entry++) {
     summaryTree->GetEntry(entry);
 
@@ -483,10 +123,10 @@ Acclaim::AntarcticaMapPlotter* drawNotableOnAntarctica(string fileName="notableE
     //cut on things that don't point at the continent
     if (summary->peak[0][0].latitude < -999) continue;
 
-    if (TMath::Abs(summary->deconvolved[0][0].linearPolAngle()) > 20) continue;
-    if (TMath::Abs(summary->deconvolved[0][0].linearPolFrac()) < 0.6) continue;
+    //    if (TMath::Abs(summary->deconvolved[0][0].linearPolAngle()) > 20) continue;
+    //    if (TMath::Abs(summary->deconvolved[0][0].linearPolFrac()) < 0.6) continue;
 
-    cnt++;
+    eventCount++;
 
 
     //get the event source location
@@ -494,35 +134,32 @@ Acclaim::AntarcticaMapPlotter* drawNotableOnAntarctica(string fileName="notableE
     double latEv = summary->peak[0][0].latitude;
     double lonEv = summary->peak[0][0].longitude;
     aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
-    eventLocation->SetPoint(eventLocation->GetN(),xEv,yEv);
+
+    allEvs->SetPoint(allEvs->GetN(),xEv,yEv);
 
     //    cout << "eventNumber: " << summary->eventNumber << " position: " << latEv << " , " << lonEv << endl;
 
 
-    //make a new graph maybe
-    if (summary->eventNumber == 6347570  ||
-	summary->eventNumber == 11116669 ||
-	summary->eventNumber == 15717147 ||
-	summary->eventNumber == 19459851 ||
+    //highlight graphs
+    if (summary->eventNumber == 9097075 || 
+	summary->eventNumber == 8814863 ||
 	summary->eventNumber == 23695286 ||
-	summary->eventNumber == 32907848 ||
+	summary->eventNumber == 32907848 || 
 	summary->eventNumber == 33484995 ||
-	summary->eventNumber == 40662432 ||
-	summary->eventNumber == 66313844 ||
-	summary->eventNumber == 68298837 ||
-	summary->eventNumber == 77363939) {
+	summary->eventNumber == 66313844) {
+      
       name.str("");
       name << "event" << summary->eventNumber;
-      aMap->addTGraph(name.str(),name.str());
       cout << name.str() << " " << latEv << "|" << lonEv << endl;
-      gEv = aMap->getCurrentTGraph();
-      graphNames.push_back(name.str());
-      gEv->SetMarkerStyle(29); //29=star
-      gEv->SetMarkerColor(kGreen);
-      gEv->SetPoint(gEv->GetN(),xEv,yEv);
+      TGraph *gHighlight = new TGraph();
+      gHighlight->SetName(name.str().c_str());
+      gHighlight->SetTitle(name.str().c_str());
+      gHighlight->SetMarkerStyle(29); //29=star
+      gHighlight->SetMarkerColor(kGreen);
+      gHighlight->SetPoint(0,xEv,yEv);
+      highlights.push_back(gHighlight);
     }
 
-    allEvs->SetPoint(allEvs->GetN(),xEv,yEv);
 
     //fill the position graph with ANITA's location
     double xA,yA;
@@ -544,28 +181,27 @@ Acclaim::AntarcticaMapPlotter* drawNotableOnAntarctica(string fileName="notableE
   fillBaseList(aMap,gBaseList);
 
 
-  cout << "Found " << cnt << " entries " << endl;
+  cout << "Found " << eventCount << " entries " << endl;
 
   aMap->setCurrentTGraph("anitaPosition");
   aMap->DrawTGraph("p");
 
-  aMap->setCurrentTGraph("allEvs");
+  aMap->setCurrentTGraph("eventLocations");
   aMap->DrawTGraph("psame");
 
   for (int i=0; i<arrows.size(); i++) {
     arrows[i]->Draw("");
   }
 
-  //  for (int i=0; i<graphNames.size(); i++) {
-  //    aMap->setCurrentTGraph(graphNames[i].c_str());
-  //    aMap->DrawTGraph("psame");
-  //  }
+  for (int i=0; i<highlights.size(); i++) {
+    highlights[i]->Draw("p");
+  }
   //  gBaseList->Draw("psame");
 
 
 
 
-  return aMap;
+  return;
 }
 
 
