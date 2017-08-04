@@ -7,6 +7,8 @@
  */
 
 
+bool debug=false;
+
 bool notNotable(AnitaEventSummary *summary, AnitaTemplateSummary *templateSummary) {
   /*
     in case I included ones that aren't interesting
@@ -22,6 +24,25 @@ bool notNotable(AnitaEventSummary *summary, AnitaTemplateSummary *templateSummar
   return false;
 }
   
+
+
+TChain* importGPS() {
+
+  TChain* outChain = new TChain("adu5PatTree","adu5PatTree");
+
+  char* baseDir = getenv("ANITA_ROOT_DATA");
+  stringstream name;
+  for (int i=130; i<440; i++) {
+    name.str("");
+    name << baseDir << "/run" << i << "/gpsEvent" << i << ".root";
+    outChain->Add(name.str().c_str());
+  }
+
+  cout << "Building gps index" << endl;
+  outChain->BuildIndex("eventNumber");
+
+  return outChain;
+}
 
 
 void cluster() {
@@ -41,6 +62,12 @@ void cluster() {
   AnitaTemplateSummary *templateSummary = NULL;
   summaryTree->SetBranchAddress("template",&templateSummary);
 
+
+  TChain* gpsTree = importGPS();
+  Adu5Pat *gps = NULL;
+  gpsTree->SetBranchAddress("pat",&gps);
+
+
   int lenEntries = summaryTree->GetEntries();
   cout << "found " << lenEntries << " events" << endl;
 
@@ -49,18 +76,21 @@ void cluster() {
   TGraph *singlets = new TGraph();
   singlets->SetName("singlets");
 
+
+  int eventCountA=0;
   for (int entryA=0; entryA<lenEntries; entryA++) {
 
     summaryTree->GetEntry(entryA);
+
     if (notNotable(summary,templateSummary)) continue;
 
+    eventCountA++;
+    int eventNumberA = summary->eventNumber;
+
     //where event a was captured from (A)
-    Adu5Pat *gpsA = new Adu5Pat();
-    gpsA->latitude  = summary->anitaLocation.latitude;
-    gpsA->longitude = summary->anitaLocation.longitude;
-    gpsA->altitude  = summary->anitaLocation.altitude;
-    gpsA->heading    = summary->anitaLocation.heading;
-    UsefulAdu5Pat *usefulGPSA = new UsefulAdu5Pat(gpsA);
+    int gpsIndexA = gpsTree->GetEntryNumberWithBestIndex(eventNumberA);   
+    gpsTree->GetEntry(gpsIndexA);
+    UsefulAdu5Pat *usefulGPSA = new UsefulAdu5Pat(gps);
     
     //where event a was seen (a)
     double thetaA = summary->peak[0][0].theta;
@@ -71,23 +101,26 @@ void cluster() {
     
     
     int close = 0;
-    int eventNum = summary->eventNumber;
+
+    int eventCountB = 0;
     for (int entryB=0; entryB<lenEntries; entryB++) {
       
       //will always be zero
       if (entryA == entryB) continue;
       
       summaryTree->GetEntry(entryB);
+
       if (notNotable(summary,templateSummary)) continue;
 
+      eventCountB++;
+      int eventNumberB = summary->eventNumber;
+
       //where event b was captured from (B)
-      Adu5Pat *gpsB = new Adu5Pat();
-      gpsB->latitude  = summary->anitaLocation.latitude;
-      gpsB->longitude = summary->anitaLocation.longitude;
-      gpsB->altitude  = summary->anitaLocation.altitude;
-      gpsB->heading    = summary->anitaLocation.heading;
-      UsefulAdu5Pat *usefulGPSB = new UsefulAdu5Pat(gpsB);
-      
+      int gpsIndexB = gpsTree->GetEntryNumberWithBestIndex(eventNumberB);
+      gpsTree->GetEntry(gpsIndexB);
+      UsefulAdu5Pat *usefulGPSB = new UsefulAdu5Pat(gps);
+
+
       //if event a is further than 1000km from location B, just skip it
       double distance = usefulGPSB->getDistanceFromSource(latA,lonA,altA);
       if (distance > 1000e3) continue;
@@ -99,24 +132,24 @@ void cluster() {
       double lonB = summary->peak[0][0].longitude;
       double altB = summary->peak[0][0].altitude;      
       
-      //where event b is seen from A's location
+      //where event a is seen from B's location
       double thetaBA,phiBA; 
       usefulGPSB->getThetaAndPhiWave(lonA,latA,altA,thetaBA,phiBA);
       thetaBA *= TMath::RadToDeg();
       phiBA *= TMath::RadToDeg();
-      //difference between A->b and A->a
+      //difference between B->b and B->a
       double diffBAtheta = TMath::Abs(thetaBA - thetaA);
-      double diffBAphi = FFTtools::wrap(TMath::Abs(phiBA - phiA));
+      double diffBAphi = FFTtools::wrap(TMath::Abs(phiBA - phiB));
       if (diffBAphi > 180) diffBAphi = 360 - diffBAphi;
       
-      //where event a is seen from B's location
+      //where event b is seen from A's location
       double thetaAB,phiAB; 
       usefulGPSA->getThetaAndPhiWave(lonB,latB,altB,thetaAB,phiAB);
       thetaAB *= TMath::RadToDeg();
       phiAB   *= TMath::RadToDeg();
-      //difference between B->a and B->b
+      //difference between A->a and A->b
       double diffABtheta = TMath::Abs(thetaAB - thetaB);
-      double diffABphi = FFTtools::wrap(TMath::Abs(phiAB - phiB));
+      double diffABphi = FFTtools::wrap(TMath::Abs(phiAB - phiA));
       if (diffABphi > 180) diffABphi = 360 - diffABphi;      
 
 
@@ -130,28 +163,28 @@ void cluster() {
       
       //	cout << entryA << " vs " << entryB << " = " << diff << endl;
 
-      if (diff < 50) close++;
+      if (diff < 200) close++;
       
-      hCluster->Fill(entryA,diff);
+      hCluster->Fill(eventCountA,diff);
       
-      delete gpsB;
       delete usefulGPSB;
       
-      cout << entryA << "," << entryB << " | ";
-      cout << phiAB << "," << phiB << " - " << phiBA << "," << phiA << " " << diffPhi << " | ";
-      cout << thetaA << "," << thetaB << " - " << diffBAtheta << " " << diffABtheta << " " << diffTheta << " | ";
-      cout << distance << endl;
-      
+
+      if (debug) {
+	cout << "( " << eventCountA << " ) " << eventNumberA << " , " << eventNumberB << " ( " << eventCountB << ") | ";
+	cout << phiBA << " - " << phiB << " , " << phiAB << " - " << phiA << " =  " << diffPhi << " | ";
+	cout << thetaA << " - " << thetaB << " , " << diffBAtheta << " - " << diffABtheta << " = " << diffTheta << " | ";
+	cout << distance << endl;
+      }
     }
 
-    delete gpsA;
     delete usefulGPSA;
     
-    cout << "entryA:" << entryA << " eventNumber " << eventNum << " close:" << close << endl;
-
+    cout << "eventCountA:" << eventCountA << " eventNumber " << eventNumberA << " close:" << close << endl;
+    
     if (close == 0) {
       cout << "Close! " << singlets->GetN() << " so far " << endl;
-      singlets->SetPoint(singlets->GetN(),singlets->GetN(),eventNum);
+      singlets->SetPoint(singlets->GetN(),singlets->GetN(),eventNumberA);
     }
   }
   
@@ -170,3 +203,38 @@ void cluster() {
   
   return;
 }
+
+
+void printNotable(TH2D *hist,double threshold=10) {
+
+  int numBins = hist->GetNbinsX();
+
+  TH1D *minDists = new TH1D("minDists","closest event angular sigma",500,0,50);
+
+  for (int evBin=0; evBin<numBins; evBin++) {
+    
+    TH1D *temp = hist->ProjectionY("temp",evBin+1,evBin+1);
+
+    if (temp->GetEntries() > 0) {
+
+      for (int value=0; value<temp->GetNbinsX(); value++) {
+	double minDist = temp->GetBinContent(value);
+      minDists->Fill(minDist);
+      if (minDist > threshold) {
+	cout << bin << endl;
+      }
+
+
+    }
+
+    delete temp;
+  }
+      
+    minDists->Draw();
+
+
+}
+
+
+
+  
