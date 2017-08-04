@@ -78,7 +78,7 @@ void makeMovies(TChain *summaryTree) {
 
 
 
-void plotCorr(TChain *summaryTree,TFile *outFile) {
+void plotTemplates(TChain *summaryTree,TFile *outFile) {
   /*================
     Template Correlation Stuff
   */
@@ -90,17 +90,21 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
 			     500,0,0.5,500,0,1);
   TH2D *ldbTmplt = new TH2D("ldbTmplt","Cosmic Ray Template +4 Correlation - LDB; Interferometric Peak; Template Corr",
 			    500,0,0.5,500,0,1);
-  TH2D *cutTmplt = new TH2D("cutTmplt","Cosmic Ray Template +4 Correlation - Simple Cut; Interferometric Peak; Template Corr",
+  TH2D *cutTmplt = new TH2D("cutTmplt","Cosmic Ray Template +4 Correlation - Base Cut; Interferometric Peak; Template Corr",
 			    500,0,0.5,500,0,1);
-
-  summaryTree->Draw("template.coherentH[0][0].templateCRay[5]:peak[0][0].value >> noiseTmplt",
+  
+  summaryTree->Draw("template.coherent[0][0].cRay[5]:peak[0][0].value >> noiseTmplt",
 		    "flags.pulser == 0","colz");
-  summaryTree->Draw("template.coherentH[0][0].templateCRay[5]:peak[0][0].value >> waisTmplt",
+  summaryTree->Draw("template.coherent[0][0].wais:peak[0][0].value >> waisTmplt",
 		    "flags.pulser == 1","colzSame");
-  summaryTree->Draw("template.coherentH[0][0].templateCRay[5]:peak[0][0].value >> ldbTmplt",
+  summaryTree->Draw("template.coherent[0][0].cRay[5]:peak[0][0].value >> ldbTmplt",
 		    "flags.pulser == 2","colzSame");
-  summaryTree->Draw("template.coherentH[0][0].templateCRay[5]:peak[0][0].value >> cutTmplt",
-		    "flags.pulser == 0 && templateCRayH[5] > 0.5 && peak[0][0].value > 0.05","colz");
+  
+  summaryTree->Draw("template.coherent[0][0].cRay[5]:peak[0][0].value >> cutTmplt",
+		    "flags.pulser == 0 && \
+((FFTtools::wrap(TMath::Abs(peak[0][0].phi - wais.phi)) > 3) || wais.distance > 1000e3) &&\
+((FFTtools::wrap(TMath::Abs(peak[0][0].phi - ldb.phi)) > 3) || ldb.distance > 1000e3)","colzSame");
+
 
   outFile->cd();
   noiseTmplt->Write();
@@ -147,7 +151,7 @@ void plotCorr(TChain *summaryTree,TFile *outFile) {
   TH2D *ldbVsTime = new TH2D("ldbVsTime","LDB Pulser Template Correlations;eventnumber; Template Correlation",
 			     200,5400e3,5550e3,200,0,1);
 
-  summaryTree->Draw("templateCRayH[5]:eventNumber >> ldbVsTime","flags.pulser==2","colz");
+  summaryTree->Draw("template.coherent[0][0].cRay[5]:eventNumber >> ldbVsTime","flags.pulser==2","colz");
   outFile->cd();
   ldbVsTime->Write();
 
@@ -374,13 +378,13 @@ void waisVsWais(TChain* summaryTree, TFile* outFile) {
 
 void plotThings(int movie=false) {
 
-  TFile *outFile = TFile::Open("plotThings.root","recreate");
+  TFile *outFile = TFile::Open("plotThings_1.root","recreate");
   TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
-  if (movie) makeMovies(summaryTree);
-  plotPol(summaryTree,outFile);
-  plotCorr(summaryTree,outFile);
-  plotSNR(summaryTree,outFile);
+  //  if (movie) makeMovies(summaryTree);
+  //  plotPol(summaryTree,outFile);
+  plotTemplates(summaryTree,outFile);
+  //  plotSNR(summaryTree,outFile);
 
   outFile->Close();
 
