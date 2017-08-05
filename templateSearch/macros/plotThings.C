@@ -1,109 +1,176 @@
-/*
-  Ben Strutt has a cut on the p2/p1 peak ratio.  Might as well make that plot
-
-  I think the "double peak" thing he sees is dominated by CW, which the sine subtract gets rid of
-
- */
-
-
-
-
 
 void oneDimHistos(TChain *summaryTree, TFile *outFile, const char* cuts="flags.pulser == 0") {
 
   TH1D *histogram;
 
-  
   //PointingHypothesis
+  //1
   histogram = new TH1D("peakPhi","Map Peak Phi;Map Peak Phi;Count",360,0,360);
   summaryTree->Draw("peak[0][0].phi >> peakPhi",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
 
+  //2
   histogram = new TH1D("peakTheta","Map Peak Theta;Map Peak Theta;Count",181,-90,90);
   summaryTree->Draw("peak[0][0].theta >> peakTheta",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
 
+  //3
   histogram = new TH1D("mapPeak","Map Peak Value;Map Peak Value;Count",1000,0,1);
   summaryTree->Draw("peak[0][0].value >> mapPeak",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
 
-  histogram = new TH1D("mapSNR","Map SNR; Map SNR;; Count",180,-90,90);
+  //4
+  histogram = new TH1D("mapSNR","Map SNR; Map SNR;; Count",1000,0,100);
   summaryTree->Draw("peak[0][0].snr >> mapSNR",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
   
-  histogram = new TH1D("peakRatio","Peak Ratio - p2/p1; Peak Ratio (p2/p1); Count",1000,0,100);
+  //5
+  histogram = new TH1D("peakRatio","Peak Ratio - p2/p1; Peak Ratio (p2/p1); Count",1000,0,40);
   summaryTree->Draw("peak[0][1].value/peak[0][0].value >> peakRatio",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
   
 
-  //WaveformInfo
-  histogram = new TH1D("linPolFrac","Linear Polarization Fraction; Linear Polarization Fraction; Count",1000,0,1);
-  summaryTree->Draw("coherent[0][0].linearPolFrac() >> linPolFrac",cuts);
+  //WaveformInfo (Unfiltered)
+  //6
+  histogram = new TH1D("linPolFrac_U","Linear Polarization Fraction; Linear Polarization Fraction; Count",1000,0,1);
+  summaryTree->Draw("coherent[0][0].linearPolFrac() >> linPolFrac_U",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
   
-  histogram = new TH1D("linPolAng","Linear Polarization Angle; Linear Polarization Angle; Count",180,-90,90);
-  summaryTree->Draw("coherent[0][0].linearPolAngle() >> linPolAngle",cuts);
+  //7
+  histogram = new TH1D("linPolAng_U","Linear Polarization Angle; Linear Polarization Angle; Count",180,-90,90);
+  summaryTree->Draw("coherent[0][0].linearPolAngle() >> linPolAng_U",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
   
-  histogram = new TH1D("waveSNR","Coherently Summed Waveform SNR;SNR;Count",1000,0,100);
-  summaryTree->Draw("coherent[0][0].snr >> waveSNR",cuts);
+  //8
+  histogram = new TH1D("waveSNR_U","Coherently Summed Waveform SNR;SNR;Count",1000,0,100);
+  summaryTree->Draw("coherent[0][0].snr >> waveSNR_U",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
   
-  histogram = new TH1D("wavePeakVal","Coherently Summed Waveform Peak Value; Peak (mV);Count",1000,0,100);
-  summaryTree->Draw("coherent[0][0].peakVal >> wavePeakVal",cuts);
+  //9
+  histogram = new TH1D("wavePeakVal_U","Coherently Summed Waveform Peak Value; Peak (mV);Count",1000,0,1000);
+  summaryTree->Draw("coherent[0][0].peakVal >> wavePeakVal_U",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
   
-  histogram = new TH1D("wavePeakHilb","Coherently Summed Waveform Peak Hilbert;Peak Hilbert;Count",1000,0,100);
-  summaryTree->Draw("coherent[0][0].peakHilbert >> wavePeakHilb",cuts);
+  //10
+  histogram = new TH1D("wavePeakHilb_U","Coherently Summed Waveform Peak Hilbert;Peak Hilbert;Count",1000,0,1000);
+  summaryTree->Draw("coherent[0][0].peakHilbert >> wavePeakHilb_U",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
   
-  histogram = new TH1D("impulsivity","Impulsivity Measurement;Impulsivity;Count",1000,0,100);
-  summaryTree->Draw("coherent[0][0].impulsivityMEasure >> impulsivity",cuts);
+  //11
+  histogram = new TH1D("impulsivity_U","Impulsivity Measurement;Impulsivity;Count",500,0,5);
+  summaryTree->Draw("coherent[0][0].impulsivityMeasure >> impulsivity_U",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
+
+
+  //WaveformInfo (Filtered)
+  //12
+  histogram = new TH1D("linPolFrac_F","Linear Polarization Fraction; Linear Polarization Fraction; Count",1000,0,1);
+  summaryTree->Draw("coherent_filtered[0][0].linearPolFrac() >> linPolFrac_F",cuts);
+  outFile->cd();
+  histogram->Write();
+  delete histogram;
+  
+  //13
+  histogram = new TH1D("linPolAng_F","Linear Polarization Angle; Linear Polarization Angle; Count",180,-90,90);
+  summaryTree->Draw("coherent_filtered[0][0].linearPolAngle() >> linPolAng_F",cuts);
+  outFile->cd();
+  histogram->Write();
+  delete histogram;
+  
+  //14
+  histogram = new TH1D("waveSNR_F","Coherently Summed Waveform SNR;SNR;Count",1000,0,100);
+  summaryTree->Draw("coherent_filtered[0][0].snr >> waveSNR_F",cuts);
+  outFile->cd();
+  histogram->Write();
+  delete histogram;
+  
+  //15
+  histogram = new TH1D("wavePeakVal_F","Coherent_Filteredly Summed Waveform Peak Value; Peak (mV);Count",1000,0,1000);
+  summaryTree->Draw("coherent_filtered[0][0].peakVal >> wavePeakVal_F",cuts);
+  outFile->cd();
+  histogram->Write();
+  delete histogram;
+  
+  //16
+  histogram = new TH1D("wavePeakHilb_F","Coherently Summed Filtered Waveform Peak Hilbert;Peak Hilbert;Count",1000,0,1000);
+  summaryTree->Draw("coherent_filtered[0][0].peakHilbert >> wavePeakHilb_F",cuts);
+  outFile->cd();
+  histogram->Write();
+  delete histogram;
+  
+  //17
+  histogram = new TH1D("impulsivity_F","Impulsivity Measurement (Filtered);Impulsivity;Count",500,0,5);
+  summaryTree->Draw("coherent_filtered[0][0].impulsivityMeasure >> impulsivity_F",cuts);
+  outFile->cd();
+  histogram->Write();
+  delete histogram;
 
 
 
   //WaveformInfo (Deconvolved)
+  //18
   histogram = new TH1D("linPolFrac_D","Linear Polarization Fraction; Linear Polarization Fraction; Count",1000,0,1);
   summaryTree->Draw("deconvolved[0][0].linearPolFrac() >> linPolFrac_D",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
   
+  //19
   histogram = new TH1D("linPolAng_D","Linear Polarization Angle; Linear Polarization Angle; Count",180,-90,90);
   summaryTree->Draw("deconvolved[0][0].linearPolAngle() >> linPolAngle_D",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
   
+  //20
   histogram = new TH1D("waveSNR_D","Deconvolved Waveform SNR;SNR;Count",1000,0,100);
   summaryTree->Draw("deconvolved[0][0].snr >> waveSNR_D",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
   
-  histogram = new TH1D("wavePeakVal_D","Deconvolved Waveform Peak Value; Peak (mV);Count",1000,0,100);
+  //21
+  histogram = new TH1D("wavePeakVal_D","Deconvolved Waveform Peak Value; Peak (mV);Count",1000,0,1000);
   summaryTree->Draw("deconvolved[0][0].peakVal >> wavePeakVal_D",cuts);
   outFile->cd();
   histogram->Write();
-  
-  histogram = new TH1D("wavePeakHilb_D","Deconvolved Waveform Peak Hilbert;Peak Hilbert;Count",1000,0,100);
+  delete histogram;
+
+  //22
+  histogram = new TH1D("wavePeakHilb_D","Deconvolved Waveform Peak Hilbert;Peak Hilbert;Count",1000,0,1000);
   summaryTree->Draw("deconvolved[0][0].peakHilbert >> wavePeakHilb_D",cuts);
   outFile->cd();
   histogram->Write();
-  
-  histogram = new TH1D("impulsivity_D","Impulsivity Measurement;Impulsivity;Count",1000,0,100);
-  summaryTree->Draw("deconvolved[0][0].impulsivityMEasure >> impulsivity_D",cuts);
+  delete histogram;
+
+  //23
+  histogram = new TH1D("impulsivity_D","Impulsivity Measurement;Impulsivity;Count",500,0,5);
+  summaryTree->Draw("deconvolved[0][0].impulsivityMeasure >> impulsivity_D",cuts);
   outFile->cd();
   histogram->Write();
+  delete histogram;
 
 
 
@@ -504,19 +571,66 @@ void waisVsWais(TChain* summaryTree, TFile* outFile) {
 }
 
 
-void plotAllTheThings() {
+void plotAllTheThings(int mode=0) {
 
-  TFile *outFile = TFile::Open("plotThings.root","recreate");
   TChain* summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+  TFile *outFile;
 
-  //  plotPol(summaryTree,outFile);
-  //  plotTemplate(summaryTree,outFile);
-  //  plotSNR(summaryTree,outFile);
-
-  oneDimHistos(summaryTree,outFile);
-
-  outFile->Close();
+  if (mode==0) {
+    outFile = TFile::Open("nonBaseHistos.root","recreate");
+    const char* nonBaseCut = "flags.pulser==0 && FFTtools::wrap(TMath::Abs(wais.phi - peak[0][0].phi)) >= 5 && FFTtools::wrap(TMath::Abs(ldb.phi - peak[0][0].phi)) >= 5";
+    oneDimHistos(summaryTree,outFile,nonBaseCut);
+    outFile->Close();
+  }
+  if (mode==1) {
+    outFile = TFile::Open("basePointedHistos.root","recreate");
+    const char* yesBaseCut = "flags.pulser==0 && FFTtools::wrap(TMath::Abs(wais.phi - peak[0][0].phi)) < 5 && FFTtools::wrap(TMath::Abs(ldb.phi - peak[0][0].phi)) < 5";
+    oneDimHistos(summaryTree,outFile,yesBaseCut);
+    outFile->Close();
+  }
+  if (mode==2) {
+    outFile = TFile::Open("pulserHistos.root","recreate");
+    const char* pulserCut = "flags.pulser!=0";
+    oneDimHistos(summaryTree,outFile,pulserCut);
+    outFile->Close();
+  }
+  if (mode==3) {
+    plotPol(summaryTree,outFile);
+    plotTemplate(summaryTree,outFile);
+    plotSNR(summaryTree,outFile);
+  }
 
   return;
 }
 
+
+void saveHistsToImages(TFile *inFile) {
+  stringstream name;
+
+  const char* inFileName = inFile->GetName();
+
+  TList* list = inFile->GetListOfKeys();
+  TIter next(list);
+  TCanvas *c1 = new TCanvas("c1","c1",1000,600);
+  while (TKey* histKey = (TKey*)next()) {
+
+    TH1D *hist = (TH1D*)inFile->Get(histKey->GetName());
+    cout << histKey->GetName() << endl;
+    c1->Clear();
+    c1->SetLogy();
+    hist->Draw();
+    name.str("");
+    name << "images/" << inFileName << "_" << histKey->GetName() << ".png";
+    cout << name << endl;
+    c1->SaveAs(name.str().c_str());
+
+  }
+
+}
+
+
+
+
+void plotThings(int mode) {
+  plotAllTheThings(mode);
+}
