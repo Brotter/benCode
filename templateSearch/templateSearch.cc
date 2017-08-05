@@ -381,18 +381,18 @@ int main(int argc, char** argv) {
       if (data != NULL) delete data;
       data = new AnitaDataset(runToGet,false);
       data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
-
       cout << "AnitaDataset switched to run " << runToGet << endl;
-      
+      cout << "New run has " << entriesInCurrRun << " entries, and I am starting at " << entryToStartAt;
+      cout << ", so there are " << entriesInCurrRun - entryToStartAt << " left in the run" << endl;
+
       completedRunEvs = entry;
       runToGet++;
-      if ( (runToGet >= 257) && (runToGet <= 262) ) runToGet = 263; //dead runs that kill processes
-      if (  runToGet == 440) break; //440 doesn't exist, if you get there then break the event loop
+      if ( (runToGet >= 257) && (runToGet <= 263) ) runToGet = 264; //dead runs that kill processes
+      if (  runToGet == 441) break; //440 doesn't exist, if you get there then break the event loop
       entriesInCurrRun = data->N();
       if (entry != 0) entryToStartAt = 0; //startEntryInRun becomes zero after the first runswitch
 
-      cout << "New run has " << entriesInCurrRun << " entries, and I am starting at " << entryToStartAt;
-      cout << ", so there are " << entriesInCurrRun - entryToStartAt << " left in the run" << endl;
+
 
 
     }
