@@ -454,11 +454,11 @@ int main(int argc, char** argv) {
 
     for (int dir=0; dir< AnitaEventSummary::maxDirectionsPerPol; dir++) {
       for (int poli=0; poli<2; poli++) {
-	const AnalysisWaveform *waveform = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,dir);
+	const AnalysisWaveform *waveform = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,dir,true);
 	templateMachine->doTemplateAnalysis(waveform,poli,dir,templateSummary);
 
 	if (dir==0) {
-	  const AnalysisWaveform *waveform_deconv = analyzer->getDeconvolved((AnitaPol::AnitaPol_t)poli,dir);
+	  const AnalysisWaveform *waveform_deconv = analyzer->getDeconvolved((AnitaPol::AnitaPol_t)poli,dir,true);
 	  const AnitaResponse::DeconvolutionMethod *deconv = analyzer->getResponseManager()->getDeconvolutionMethod();
 	  templateMachine->doDeconvolvedTemplateAnalysis(waveform_deconv,deconv,poli,dir,templateSummary);
 	}
