@@ -146,7 +146,9 @@ void plotThingsScan() {
   // 4) things that point at bases but aren't bases
   TH1D *basePointed[numHists];
   makeReducedHistograms(basePointed,"_basePointed");
-
+  // 5) minbias
+  TH1D *minbias[numHists];
+  makeReducedHistograms(minbias,"_minbias");
 
   AnitaEventSummary *eventSummary = NULL;
   summaryTree->SetBranchAddress("eventSummary",&eventSummary);
@@ -192,7 +194,9 @@ void plotThingsScan() {
       else if (eventSummary->flags.pulser == 2) {
 	fillHistograms(eventSummary,templateSummary,ldbPulses);
       }
-
+      else if (!eventSummary->flags.isRF) {
+	fillHistograms(eventSummary,templateSummary,minbias);
+      }
 
   }
 
@@ -205,6 +209,7 @@ void plotThingsScan() {
     thermal[i]->Write();
     waisPulses[i]->Write();
     ldbPulses[i]->Write();
+    minbias->Write();
   }
 
   outFile->Close();
