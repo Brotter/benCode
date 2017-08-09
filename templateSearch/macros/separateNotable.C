@@ -4,6 +4,59 @@ Separates out the notable events (wais, ldb, things that have good simple cut va
 
 */
 
+void separateWais() {
+
+  gROOT->LoadMacro("loadAll.C");
+  TChain *summaryTree = loadWais();
+
+  int lenEntries = summaryTree->GetEntries();
+  cout << lenEntries << " total entries found" << endl;
+
+  AnitaEventSummary *eventSummary = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&eventSummary);
+
+  AnitaTemplateSummary *templateSummary = NULL;
+  summaryTree->SetBranchAddress("template",&templateSummary);
+
+  AnitaNoiseSummary *noiseSummary = NULL;
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSummary);
+
+
+  TFile *outFile = TFile::Open("waisEvents.root","recreate");
+  
+  TTree *waisTree = new TTree("waisSummary","waisSummary");
+  waisTree->Branch("eventSummary",&eventSummary);
+  waisTree->Branch("template",&templateSummary);
+  waisTree->Branch("noiseSummary",&noiseSummary);
+  
+  int waisCnt = 0;
+  
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (entry%1000 == 0) {
+      cout << entry << "/" << lenEntries;
+    }
+
+    summaryTree->GetEntry(entry);
+
+    if (eventSummary->flags.pulser == 1) {
+      outFile->cd();
+      waisTree->Fill();
+      waisCnt++;
+    }
+  }
+  
+  outFile->cd();
+  waisTree->Write();
+  outFile->Close();
+
+
+  cout << "Done!" << endl;
+
+  return;
+
+}
+
+
 
 void separateNotable() {
 
@@ -45,6 +98,7 @@ void separateNotable() {
   int ldbCnt = 0;
   int cutCnt = 0;
 
+  
   for (int entry=0; entry<lenEntries; entry++) {
     if (entry%1000 == 0) {
       cout << entry << "/" << lenEntries;
@@ -88,7 +142,8 @@ void separateNotable() {
   cout << "Done!" << endl;
 
   cout << "Totals:" << endl << "Wais: " << waisCnt << endl << "LDB: " << ldbCnt << endl << "Cuts: " << cutCnt << endl;
-  
+
 
   return;
+
 }
