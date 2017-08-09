@@ -209,7 +209,7 @@ void plotThingsScan() {
     thermal[i]->Write();
     waisPulses[i]->Write();
     ldbPulses[i]->Write();
-    minbias->Write();
+    minbias[i]->Write();
   }
 
   outFile->Close();
