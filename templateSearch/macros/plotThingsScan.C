@@ -173,7 +173,7 @@ void plotThingsScan() {
       watch.Start();
       cout << entry << "/" << lenEntries << " (" << rate << " ev/sec) ";
       cout << (entriesRemaining/rate)/(3600.) << " hours remain" << endl;
-
+    }
       if (eventSummary->flags.pulser == 0) {
 	double waisDiff = FFTtools::wrap(TMath::Abs(eventSummary->peak[0][0].phi - eventSummary->wais.phi));
 	double ldbDiff  = FFTtools::wrap(TMath::Abs(eventSummary->peak[0][0].phi - eventSummary->ldb.phi));
@@ -194,12 +194,11 @@ void plotThingsScan() {
       }
 
 
-    }
-
   }
+
   cout << "Done! Writing to file" << endl;
 
-  TFile *outFile = TFile::Open("pointThingsScan.root","recreate");
+  TFile *outFile = TFile::Open("plotThingsScan.root","recreate");
   for (int i=0; i<numHists; i++) {
     outFile->cd();
     basePointed[i]->Write();
@@ -211,4 +210,4 @@ void plotThingsScan() {
   outFile->Close();
 
   return;
-  }
+}
