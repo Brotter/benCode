@@ -1,6 +1,6 @@
 
 
-TChain* loadAll(string date = "07.28.17_17h/"){
+TChain* loadAll(string date = "08.04.17_17h/",bool doProof = true){
   //crab
   //kwaabz
   //crab
@@ -13,7 +13,7 @@ TChain* loadAll(string date = "07.28.17_17h/"){
 
   TChain *summaryTree = new TChain("summaryTree");
   
-  gROOT->ProcessLine(".x setupProof.C");
+  if (doProof) gROOT->ProcessLine(".x setupProof.C");
 
   char* resultsDir = getenv("ANITA3_RESULTSDIR");
 
@@ -27,7 +27,7 @@ TChain* loadAll(string date = "07.28.17_17h/"){
 
   }
 
-    summaryTree->SetProof();
+  if (doProof) summaryTree->SetProof();
 
   return summaryTree;
 
