@@ -5,73 +5,73 @@ void makeReducedHistograms(TH1D **histograms,string subName) {
   histograms[0] = new TH1D("peakPhi"+TString(subName),"Map Peak Phi;Map Peak Phi;Count",360,0,360);
 
   //2
-  histograms[1] = new TH1D("peakTheta"+TString(subName),"Map Peak Theta;Map Peak Theta;Count",181,-90,90);
+  histograms[1] = new TH1D("peakTheta"+TString(subName),"Map Peak Theta;Map Peak Theta;Count",141,-60,80);
 
   //3
-  histograms[2] = new TH1D("mapPeak"+TString(subName),"Map Peak Value;Map Peak Value;Count",1000,0,1);
+  histograms[2] = new TH1D("mapPeak"+TString(subName),"Map Peak Value;Map Peak Value;Count",600,0,0.6);
 
   //4
-  histograms[3] = new TH1D("mapSNR"+TString(subName),"Map SNR; Map SNR;; Count",180,-90,90);
+  histograms[3] = new TH1D("mapSNR"+TString(subName),"Map SNR; Map SNR;; Count",1000,0,100);
   
   //5
-  histograms[4] = new TH1D("peakRatio"+TString(subName),"Peak Ratio - p2/p1; Peak Ratio (p2/p1); Count",1000,0,100);
+  histograms[4] = new TH1D("peakRatio"+TString(subName),"Peak Ratio - p2/p1; Peak Ratio (p2/p1); Count",300,0,30);
 
   //WaveformInfo (Unfiltered)
   //6
   histograms[5] = new TH1D("linPolFrac"+TString(subName),"Linear Polarization Fraction; Linear Polarization Fraction; Count",1000,0,1);
   
   //7
-  histograms[6] = new TH1D("linPolAng"+TString(subName),"Linear Polarization Angle; Linear Polarization Angle; Count",180,-90,90);
+  histograms[6] = new TH1D("linPolAng"+TString(subName),"Linear Polarization Angle; Linear Polarization Angle; Count",181,-45,45);
   
   //8
-  histograms[7] = new TH1D("waveSNR"+TString(subName),"Coherently Summed Waveform SNR;SNR;Count",1000,0,100);
+  histograms[7] = new TH1D("waveSNR"+TString(subName),"Coherently Summed Waveform SNR;SNR;Count",1000,0,300);
   
   //9
-  histograms[8] = new TH1D("wavePeakVal"+TString(subName),"Coherently Summed Waveform Peak Value; Peak (mV);Count",1000,0,100);
+  histograms[8] = new TH1D("wavePeakVal"+TString(subName),"Coherently Summed Waveform Peak Value; Peak (mV);Count",1000,0,1000);
   
   //10
-  histograms[9] = new TH1D("wavePeakHilb"+TString(subName),"Coherently Summed Waveform Peak Hilbert;Peak Hilbert;Count",1000,0,1000);
+  histograms[9] = new TH1D("wavePeakHilb"+TString(subName),"Coherently Summed Waveform Peak Hilbert;Peak Hilbert;Count",2000,0,2000);
   
   //11
-  histograms[10] = new TH1D("impulsivity"+TString(subName),"Impulsivity Measurement;Impulsivity;Count",500,0,5);
+  histograms[10] = new TH1D("impulsivity"+TString(subName),"Impulsivity Measurement;Impulsivity;Count",500,0,1);
 
   //WaveformInfo (Filtered)
   //12
   histograms[11] = new TH1D("linPolFrac_F"+TString(subName),"Linear Polarization Fraction; Linear Polarization Fraction; Count",1000,0,1);
   
   //13
-  histograms[12] = new TH1D("linPolAng_F"+TString(subName),"Linear Polarization Angle; Linear Polarization Angle; Count",180,-90,90);
+  histograms[12] = new TH1D("linPolAng_F"+TString(subName),"Linear Polarization Angle; Linear Polarization Angle; Count",181,-45,45);
   
   //14
-  histograms[13] = new TH1D("waveSNR_F"+TString(subName),"Coherently Summed Waveform SNR;SNR;Count",1000,0,100);
+  histograms[13] = new TH1D("waveSNR_F"+TString(subName),"Coherently Summed Waveform SNR;SNR;Count",1000,0,300);
   
   //15
-  histograms[14] = new TH1D("wavePeakVal_F"+TString(subName),"Coherent_Filteredly Summed Waveform Peak Value; Peak (mV);Count",1000,0,100);
+  histograms[14] = new TH1D("wavePeakVal_F"+TString(subName),"Coherent_Filteredly Summed Waveform Peak Value; Peak (mV);Count",1000,0,1000);
   
   //16
-  histograms[15] = new TH1D("wavePeakHilb_F"+TString(subName),"Coherently Summed Filtered Waveform Peak Hilbert;Peak Hilbert;Count",1000,0,1000);
+  histograms[15] = new TH1D("wavePeakHilb_F"+TString(subName),"Coherently Summed Filtered Waveform Peak Hilbert;Peak Hilbert;Count",2000,0,2000);
   
   //17
-  histograms[16] = new TH1D("impulsivity_F"+TString(subName),"Impulsivity Measurement (Filtered);Impulsivity;Count",500,0,5);
+  histograms[16] = new TH1D("impulsivity_F"+TString(subName),"Impulsivity Measurement (Filtered);Impulsivity;Count",500,0,1);
 
   //WaveformInfo (Deconvolved)
   //18
   histograms[17] = new TH1D("linPolFrac_D"+TString(subName),"Linear Polarization Fraction; Linear Polarization Fraction; Count",1000,0,1);
   
   //19
-  histograms[18] = new TH1D("linPolAng_D"+TString(subName),"Linear Polarization Angle; Linear Polarization Angle; Count",180,-90,90);
+  histograms[18] = new TH1D("linPolAng_D"+TString(subName),"Linear Polarization Angle; Linear Polarization Angle; Count",181,-45,45);
 
   //20
-  histograms[19] = new TH1D("waveSNR_D"+TString(subName),"Deconvolved Waveform SNR;SNR;Count",1000,0,100);
+  histograms[19] = new TH1D("waveSNR_D"+TString(subName),"Deconvolved Waveform SNR;SNR;Count",1000,0,300);
   
   //21
-  histograms[20] = new TH1D("wavePeakVal_D"+TString(subName),"Deconvolved Waveform Peak Value; Peak (mV);Count",1000,0,100);
+  histograms[20] = new TH1D("wavePeakVal_D"+TString(subName),"Deconvolved Waveform Peak Value; Peak (mV);Count",1000,0,1000);
 
   //22
-  histograms[21] = new TH1D("wavePeakHilb_D"+TString(subName),"Deconvolved Waveform Peak Hilbert;Peak Hilbert;Count",1000,0,1000);
+  histograms[21] = new TH1D("wavePeakHilb_D"+TString(subName),"Deconvolved Waveform Peak Hilbert;Peak Hilbert;Count",2000,0,2000);
 
   //23
-  histograms[22] = new TH1D("impulsivity_D"+TString(subName),"Impulsivity Measurement;Impulsivity;Count",500,0,5);
+  histograms[22] = new TH1D("impulsivity_D"+TString(subName),"Impulsivity Measurement;Impulsivity;Count",500,0,1);
 
   //TemplateInfo
   //24
@@ -176,27 +176,35 @@ void plotThingsScan() {
       cout << entry << "/" << lenEntries << " (" << rate << " ev/sec) ";
       cout << (entriesRemaining/rate)/(3600.) << " hours remain" << endl;
     }
-      if (eventSummary->flags.pulser == 0) {
-	double waisDiff = FFTtools::wrap(TMath::Abs(eventSummary->peak[0][0].phi - eventSummary->wais.phi));
-	double ldbDiff  = FFTtools::wrap(TMath::Abs(eventSummary->peak[0][0].phi - eventSummary->ldb.phi));
-	if ( (eventSummary->wais.distance < 1000e3 && waisDiff < 5) || 
-	     (eventSummary->ldb.distance < 1000e3 && ldbDiff < 5) ) {
-	  fillHistograms(eventSummary,templateSummary,basePointed);
-	}
-	else {
-	  fillHistograms(eventSummary,templateSummary,thermal);
-	}
-	
+  
+    //if no pulser
+    if (eventSummary->flags.pulser == 0) {
+      double waisDiff = FFTtools::wrap(TMath::Abs(eventSummary->peak[0][0].phi - eventSummary->wais.phi));
+      double ldbDiff  = FFTtools::wrap(TMath::Abs(eventSummary->peak[0][0].phi - eventSummary->ldb.phi));
+      //if pointed at (and near) camps
+      if ( (eventSummary->wais.distance < 1000e3 && waisDiff < 5) || 
+	   (eventSummary->ldb.distance < 1000e3 && ldbDiff < 5) ) {
+	fillHistograms(eventSummary,templateSummary,basePointed);
       }
-      else if (eventSummary->flags.pulser == 1) {
-	fillHistograms(eventSummary,templateSummary,waisPulses);
-      }
-      else if (eventSummary->flags.pulser == 2) {
-	fillHistograms(eventSummary,templateSummary,ldbPulses);
-      }
+      //if minbias
       else if (!eventSummary->flags.isRF) {
 	fillHistograms(eventSummary,templateSummary,minbias);
-      }
+      }	
+      //otherwise it is thermal
+      else {
+	fillHistograms(eventSummary,templateSummary,thermal);
+      }	
+    }
+
+    //if wais
+    else if (eventSummary->flags.pulser == 1) {
+      fillHistograms(eventSummary,templateSummary,waisPulses);
+    }
+
+    //if ldb
+    else if (eventSummary->flags.pulser == 2) {
+      fillHistograms(eventSummary,templateSummary,ldbPulses);
+    }
 
   }
 
@@ -216,3 +224,123 @@ void plotThingsScan() {
 
   return;
 }
+
+
+TH1* makeNormCumulative(TH1* inHist) {
+  /*
+    Makes a "normalized cumulative cut fraction" graph I think
+
+    Should let me set cuts on a specific amount of "reduction"
+   */
+
+
+  TH1* copyHist = (TH1*)inHist->Clone();
+  
+  double integral = 0;
+  for (int i=0; i<copyHist->GetNbinsX(); i++) {
+    double value = copyHist->GetBinContent(i);
+    integral += value;
+  }
+
+  copyHist->Scale(1./integral);
+  TH1* outHist = (TH1*)copyHist->GetCumulative();
+
+  for (int i=0; i<copyHist->GetNbinsX(); i++) {
+    double value = outHist->GetBinContent(i);
+    outHist->SetBinContent(i,1.-value);
+  }
+
+
+  delete copyHist;
+
+  outHist->GetYaxis()->SetTitle("Surviving Fraction");
+  return outHist;
+}
+
+
+TH1* makeNormHist(TH1* inHist) {
+  /*
+
+    Make a normalized histogram
+
+  */
+
+  TH1* copyHist = (TH1*)inHist->Clone();
+  copyHist->GetYaxis()->SetTitle("Occupancy");
+
+  
+  double integral = 0;
+  for (int i=0; i<copyHist->GetNbinsX(); i++) {
+    double value = copyHist->GetBinContent(i);
+    integral += value;
+  }
+
+  copyHist->Scale(1./integral);
+
+  return copyHist;
+}
+
+void drawOneDHistos(string inFileName="plotThingsScan.root") {
+  
+  stringstream name;
+
+  TFile *inFile = TFile::Open(inFileName.c_str());
+
+  const int numLines = 4;
+  string subStrings[numLines] = {"thermal","WAIS","LDB","basePointed"};
+
+  TCanvas *c1 = new TCanvas("c1","c1",1000,600);
+
+
+  string graphNames[25] = {"peakPhi","peakTheta","mapPeak","mapSNR","peakRatio",
+			   "linPolFrac","linPolAng","waveSNR","wavePeakVal","wavePeakHilb","impulsivity",
+			   "linPolFrac_F","linPolAng_F","waveSNR_F","wavePeakVal_F","wavePeakHilb_F","impulsivity_F",
+			   "linPolFrac_D","linPolAng_D","waveSNR_D","wavePeakVal_D","wavePeakHilb_D","impulsivity_D",
+			   "template_Wais","template_cRay"};
+
+  for (int graph=0; graph<25; graph++) {
+    c1->Clear();
+    c1->SetGrid(1);
+    c1->SetLogy();
+    TLegend *leg = new TLegend(0.8,0.7,0.95,0.95);
+    for (int i=0; i<numLines; i++) {
+      name.str("");
+      name << graphNames[graph] << "_" << subStrings[i];
+      TH1 *hist = makeNormCumulative((TH1D*)inFile->Get(name.str().c_str()));
+      hist->SetLineColor(i+1);
+      hist->GetYaxis()->SetRangeUser(1e-7,1);
+      hist->SetStats(0);
+      if (i==0) hist->Draw();
+      else      hist->Draw("same");
+      leg->AddEntry(hist,subStrings[i].c_str(),"l");
+    }
+
+    leg->Draw();
+    c1->SaveAs(TString("plots/")+graphNames[graph]+TString("_cumulative.png"));
+  }
+
+
+  for (int graph=0; graph<25; graph++) {
+    c1->Clear();
+    c1->SetGrid(1);
+    c1->SetLogy();
+    TLegend *leg = new TLegend(0.8,0.7,0.95,0.95);
+    for (int i=0; i<numLines; i++) {
+      name.str("");
+      name << graphNames[graph] << "_" << subStrings[i];
+      TH1 *hist = makeNormHist((TH1D*)inFile->Get(name.str().c_str()));
+      hist->SetLineColor(i+1);
+      hist->GetYaxis()->SetRangeUser(1e-8,1);
+      hist->SetStats(0);
+      if (i==0) hist->Draw();
+      else      hist->Draw("same");
+      leg->AddEntry(hist,subStrings[i].c_str(),"l");
+    }
+
+    leg->Draw();
+    c1->SaveAs(TString("plots/")+graphNames[graph]+TString("_hist.png"));
+  }
+
+  return;
+}
+  
