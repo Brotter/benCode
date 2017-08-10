@@ -50,7 +50,8 @@ void separateWais() {
   
   for (int entry=0; entry<lenEntries; entry++) {
     if (entry%1000 == 0) {
-      cout << entry << "/" << lenEntries;
+      cout << entry << "/" << lenEntries << " (" << waisCnt << ")" << endl;
+      fflush(stdout);
     }
 
     summaryTree->GetEntry(entry);
