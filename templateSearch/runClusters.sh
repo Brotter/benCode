@@ -34,6 +34,6 @@ for localCore in `seq 0 63`; do
     absoluteCore=$((localCore+startCore))
     startEntry=$((numEntries*(absoluteCore)))
     stopEntry=$((numEntries* (absoluteCore+1)))
-    nice -n 11 ./templateSearch ${sharedDir}/${absoluteCore} ${startEntry} ${stopEntry} 1> ${sharedDir}/log/${absoluteCore}.log 2>&1 &
+    nice -n 11 ./templateSearch --entry ${sharedDir}/${absoluteCore} ${startEntry} ${stopEntry} 1> ${sharedDir}/log/${absoluteCore}.log 2>&1 &
 done
     

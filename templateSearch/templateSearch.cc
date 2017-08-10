@@ -42,6 +42,7 @@
 #include "ProgressBar.h"
 #include "FilteredAnitaEvent.h"
 #include "SystemResponse.h"
+#include "UCUtil.h"
 
 //my stuff
 //#include "windowing.h"
@@ -154,11 +155,103 @@ void entryToRun(int entry, int &runOut, int &startEntry) {
 }
 
 
-int main(int argc, char** argv) {
+void usage() {
+  cout << "Usage: templateSearch [option]" << endl;
+  cout << "Available options:" << endl;
+  cout << " --entry [output base filename] [start entry] [end entry]   : default, by entry" << endl;
+  cout << " --min   [output base filename] [start entry] [end entry]   : same as --entry, but with minbias cut" << endl;
+  cout << " --wais  [output base filename] [numSplits]   [splitNumber] : for wais, divides for you, does a wais cut" << endl;
 
-  cout << "Default AnitaVersion is " << AnitaVersion::get() << endl;
-  
+}
+
+
+int main(int argc, char* argv[]) {
+
+  //handle inturrupt signals for real
+  signal(SIGTERM, emergencyClose); 
+  signal(SIGQUIT, emergencyClose); 
+  signal(SIGINT, pauseSwitch);
+
+  /*
+    figure out what you're doing
+  */ 
+  string outFileName;
+  int startEntry,endEntry,totalEntriesToDo;
+  bool waisFlag = false;
+  bool minFlag = false;
+  bool entryFlag = false;
+
+  // If you're lost
+  if (argc == 1 || strcmp(argv[1],"--help") == 0 || strcmp(argv[1],"-h") == 0 ) {
+    cout << argc << " " << argv[1] << " help selected" << endl;
+    usage();
+    return -1;
+  }
+ 
+  // Original way, by "entry"
+  if (strcmp("--entry",argv[1]) == 0 || strcmp("--min",argv[1]) == 0) {
+    if (argc == 5) {
+      if (strcmp(argv[1],"--min") == 0) minFlag = true;
+      else                         entryFlag = true;
+
+      outFileName = argv[2];
+      startEntry = atoi(argv[3]);
+      endEntry = atoi(argv[4]);
+      cout << "Hello!  Lets do some physics using entries!" << endl;
+      if (minFlag) cout << "---------->Only doing minbias events though!<------------" << endl;
+      cout << "Doing entry " << startEntry << " to " << endEntry << endl;
+      totalEntriesToDo = endEntry - startEntry;
+      cout << "This will be a total of " << totalEntriesToDo << " events to process" << endl;
+    }
+    else {
+      cout << "Usage: templateSearch (--entry || --min) [output base filename] [start entry] [end entry]" << endl;    
+      return -1;
+    }
+  }
+
+  else if (strcmp("--wais",argv[1]) == 0) {
+    if (argc == 5) {
+      outFileName = argv[2];
+      waisFlag = true;
+      //a bunch of constants I figured out by looking
+      const int waisFirstEventNum = 55576917;
+      const int waisLastEventNum = 61702834;
+      const int waisFirstEntry = 49759012;
+      const int waisLastEntry  = 55860967;
+      const int waisEntryRange = waisLastEntry - waisFirstEntry;
+
+      int numSplits = atoi(argv[3]);
+      int splitNum  = atoi(argv[4]);
+      if (numSplits == 1) splitNum = 0;
+      int numEntriesPerSplit = waisEntryRange/numSplits;
+      startEntry = waisFirstEntry + (numEntriesPerSplit*(splitNum));
+      endEntry   = waisFirstEntry + (numEntriesPerSplit*(splitNum+1));
+      totalEntriesToDo = endEntry - startEntry;
+
+      cout << "Hello!  Lets do some physics on wais pulses!" << endl;
+      cout << "Splitting the relevent runs into " << numSplits << " splits, and doing split " << splitNum << endl;
+      cout << "That means I'm doing entry " << startEntry << " through " << endEntry << endl;
+      cout << "This will be a total of " << totalEntriesToDo << " events to process" << endl;
+    }
+    else {
+      cout << "Usage: templateSearch --wais  [output base filename] [numSplits] [splitNumber]" << endl;
+      return -1;
+    }
+  }
+  else {
+    usage();
+    return -1;
+  }
+
+
+  //print out some info
+  cout << "Default AnitaVersion is " << AnitaVersion::get() << ", using 3 though" << endl;
   AnitaVersion::set(3);
+
+  char serverName[64];
+  gethostname(serverName,64);
+  cout << "For reference, this process is running on " << serverName << endl;
+
 
   //load wisdom crap that doesn't seem to do anything
   char* homeDir = getenv("HOME");
@@ -167,31 +260,6 @@ int main(int argc, char** argv) {
   wisdomDir << homeDir << "/macros/fftWisdom.dat";
   FFTtools::loadWisdom(wisdomDir.str().c_str());
 
-  //handle inturrupt signals for real
-  signal(SIGTERM, emergencyClose); 
-  signal(SIGQUIT, emergencyClose); 
-  signal(SIGINT, pauseSwitch);
-    
-  string outFileName;
-  int startEntry,endEntry,totalEntriesToDo;
-
-  //figure out what you're doing
-  if (argc==4) {
-    outFileName = argv[1];
-    startEntry = atoi(argv[2]);
-    endEntry = atoi(argv[3]);
-    cout << "Hello!  Let us do some physics mate" << endl;
-    char serverName[64];
-    gethostname(serverName,64);
-    cout << "For reference, this process is running on " << serverName << endl;
-    cout << "Doing entry " << startEntry << " to " << endEntry << endl;
-    totalEntriesToDo = endEntry - startEntry;
-    cout << "This will be a total of " << totalEntriesToDo << " events to process" << endl;
-    }
-  else {
-    cout << "Usage: " << argv[0] << " [output base filename] [start entry] [end entry]" << endl;    
-    return -1;
-  }
 
 
   stringstream name;
@@ -329,6 +397,8 @@ int main(int argc, char** argv) {
 
   int skippedEvs=0;
   int skippedEvsInst=0;
+  int processedEvs=0;
+  bool printRate = false;
 
   Acclaim::ProgressBar p(totalEntriesToDo);
   TStopwatch watch; //!< ROOT's stopwatch class, used to time the progress since object construction
@@ -348,48 +418,56 @@ int main(int argc, char** argv) {
     //little bit longer progress bar that normal (Acclaim's is good too but I want my OWN)
     const int refreshRate = 100;
  
-    if (entry%refreshRate==0 || entry<10) {
-      int timeElapsed = watch.RealTime(); //+1 to prevent divide by zero error
-      totalTimeSec += timeElapsed;
+    if (processedEvs%refreshRate==0 && processedEvs > 0) {
+      if (printRate) {
+	int timeElapsed = watch.RealTime(); //+1 to prevent divide by zero error
+	totalTimeSec += timeElapsed;
+	double totalTimeMin = float(totalTimeSec)/60.;
 
-      double totalTimeMin = float(totalTimeSec)/60.;
-      double totalRateSec = float(entry-skippedEvs)/totalTimeSec;
-      double totalRateMin = float(entry-skippedEvs)/totalTimeMin;
-      double instRateSec = float(refreshRate-skippedEvsInst)/timeElapsed;
-      double minutesLeft =float(totalEntriesToDo-entry)/totalRateMin;
-      double secondsLeft =float(totalEntriesToDo-entry)/totalRateSec;
+	double instRateSec = float(refreshRate)/timeElapsed;
+	double totalRateSec = float(entry)/totalTimeSec;	
+	double totalRateMin = float(entry)/totalTimeMin;
 
-      cout << std::setprecision(3);
-      cout << entry << "/" << totalEntriesToDo << " evs in " << totalTimeMin << "mins,";
-      cout << " skipped " << skippedEvs << "(+" << skippedEvsInst << ") ";
-      if (timeElapsed != 0) {
-	cout << totalRateSec << "ev/sec (" << instRateSec << " ev/sec instant)";
+	double procRateSec = float(processedEvs)/totalTimeSec;
+	double procRateMin = float(processedEvs)/totalTimeMin;
+
+	double secondsLeft =float(totalEntriesToDo-entry)/totalRateSec;
+	double minutesLeft =float(totalEntriesToDo-entry)/totalRateMin;
+	
+	cout << std::setprecision(3);
+	cout << entry << "/" << totalEntriesToDo << " evs in " << totalTimeMin << " mins,";
+	cout << " (" << processedEvs << " processed) ";
+	if (timeElapsed != 0) {
+	  cout << procRateSec << "ev/sec (" << instRateSec << " ev/sec instant) | ";
+	}
+	cout << secondsLeft << " seconds (" << minutesLeft << " mins) remain";
+	cout << " {" << entryToGet << "/" << entriesInCurrRun << " in run}";
+	
+	cout << endl;
+	fflush(stdout);
+	watch.Start();
+	skippedEvsInst=0;
+	printRate = false;
       }
-      cout << secondsLeft << " seconds (" << minutesLeft << " mins) remain";
-      cout << " {" << entryToGet << "/" << entriesInCurrRun << "}";
-
-      cout << endl;
-      fflush(stdout);
-      watch.Start();
-      skippedEvsInst=0;
-    }//end of progress bar
-
-
+    }
+    else printRate = true;
+    //end of progress bar
 
     /* Check to see if you need to load a new AnitaDataset since this can span between runs */
     if (entry == 0 || entryToGet > entriesInCurrRun-1) {
       if (data != NULL) delete data;
       data = new AnitaDataset(runToGet,false);
       data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
+      entriesInCurrRun = data->N();
+
       cout << "AnitaDataset switched to run " << runToGet << endl;
-      cout << "New run has " << entriesInCurrRun << " entries, and I am starting at " << entryToStartAt;
+      cout << "run " << runToGet << " has " << entriesInCurrRun << " entries, and I am starting at " << entryToStartAt;
       cout << ", so there are " << entriesInCurrRun - entryToStartAt << " left in the run" << endl;
 
       completedRunEvs = entry;
       runToGet++;
       if ( (runToGet >= 257) && (runToGet <= 263) ) runToGet = 264; //dead runs that kill processes
       if (  runToGet == 441) break; //440 doesn't exist, if you get there then break the event loop
-      entriesInCurrRun = data->N();
       if (entry != 0) entryToStartAt = 0; //startEntryInRun becomes zero after the first runswitch
 
 
@@ -403,14 +481,25 @@ int main(int argc, char** argv) {
     // the trig type needs bit masking for annoying reasons
     int trigType = data->header()->trigType&0x0F;
 
-    //0) If I'm going to re-run this again, I want to at least cut it in half
-    //    So no Vpol triggered events
-    //    do want to keep things that aren't rf though
-    if (!data->header()->l3TrigPatternH && trigType == 1) {
+    //also I need the usefulAdu5Pat to determine if this is wais or not
+    UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(data->gps());
+
+    //Pick out things that you don't want
+    //    So no Vpol triggered events, do want to keep things that aren't rf though
+    //    also pay attention to the wais and minbias flags
+    if ( 
+	(entryFlag && (!data->header()->l3TrigPatternH && trigType == 1)) ||   // entry: if it is not Hpol and triggerred
+	(minFlag && trigType==1) ||                                            // minbias: not RF triggered
+	(waisFlag && !UCorrelator::isWAISHPol(usefulGPS,data->header(),config)) // wais: if it is wais
+	 ) {
       skippedEvs++;
       skippedEvsInst++;
       continue;
     }
+
+    processedEvs++;
+
+    delete usefulGPS;
 
     //update the gps data!
     gpsEvent = data->gps();
