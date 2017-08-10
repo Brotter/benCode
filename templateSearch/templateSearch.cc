@@ -453,9 +453,16 @@ int main(int argc, char* argv[]) {
     else printRate = true;
     //end of progress bar
 
+
     /* Check to see if you need to load a new AnitaDataset since this can span between runs */
     if (entry == 0 || entryToGet > entriesInCurrRun-1) {
       if (data != NULL) delete data;
+
+      if ( (runToGet >= 257) && (runToGet <= 263) ) runToGet = 264; //dead runs that kill processes
+      if (  runToGet == 441) break; //440 doesn't exist, if you get there then break the event loop
+
+      if (entry != 0) entryToStartAt = 0; //startEntryInRun becomes zero after the first runswitch
+
       data = new AnitaDataset(runToGet,false);
       data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
       entriesInCurrRun = data->N();
@@ -466,12 +473,6 @@ int main(int argc, char* argv[]) {
 
       completedRunEvs = entry;
       runToGet++;
-      if ( (runToGet >= 257) && (runToGet <= 263) ) runToGet = 264; //dead runs that kill processes
-      if (  runToGet == 441) break; //440 doesn't exist, if you get there then break the event loop
-      if (entry != 0) entryToStartAt = 0; //startEntryInRun becomes zero after the first runswitch
-
-
-
 
     }
 
