@@ -73,11 +73,33 @@ void makeReducedHistograms(TH1D **histograms,string subName) {
   //23
   histograms[22] = new TH1D("impulsivity_D"+TString(subName),"Impulsivity Measurement;Impulsivity;Count",500,0,1);
 
+
+  //WaveformInfo (Deconvolved Filtered)
+  //18
+  histograms[23] = new TH1D("linPolFrac_DF"+TString(subName),"Linear Polarization Fraction; Linear Polarization Fraction; Count",1000,0,1);
+  
+  //19
+  histograms[24] = new TH1D("linPolAng_DF"+TString(subName),"Linear Polarization Angle; Linear Polarization Angle; Count",181,-45,45);
+
+  //20
+  histograms[25] = new TH1D("waveSNR_DF"+TString(subName),"Deconvolved Waveform SNR;SNR;Count",1000,0,300);
+  
+  //21
+  histograms[26] = new TH1D("wavePeakVal_DF"+TString(subName),"Deconvolved Waveform Peak Value; Peak (mV);Count",1000,0,1000);
+
+  //22
+  histograms[27] = new TH1D("wavePeakHilb_DF"+TString(subName),"Deconvolved Waveform Peak Hilbert;Peak Hilbert;Count",2000,0,2000);
+
+  //23
+  histograms[28] = new TH1D("impulsivity_DF"+TString(subName),"Impulsivity Measurement;Impulsivity;Count",500,0,1);
+
+
   //TemplateInfo
   //24
-  histograms[23] = new TH1D("template_Wais"+TString(subName),"Wais Template Correlation Value;Correlation Value; Count",250,0,1);
+  histograms[29] = new TH1D("template_Wais"+TString(subName),"Wais Template Correlation Value;Correlation Value; Count",250,0,1);
   //25
-  histograms[24] = new TH1D("template_cRay"+TString(subName),"CRay +4 Template Correlation Value;Correlation Value; Count",250,0,1);
+  histograms[30] = new TH1D("template_cRay"+TString(subName),"CRay +4 Template Correlation Value;Correlation Value; Count",250,0,1);
+
   
 
 
@@ -115,8 +137,15 @@ void fillHistograms(AnitaEventSummary *eventSummary, AnitaTemplateSummary *templ
     histograms[21]->Fill(eventSummary->deconvolved[0][0].peakHilbert);
     histograms[22]->Fill(eventSummary->deconvolved[0][0].impulsivityMeasure);
 
-    histograms[23]->Fill(templateSummary->coherent[0][0].wais);
-    histograms[24]->Fill(templateSummary->coherent[0][0].cRay[4]);
+    histograms[23]->Fill(eventSummary->deconvolved_filtered[0][0].linearPolFrac());
+    histograms[24]->Fill(eventSummary->deconvolved_filtered[0][0].linearPolAngle());
+    histograms[25]->Fill(eventSummary->deconvolved_filtered[0][0].snr);
+    histograms[26]->Fill(eventSummary->deconvolved_filtered[0][0].peakVal);
+    histograms[27]->Fill(eventSummary->deconvolved_filtered[0][0].peakHilbert);
+    histograms[28]->Fill(eventSummary->deconvolved_filtered[0][0].impulsivityMeasure);
+
+    histograms[29]->Fill(templateSummary->coherent[0][0].wais);
+    histograms[30]->Fill(templateSummary->coherent[0][0].cRay[4]);
 
 }
 
@@ -129,14 +158,17 @@ void plotThingsScan() {
 
    */
 
-  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+  //  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
-  const int numHists = 25;
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add("07.28.17_17h_decimated.root");
+
+  const int numHists = 31;
 
   //four different sets of data
   // 1) things that aren't pulsers and don't point at bases
-  TH1D *thermal[numHists];
-  makeReducedHistograms(thermal,"_thermal");
+  TH1D *events[numHists];
+  makeReducedHistograms(events,"_events");
   // 2) things that are wais pulsers
   TH1D *waisPulses[numHists];
   makeReducedHistograms(waisPulses,"_WAIS");
@@ -192,7 +224,7 @@ void plotThingsScan() {
       }	
       //otherwise it is thermal
       else {
-	fillHistograms(eventSummary,templateSummary,thermal);
+	fillHistograms(eventSummary,templateSummary,events);
       }	
     }
 
@@ -214,7 +246,7 @@ void plotThingsScan() {
   for (int i=0; i<numHists; i++) {
     outFile->cd();
     basePointed[i]->Write();
-    thermal[i]->Write();
+    events[i]->Write();
     waisPulses[i]->Write();
     ldbPulses[i]->Write();
     minbias[i]->Write();
@@ -286,19 +318,21 @@ void drawOneDHistos(string inFileName="plotThingsScan.root") {
 
   TFile *inFile = TFile::Open(inFileName.c_str());
 
-  const int numLines = 4;
-  string subStrings[numLines] = {"thermal","WAIS","LDB","basePointed"};
+  const int numLines = 5;
+  string subStrings[numLines] = {"thermal","WAIS","LDB","basePointed","minbias"};
 
   TCanvas *c1 = new TCanvas("c1","c1",1000,600);
 
 
-  string graphNames[25] = {"peakPhi","peakTheta","mapPeak","mapSNR","peakRatio",
+  const int numGraphs = 31;
+  string graphNames[numGraphs] = {"peakPhi","peakTheta","mapPeak","mapSNR","peakRatio",
 			   "linPolFrac","linPolAng","waveSNR","wavePeakVal","wavePeakHilb","impulsivity",
 			   "linPolFrac_F","linPolAng_F","waveSNR_F","wavePeakVal_F","wavePeakHilb_F","impulsivity_F",
 			   "linPolFrac_D","linPolAng_D","waveSNR_D","wavePeakVal_D","wavePeakHilb_D","impulsivity_D",
+			   "linPolFrac_DF","linPolAng_DF","waveSNR_DF","wavePeakVal_DF","wavePeakHilb_DF","impulsivity_DF",
 			   "template_Wais","template_cRay"};
 
-  for (int graph=0; graph<25; graph++) {
+  for (int graph=0; graph<numGraphs; graph++) {
     c1->Clear();
     c1->SetGrid(1);
     c1->SetLogy();
@@ -312,7 +346,8 @@ void drawOneDHistos(string inFileName="plotThingsScan.root") {
       hist->SetStats(0);
       if (i==0) hist->Draw();
       else      hist->Draw("same");
-      leg->AddEntry(hist,subStrings[i].c_str(),"l");
+      if (strcmp(subStrings[i].c_str(),"thermal")==0) leg->AddEntry(hist,"events","l");
+      else leg->AddEntry(hist,subStrings[i].c_str(),"l");
     }
 
     leg->Draw();
@@ -320,7 +355,7 @@ void drawOneDHistos(string inFileName="plotThingsScan.root") {
   }
 
 
-  for (int graph=0; graph<25; graph++) {
+  for (int graph=0; graph<numGraphs; graph++) {
     c1->Clear();
     c1->SetGrid(1);
     c1->SetLogy();
@@ -334,7 +369,8 @@ void drawOneDHistos(string inFileName="plotThingsScan.root") {
       hist->SetStats(0);
       if (i==0) hist->Draw();
       else      hist->Draw("same");
-      leg->AddEntry(hist,subStrings[i].c_str(),"l");
+      if (strcmp(subStrings[i].c_str(),"thermal")==0) leg->AddEntry(hist,"events","l");
+      else leg->AddEntry(hist,subStrings[i].c_str(),"l");
     }
 
     leg->Draw();
@@ -344,3 +380,14 @@ void drawOneDHistos(string inFileName="plotThingsScan.root") {
   return;
 }
   
+
+TH1 *dividedCumulative(TH1D *h1, TH1D *h2) {
+
+  TH1* h1Cum = makeNormCumulative(h1);
+  TH1* h2Cum = makeNormCumulative(h2);
+
+  h1Cum->Divide(h2Cum);
+  delete h2Cum;
+  
+  return h1Cum;
+}
