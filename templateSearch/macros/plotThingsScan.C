@@ -167,12 +167,13 @@ void plotThingsScan(bool decimated=true) {
 
    */
 
+  TChain *summaryTree;
 
   if (decimated) {
-  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree = new TChain("summaryTree","summaryTree");
   summaryTree->Add("07.28.17_17h_decimated.root");
   } else {
-    TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+    summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
   }
 
   const int numHists = 31;
