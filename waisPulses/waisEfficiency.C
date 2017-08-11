@@ -44,7 +44,7 @@ void waisEfficiency() {
   int numSeconds = finalTime-firstTime;
   summaryTree->GetEntry(0);
 
-  const int timeWindow = 100; //seconds
+  const int timeWindow = 1000; //seconds
   std::deque<bool> dCount(timeWindow,false);
   std::queue<bool> qCount(dCount);
 
