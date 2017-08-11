@@ -218,7 +218,9 @@ void plotThingsScan(bool decimated=true) {
       double rate = entry/totalTime;
       watch.Start();
       cout << entry << "/" << lenEntries << " (" << rate << " ev/sec) ";
-      cout << (entriesRemaining/rate)/(3600.) << " hours remain" << endl;
+      double timeRemaining = (entriesRemaining/rate)/(3600.);
+      if (timeRemaining > 1) cout << timeRemaining << " hours remain" << endl;
+      else cout << timeRemaining*60 << " minutes remain" << endl;
     }
   
     //if no pulser
