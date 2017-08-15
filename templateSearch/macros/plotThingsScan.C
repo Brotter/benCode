@@ -224,13 +224,17 @@ void plotThingsScan(bool decimated=true) {
       else cout << timeRemaining*60 << " minutes remain" << endl;
     }
   
+    double waisDiffPhi = TMath::Abs(FFTtools::wrap(eventSummary->peak[0][0].phi - eventSummary->wais.phi,360,0));
+    double waisDiffTheta = TMath::Abs(eventSummary->peak[0][0].theta - eventSummary->wais.theta);
+    double waisDiff = TMath::Sqrt(pow(waisDiffPhi,2)+pow(waisDiffTheta,2));
+    double ldbDiffPhi  = TMath::Abs(FFTtools::wrap(eventSummary->peak[0][0].phi - eventSummary->ldb.phi,360,0));
+    double ldbDiffTheta = TMath::Abs(eventSummary->peak[0][0].theta - eventSummary->ldb.theta);
+    double ldbDiff = TMath::Sqrt(pow(ldbDiffPhi,2)+pow(ldbDiffTheta,2));
     //if no pulser
     if (eventSummary->flags.pulser == 0) {
-      double waisDiff = FFTtools::wrap(TMath::Abs(eventSummary->peak[0][0].phi - eventSummary->wais.phi));
-      double ldbDiff  = FFTtools::wrap(TMath::Abs(eventSummary->peak[0][0].phi - eventSummary->ldb.phi));
       //if pointed at (and near) camps
-      if ( (eventSummary->wais.distance < 1000e3 && waisDiff < 5) || 
-	   (eventSummary->ldb.distance < 1000e3 && ldbDiff < 5) ) {
+      if ( (eventSummary->wais.distance < 1000e3 && waisDiff < 4) || 
+	   (eventSummary->ldb.distance  < 1000e3 && ldbDiff  < 4) ) {
 	fillHistograms(eventSummary,templateSummary,basePointed);
       }
       //if minbias
@@ -243,13 +247,13 @@ void plotThingsScan(bool decimated=true) {
       }	
     }
 
-    //if wais
-    else if (eventSummary->flags.pulser == 1) {
+    //if wais (gotta point at wais)
+    else if (eventSummary->flags.pulser == 1 && waisDiff < 4) {
       fillHistograms(eventSummary,templateSummary,waisPulses);
     }
 
-    //if ldb
-    else if (eventSummary->flags.pulser == 2) {
+    //if ldb (gotta point at ldb)
+    else if (eventSummary->flags.pulser == 2 && ldbDiff < 4) {
       fillHistograms(eventSummary,templateSummary,ldbPulses);
     }
 

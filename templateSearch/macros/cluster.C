@@ -19,7 +19,7 @@ bool notNotable(AnitaEventSummary *summary, AnitaTemplateSummary *templateSummar
   */
 
   if (summary->peak[0][0].latitude <= -999) return true;
-  if (templateSummary->deconvolved[0][0].impulse < 0.6) return true;
+  //  if (templateSummary->deconvolved[0][0].impulse < 0.6) return true;
 
   return false;
 }
@@ -48,9 +48,9 @@ TChain* importGPS() {
 void cluster() {
 
 
-  TFile *inFile = TFile::Open("notableEvents.root");
+  TFile *inFile = TFile::Open("cuts.root");
 
-  TTree *summaryTree = (TTree*)inFile->Get("cutSummary");
+  TTree *summaryTree = (TTree*)inFile->Get("eventSummary");
 
   if (summaryTree == NULL) {
     cout << "Couldn't find cutSummary in file! Quitting" << endl;
@@ -61,11 +61,8 @@ void cluster() {
   summaryTree->SetBranchAddress("eventSummary",&summary);
   AnitaTemplateSummary *templateSummary = NULL;
   summaryTree->SetBranchAddress("template",&templateSummary);
-
-
-  TChain* gpsTree = importGPS();
   Adu5Pat *gps = NULL;
-  gpsTree->SetBranchAddress("pat",&gps);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
 
 
   int lenEntries = summaryTree->GetEntries();
@@ -73,12 +70,16 @@ void cluster() {
 
   TH2D* hCluster = new TH2D("hCluster","hCluster",lenEntries,-0.5,lenEntries-0.5,1000,0,1000);
 
-  TGraph *singlets = new TGraph();
-  singlets->SetName("singlets");
+  TGraph *gClosest = new TGraph();
+  gClosest->SetName("gClosest");
+
+  TH1D *hClosest = new TH1D("hClosest","closest event in sigma",5000,0,500);
 
 
   int eventCountA=0;
   for (int entryA=0; entryA<lenEntries; entryA++) {
+
+    double closest = 999;
 
     summaryTree->GetEntry(entryA);
 
@@ -88,8 +89,6 @@ void cluster() {
     int eventNumberA = summary->eventNumber;
 
     //where event a was captured from (A)
-    int gpsIndexA = gpsTree->GetEntryNumberWithBestIndex(eventNumberA);   
-    gpsTree->GetEntry(gpsIndexA);
     UsefulAdu5Pat *usefulGPSA = new UsefulAdu5Pat(gps);
     
     //where event a was seen (a)
@@ -100,7 +99,6 @@ void cluster() {
     double altA = summary->peak[0][0].altitude;
     
     
-    int close = 0;
 
     int eventCountB = 0;
     for (int entryB=0; entryB<lenEntries; entryB++) {
@@ -116,8 +114,6 @@ void cluster() {
       int eventNumberB = summary->eventNumber;
 
       //where event b was captured from (B)
-      int gpsIndexB = gpsTree->GetEntryNumberWithBestIndex(eventNumberB);
-      gpsTree->GetEntry(gpsIndexB);
       UsefulAdu5Pat *usefulGPSB = new UsefulAdu5Pat(gps);
 
 
@@ -139,7 +135,7 @@ void cluster() {
       phiBA *= TMath::RadToDeg();
       //difference between B->b and B->a
       double diffBAtheta = TMath::Abs(thetaBA - thetaA);
-      double diffBAphi = FFTtools::wrap(TMath::Abs(phiBA - phiB));
+      double diffBAphi = TMath::Abs(FFTtools::wrap(phiBA - phiB,360,0));
       if (diffBAphi > 180) diffBAphi = 360 - diffBAphi;
       
       //where event b is seen from A's location
@@ -149,7 +145,7 @@ void cluster() {
       phiAB   *= TMath::RadToDeg();
       //difference between A->a and A->b
       double diffABtheta = TMath::Abs(thetaAB - thetaB);
-      double diffABphi = FFTtools::wrap(TMath::Abs(phiAB - phiA));
+      double diffABphi = TMath::Abs(FFTtools::wrap(phiAB - phiA,360,0));
       if (diffABphi > 180) diffABphi = 360 - diffABphi;      
 
 
@@ -163,10 +159,10 @@ void cluster() {
       
       //	cout << entryA << " vs " << entryB << " = " << diff << endl;
 
-      if (diff < 200) close++;
-      
       hCluster->Fill(eventCountA,diff);
-      
+    
+      if (diff < closest) closest = diff;
+  
       delete usefulGPSB;
       
 
@@ -180,25 +176,20 @@ void cluster() {
 
     delete usefulGPSA;
     
-    cout << "eventCountA:" << eventCountA << " eventNumber " << eventNumberA << " close:" << close << endl;
+    gClosest->SetPoint(gClosest->GetN(),eventNumberA,closest);
+    hClosest->Fill(closest);
+
+    cout << "eventCountA:" << eventCountA << " eventNumber " << eventNumberA << " closest:" << closest << endl;
     
-    if (close == 0) {
-      cout << "Close! " << singlets->GetN() << " so far " << endl;
-      singlets->SetPoint(singlets->GetN(),singlets->GetN(),eventNumberA);
-    }
   }
   
   hCluster->Draw("colz");
 
-  
-  cout << "Close Event Numbers:" << endl;
-  for (int i=0; i<singlets->GetN(); i++) {
-    cout << singlets->GetY()[i] << endl;
-  }
 
   TFile* outFile = new TFile("cluster.root","recreate");
   hCluster->Write();
-  singlets->Write();
+  gClosest->Write();
+  hClosest->Write();
   outFile->Close();
   
   return;
@@ -207,34 +198,28 @@ void cluster() {
 
 void printNotable(TH2D *hist,double threshold=10) {
 
-  int numBins = hist->GetNbinsX();
+  int numBinsX = hist->GetNbinsX();
+  int numBinsY = hist->GetNbinsY();
 
-  TH1D *minDists = new TH1D("minDists","closest event angular sigma",500,0,50);
+  TH1D *minDists = new TH1D("minDists","closest event angular sigma",50,0,50);
 
-  for (int evBin=0; evBin<numBins; evBin++) {
+  for (int evBin=0; evBin<numBinsX; evBin++) {
     
     TH1D *temp = hist->ProjectionY("temp",evBin+1,evBin+1);
 
-    if (temp->GetEntries() > 0) {
-
-      for (int value=0; value<temp->GetNbinsX(); value++) {
-	double minDist = temp->GetBinContent(value);
-      minDists->Fill(minDist);
-      if (minDist > threshold) {
-	cout << bin << endl;
-      }
-
-
-    }
+    double minDist = temp->GetMinimumBin();
+    minDists->Fill(minDist);
 
     delete temp;
   }
+
+
+  
       
     minDists->Draw();
-
+    
 
 }
 
 
 
-  

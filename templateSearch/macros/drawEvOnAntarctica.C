@@ -68,7 +68,7 @@ void fillBaseList(Acclaim::AntarcticaMapPlotter *aMap,TGraph *gBaseList) {
   return;
 }
 
-void drawEvOnAntarctica(string fileName="notableEvents.root") {
+void drawEvOnAntarctica(string fileName="cuts.root") {
 
   /*
 
@@ -79,7 +79,7 @@ void drawEvOnAntarctica(string fileName="notableEvents.root") {
   stringstream name;
 
   TFile *inFile = TFile::Open(fileName.c_str());
-  TTree *summaryTree = (TTree*)inFile->Get("cutSummary");
+  TTree *summaryTree = (TTree*)inFile->Get("eventSummary");
 
   if (summaryTree == NULL) {
     cout << "Couldn't find cutSummary in file " << fileName << endl;
@@ -105,13 +105,22 @@ void drawEvOnAntarctica(string fileName="notableEvents.root") {
   allEvs->SetMarkerSize(1);
   allEvs->SetMarkerColor(kOrange);
 
-
-
   vector<TArrow*> arrows;
+  
+  vector<int> goodEvs;
+  goodEvs.push_back(11116669);
+  goodEvs.push_back(11989349);
+  goodEvs.push_back(15717147);
+  goodEvs.push_back(16952229);
+  goodEvs.push_back(19459851);
+  goodEvs.push_back(23695286);
+  goodEvs.push_back(32907848);
+  goodEvs.push_back(33484995);
+  goodEvs.push_back(41529195);
 
+  vector<TArrow*> highlightArrows;
   vector<TGraph*> highlights;
 
-  TGraph *gEv;
 
   int eventCount=0;
   for (int entry=0; entry<summaryTree->GetEntries(); entry++) {
@@ -129,37 +138,12 @@ void drawEvOnAntarctica(string fileName="notableEvents.root") {
     eventCount++;
 
 
-    //get the event source location
+    //plot the event source location
     double xEv,yEv;
     double latEv = summary->peak[0][0].latitude;
     double lonEv = summary->peak[0][0].longitude;
     aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
-
     allEvs->SetPoint(allEvs->GetN(),xEv,yEv);
-
-    //    cout << "eventNumber: " << summary->eventNumber << " position: " << latEv << " , " << lonEv << endl;
-
-
-    //highlight graphs
-    if (summary->eventNumber == 9097075 || 
-	summary->eventNumber == 8814863 ||
-	summary->eventNumber == 23695286 ||
-	summary->eventNumber == 32907848 || 
-	summary->eventNumber == 33484995 ||
-	summary->eventNumber == 66313844) {
-      
-      name.str("");
-      name << "event" << summary->eventNumber;
-      cout << name.str() << " " << latEv << "|" << lonEv << endl;
-      TGraph *gHighlight = new TGraph();
-      gHighlight->SetName(name.str().c_str());
-      gHighlight->SetTitle(name.str().c_str());
-      gHighlight->SetMarkerStyle(29); //29=star
-      gHighlight->SetMarkerColor(kGreen);
-      gHighlight->SetPoint(0,xEv,yEv);
-      highlights.push_back(gHighlight);
-    }
-
 
     //fill the position graph with ANITA's location
     double xA,yA;
@@ -170,6 +154,28 @@ void drawEvOnAntarctica(string fileName="notableEvents.root") {
 
     TArrow *currArrow = new TArrow(xA,yA,xEv,yEv,0.003,"|>");
     arrows.push_back(currArrow);
+
+    //highlight graphs
+    if (std::find(goodEvs.begin(),goodEvs.end(),summary->eventNumber)!=goodEvs.end()) {
+      name.str("");
+      name << "event" << summary->eventNumber;
+      cout << name.str() << " " << latEv << "|" << lonEv << endl;
+      TGraph *gHighlight = new TGraph();
+      gHighlight->SetName(name.str().c_str());
+      gHighlight->SetTitle(name.str().c_str());
+      gHighlight->SetMarkerStyle(29); //29=star
+      gHighlight->SetMarkerColor(kGreen);
+      gHighlight->SetPoint(0,xEv,yEv);
+      highlights.push_back(gHighlight);
+
+      TArrow *highlightArrow = (TArrow*)currArrow->Clone();
+      highlightArrow->SetLineWidth(2);
+      highlightArrow->SetLineColor(kGreen);
+      highlightArrow->SetFillColor(kGreen);
+      highlightArrows.push_back(highlightArrow);
+    }
+
+
 
   }
 
@@ -183,20 +189,24 @@ void drawEvOnAntarctica(string fileName="notableEvents.root") {
 
   cout << "Found " << eventCount << " entries " << endl;
 
+  //  gBaseList->Draw("psame");
+
+
   aMap->setCurrentTGraph("anitaPosition");
   aMap->DrawTGraph("p");
-
-  aMap->setCurrentTGraph("eventLocations");
-  aMap->DrawTGraph("psame");
 
   for (int i=0; i<arrows.size(); i++) {
     arrows[i]->Draw("");
   }
 
+  aMap->setCurrentTGraph("eventLocations");
+  aMap->DrawTGraph("psame");
+
   for (int i=0; i<highlights.size(); i++) {
-    highlights[i]->Draw("p");
+    highlights[i]->Draw("psame");
+    highlightArrows[i]->Draw();
   }
-  //  gBaseList->Draw("psame");
+
 
 
 
