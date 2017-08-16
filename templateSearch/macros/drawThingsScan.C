@@ -5,13 +5,13 @@
 */
 
 
-
-
-TH1* makeNormCumulative(TH1* inHist) {
+TH1* makeNormCumulative(TH1* inHist,Bool_t forward=true) {
   /*
     Makes a "normalized cumulative cut fraction" graph I think
 
     Should let me set cuts on a specific amount of "reduction"
+
+    forward specifies the direction of the cumulative sum
    */
 
 
@@ -24,19 +24,23 @@ TH1* makeNormCumulative(TH1* inHist) {
   }
 
   copyHist->Scale(1./integral);
-  TH1* outHist = (TH1*)copyHist->GetCumulative();
+  TH1* outHist = (TH1*)copyHist->GetCumulative(forward);
 
   for (int i=0; i<copyHist->GetNbinsX(); i++) {
     double value = outHist->GetBinContent(i);
     outHist->SetBinContent(i,1.-value);
+
   }
-
-
   delete copyHist;
 
-  outHist->GetYaxis()->SetTitle("Surviving Fraction");
+  if (forward) outHist->GetYaxis()->SetTitle("Surviving Fraction");
+  else         outHist->GetYaxis()->SetTitle("Fraction of Events Cut");
   return outHist;
 }
+
+
+
+
 
 
 TH1* makeNormHist(TH1* inHist) {
@@ -61,14 +65,14 @@ TH1* makeNormHist(TH1* inHist) {
   return copyHist;
 }
 
-void drawThingsScan(string inFileName="plotThingsScan.root") {
+void saveAllImages(string inFileName="plotThingsScan.root") {
   
   stringstream name;
 
   TFile *inFile = TFile::Open(inFileName.c_str());
 
   const int numLines = 5;
-  string subStrings[numLines] = {"thermal","WAIS","LDB","basePointed","minbias"};
+  string subStrings[numLines] = {"events","WAIS","LDB","basePointed","minbias"};
 
   TCanvas *c1 = new TCanvas("c1","c1",1000,600);
 
@@ -139,4 +143,78 @@ TH1 *dividedCumulative(TH1D *h1, TH1D *h2) {
   delete h2Cum;
   
   return h1Cum;
+}
+
+void getCutsFromValue(double waisCutFraction = 1e-3) {
+  
+  TFile *inFile = TFile::Open("plotThingsScan.root");
+  if (!inFile->IsOpen()) {
+    cout << "Couldn't open file" << endl;
+    return;
+  }
+
+  const int numInteresting = 4;
+  string interestingValues[numInteresting] = {"template_Wais_WAIS","wavePeakHilb_DF_WAIS","mapPeak_WAIS","mapSNR_WAIS"};
+
+  for (int value=0; value<numInteresting; value++) {
+    TH1D *hist = (TH1D*)inFile->Get(interestingValues[value].c_str());
+    TH1 *histCut = makeNormCumulative(hist,false);
+
+    double cutLoc = 0;
+    for (int bin=0; bin<histCut->GetNbinsX(); bin++) {
+      if (histCut->GetBinContent(bin+1) > waisCutFraction) {
+	cutLoc = histCut->GetBinCenter(bin+1);
+	break;
+    }
+  }
+
+    cout << interestingValues[value] << " "  << cutLoc << endl;
+  }
+
+
+  return;
+}
+
+
+
+void drawTwoReversedHists(TH1* inHist1, TH1* inHist2, string saveName="") {
+
+  TH1* drawHist1 = makeNormCumulative(inHist1);
+  TH1* drawHist2 = makeNormCumulative(inHist2,false);
+  drawHist2->SetTitle("");
+
+  TLegend *leg = new TLegend(0.6,0.6,0.8,0.8);
+  leg->AddEntry(drawHist1,"Possible Signal","l");
+  leg->AddEntry(drawHist2,"WAIS Pulses","l");
+
+  drawHist1->SetStats(false);
+  drawHist2->SetStats(false);
+
+  drawHist1->GetYaxis()->SetRangeUser(1e-7,1);
+  drawHist2->GetYaxis()->SetRangeUser(1e-7,1);
+
+  drawHist2->GetYaxis()->SetTitleColor(kRed);
+  drawHist2->SetLineColor(kRed);
+
+
+  TCanvas *c1 = new TCanvas("c1","transparent pad",1000,600);
+  TPad *p1 = new TPad("p1","",0,0,1,1);
+  p1->SetLogy();
+  TPad *p2 = new TPad("p2","",0,0,1,1);
+  p2->SetLogy();
+  p2->SetFillStyle(4000);
+  p2->SetFillColor(0);
+  p2->SetFrameFillStyle(0);
+  p1->Draw();
+  p1->cd();
+  drawHist1->Draw();
+  p2->Draw();
+  p2->cd();
+  drawHist2->Draw("Y+");
+  leg->Draw("");
+
+  if (saveName != "") c1->SaveAs(saveName.c_str());
+
+  return;
+
 }

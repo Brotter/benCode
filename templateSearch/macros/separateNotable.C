@@ -5,8 +5,10 @@ Separates out the notable events (wais, ldb, things that have good simple cut va
 */
 
 
-
-void separateNotable() {
+void separateNotable_fromScratch() {
+/*
+  This one goes through the full dataset and grabs the ones that are important
+*/
 
   TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
 
@@ -86,8 +88,8 @@ void separateNotable() {
     }
 
     if ( !eventSummary->flags.isRF) {
-      minbiasCut++;
-      if (minbiasCut % 10 == 0) {
+      minbiasCnt++;
+      if (minbiasCnt % 10 == 0) {
 	outFile->cd();
 	minbiasTree->Fill();
       }
@@ -109,4 +111,49 @@ void separateNotable() {
 
   return;
 
+}
+
+
+
+
+void separateNotable_fromFile(string fileName="makeCuts_weak.csv") {
+  /*
+    Take the output of a Scan file (that has had the *'s replaced with nothing and the first few lines cut off)
+    And saves those files to a new root file
+   */
+
+
+  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+  summaryTree->BuildIndex("eventNumber");
+
+  TGraph *evNums = new TGraph(fileName.c_str());
+
+  TFile *outFile = TFile::Open("cuts.root","recreate");
+  TTree *cutTree = new TTree("eventSummary","eventSummary");
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  cutTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  cutTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  cutTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  cutTree->Branch("gpsEvent",&gps);
+
+
+
+  for (int ev=0; ev<evNums->GetN(); ev++) {
+    cout << ev << "/" << evNums->GetN() << endl;
+    int evNum = evNums->GetY()[ev];
+    int entry = summaryTree->GetEntryNumberWithIndex(evNum);
+    summaryTree->GetEntry(entry);
+    outFile->cd();
+    cutTree->Fill();
+  }
+  
+  cutTree->Write();
+  outFile->Close();
 }

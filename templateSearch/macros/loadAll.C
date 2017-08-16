@@ -1,6 +1,6 @@
 
 
-TChain* loadAll(string date = "08.04.17_17h/",bool doProof = true){
+TChain* loadAll(string date = "07.28.17_17h/",bool doProof = true){
   //crab
   //kwaabz
   //crab
