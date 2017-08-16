@@ -107,17 +107,36 @@ void drawEvOnAntarctica(string fileName="cuts.root") {
 
   vector<TArrow*> arrows;
   
+
+  //from clustering results
   vector<int> goodEvs;
+  goodEvs.push_back(8135326);
+  goodEvs.push_back(9097075);
   goodEvs.push_back(11116669);
   goodEvs.push_back(11989349);
   goodEvs.push_back(15717147);
   goodEvs.push_back(16952229);
   goodEvs.push_back(19459851);
   goodEvs.push_back(23695286);
-  goodEvs.push_back(32907848);
-  goodEvs.push_back(33484995);
-  goodEvs.push_back(41529195);
-
+  goodEvs.push_back(32907848); //BenS
+  goodEvs.push_back(33484995); //BenS
+  goodEvs.push_back(41529195); //BenS
+  goodEvs.push_back(58592863); //BenS
+  goodEvs.push_back(62273732);
+  goodEvs.push_back(62365441);
+  goodEvs.push_back(63210848);
+  goodEvs.push_back(64201621);
+  goodEvs.push_back(66313844);
+  goodEvs.push_back(68298837);
+  goodEvs.push_back(70013898);
+  goodEvs.push_back(73726742);
+  goodEvs.push_back(75277769);
+  goodEvs.push_back(80561103);
+  goodEvs.push_back(80973610);
+  goodEvs.push_back(83877990);
+  goodEvs.push_back(84114142);
+  goodEvs.push_back(84405480);
+    
   vector<TArrow*> highlightArrows;
   vector<TGraph*> highlights;
 
@@ -137,23 +156,19 @@ void drawEvOnAntarctica(string fileName="cuts.root") {
 
     eventCount++;
 
-
-    //plot the event source location
-    double xEv,yEv;
-    double latEv = summary->peak[0][0].latitude;
-    double lonEv = summary->peak[0][0].longitude;
-    aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
-    allEvs->SetPoint(allEvs->GetN(),xEv,yEv);
+    double xA,yA,latEv,lonEv,xEv,yEv;
 
     //fill the position graph with ANITA's location
-    double xA,yA;
     latEv = summary->anitaLocation.latitude;
     lonEv = summary->anitaLocation.longitude;
     aMap->getRelXYFromLatLong(latEv,lonEv,xA,yA);
     anitaPosition->SetPoint(entry,xA,yA);
 
+    //plot the event source location
+    latEv = summary->peak[0][0].latitude;
+    lonEv = summary->peak[0][0].longitude;
+    aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
     TArrow *currArrow = new TArrow(xA,yA,xEv,yEv,0.003,"|>");
-    arrows.push_back(currArrow);
 
     //highlight graphs
     if (std::find(goodEvs.begin(),goodEvs.end(),summary->eventNumber)!=goodEvs.end()) {
@@ -168,11 +183,15 @@ void drawEvOnAntarctica(string fileName="cuts.root") {
       gHighlight->SetPoint(0,xEv,yEv);
       highlights.push_back(gHighlight);
 
-      TArrow *highlightArrow = (TArrow*)currArrow->Clone();
-      highlightArrow->SetLineWidth(2);
-      highlightArrow->SetLineColor(kGreen);
-      highlightArrow->SetFillColor(kGreen);
-      highlightArrows.push_back(highlightArrow);
+      currArrow->SetLineWidth(2);
+      currArrow->SetLineColor(kGreen);
+      currArrow->SetFillColor(kGreen);
+      highlightArrows.push_back(currArrow);
+    }
+    //clustered events
+    else {
+      allEvs->SetPoint(allEvs->GetN(),xEv,yEv);
+      arrows.push_back(currArrow);
     }
 
 
@@ -189,24 +208,27 @@ void drawEvOnAntarctica(string fileName="cuts.root") {
 
   cout << "Found " << eventCount << " entries " << endl;
 
-  //  gBaseList->Draw("psame");
 
 
   aMap->setCurrentTGraph("anitaPosition");
   aMap->DrawTGraph("p");
 
+  aMap->setCurrentTGraph("baseList");
+  aMap->DrawTGraph("psame");
+
   for (int i=0; i<arrows.size(); i++) {
-    arrows[i]->Draw("");
+  arrows[i]->Draw("");
   }
 
   aMap->setCurrentTGraph("eventLocations");
   aMap->DrawTGraph("psame");
 
+  /*
   for (int i=0; i<highlights.size(); i++) {
     highlights[i]->Draw("psame");
     highlightArrows[i]->Draw();
   }
-
+  */
 
 
 

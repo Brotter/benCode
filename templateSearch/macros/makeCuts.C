@@ -66,7 +66,7 @@ void makeCuts(bool draw=true,int strength=0) {
   if (strength==0) {
     cuts.push_back("template.coherent[0][0].cRay[4] > 0.666");
     cuts.push_back(waveformString+"peakHilbert > 48.5");
-    cuts.push_back("peak[0][0].value > 0.0455");
+    cuts.push_back("peak[0][0].value > 0.0435");
     cuts.push_back("peak[0][0].snr > 9.45");
   }
 
@@ -92,8 +92,9 @@ void makeCuts(bool draw=true,int strength=0) {
   /* Cuts that should _always_ be made */
   cuts.push_back("flags.pulser == 0");
   cuts.push_back("flags.isRF");
-  cuts.push_back("(TMath::Abs(FFTtools::wrap(peak[0][0].phi - ldb.phi,360,0))  > 4 || ldb.distance  > 1000e3)");
-  cuts.push_back("(TMath::Abs(FFTtools::wrap(peak[0][0].phi - wais.phi,360,0)) > 4 || wais.distance > 1000e3)");
+  cuts.push_back("(TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(peak[0][0].phi - ldb.phi,360,0)),2) + pow(TMath::Abs(FFTtools::wrap(peak[0][0].theta - ldb.theta,360,0)),2))  > 4 || ldb.distance  > 1000e3)");
+  cuts.push_back("(TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(peak[0][0].phi - wais.phi,360,0)),2)+pow(TMath::Abs(FFTtools::wrap(peak[0][0].theta - wais.theta,360,0)),2))  > 4 || wais.distance  > 1000e3)");
+
 
 
   string allCuts = "";

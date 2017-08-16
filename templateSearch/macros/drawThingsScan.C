@@ -5,8 +5,6 @@
 */
 
 
-
-
 TH1* makeNormCumulative(TH1* inHist,Bool_t forward=true) {
   /*
     Makes a "normalized cumulative cut fraction" graph I think
@@ -36,7 +34,7 @@ TH1* makeNormCumulative(TH1* inHist,Bool_t forward=true) {
   delete copyHist;
 
   if (forward) outHist->GetYaxis()->SetTitle("Surviving Fraction");
-  else         outHist->GetYaxis()->SetTitle("Cut Fraction");
+  else         outHist->GetYaxis()->SetTitle("Fraction of Events Cut");
   return outHist;
 }
 
@@ -179,4 +177,44 @@ void getCutsFromValue(double waisCutFraction = 1e-3) {
 
 
 
+void drawTwoReversedHists(TH1* inHist1, TH1* inHist2, string saveName="") {
 
+  TH1* drawHist1 = makeNormCumulative(inHist1);
+  TH1* drawHist2 = makeNormCumulative(inHist2,false);
+  drawHist2->SetTitle("");
+
+  TLegend *leg = new TLegend(0.6,0.6,0.8,0.8);
+  leg->AddEntry(drawHist1,"Possible Signal","l");
+  leg->AddEntry(drawHist2,"WAIS Pulses","l");
+
+  drawHist1->SetStats(false);
+  drawHist2->SetStats(false);
+
+  drawHist1->GetYaxis()->SetRangeUser(1e-7,1);
+  drawHist2->GetYaxis()->SetRangeUser(1e-7,1);
+
+  drawHist2->GetYaxis()->SetTitleColor(kRed);
+  drawHist2->SetLineColor(kRed);
+
+
+  TCanvas *c1 = new TCanvas("c1","transparent pad",1000,600);
+  TPad *p1 = new TPad("p1","",0,0,1,1);
+  p1->SetLogy();
+  TPad *p2 = new TPad("p2","",0,0,1,1);
+  p2->SetLogy();
+  p2->SetFillStyle(4000);
+  p2->SetFillColor(0);
+  p2->SetFrameFillStyle(0);
+  p1->Draw();
+  p1->cd();
+  drawHist1->Draw();
+  p2->Draw();
+  p2->cd();
+  drawHist2->Draw("Y+");
+  leg->Draw("");
+
+  if (saveName != "") c1->SaveAs(saveName.c_str());
+
+  return;
+
+}
