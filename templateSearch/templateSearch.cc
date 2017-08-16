@@ -166,7 +166,7 @@ void usage() {
 
 
 int main(int argc, char* argv[]) {
-
+  cout << "♪┏(°.°)┛┗(°.°)┓┗(°.°)┛┏(°.°)┓ ♪" << endl;
   //handle inturrupt signals for real
   signal(SIGTERM, emergencyClose); 
   signal(SIGQUIT, emergencyClose); 
@@ -182,18 +182,20 @@ int main(int argc, char* argv[]) {
   bool entryFlag = false;
 
   // If you're lost
-  if (argc == 1 || strcmp(argv[1],"--help") == 0 || strcmp(argv[1],"-h") == 0 ) {
-    cout << argc << " " << argv[1] << " help selected" << endl;
+  if (argc <= 1 ){
     usage();
     return -1;
   }
- 
+ else if (strcmp(argv[1],"--help") == 0 || strcmp(argv[1],"-h") == 0 ) { 
+   cout << argv[1] << " help selected (argc" << argc << ")" << endl;
+   usage();
+   return -1;
+ }
   // Original way, by "entry"
-  if (strcmp("--entry",argv[1]) == 0 || strcmp("--min",argv[1]) == 0) {
-    if (argc == 5) {
-      if (strcmp(argv[1],"--min") == 0) minFlag = true;
+ else if (strcmp("--entry",argv[1]) == 0 || strcmp("--min",argv[1]) == 0) {
+   if (argc == 5) {
+     if (strcmp(argv[1],"--min") == 0) minFlag = true;
       else                         entryFlag = true;
-
       outFileName = argv[2];
       startEntry = atoi(argv[3]);
       endEntry = atoi(argv[4]);
@@ -253,7 +255,7 @@ int main(int argc, char* argv[]) {
   cout << "For reference, this process is running on " << serverName << endl;
 
 
-  //load wisdom crap that doesn't seem to do anything
+  //load wisdom crap that maybe makes the first part go faster (but it doesn't really)
   char* homeDir = getenv("HOME");
   stringstream wisdomDir;
   wisdomDir.str("");
@@ -261,14 +263,17 @@ int main(int argc, char* argv[]) {
   FFTtools::loadWisdom(wisdomDir.str().c_str());
 
 
-
+  //all rejoyce: the glorious stringstream declaration
   stringstream name;
-  //also make a Tree of event headers that pass cuts
+
+
+  //open up the output file
   name.str("");
   name << outFileName << ".root";
   cout << "Using " << name.str() << " as output file" << endl;
   outFile = TFile::Open(name.str().c_str(),"recreate");
-  outFile->SetCompressionLevel(9); //LZMA is the "fancy" compression, and 9 is the strongest
+  //LZMA is the "fancy" compression, and 9 is the strongest
+  outFile->SetCompressionLevel(9); 
   outFile->SetCompressionAlgorithm(ROOT::kLZMA);
 
 
@@ -279,13 +284,15 @@ int main(int argc, char* argv[]) {
   AnitaEventSummary *eventSummary = new AnitaEventSummary; 
   outTree->Branch("eventSummary",&eventSummary);
 
-  //and add gps data too, don't forget to fill this!
+  //and add gps data too, don't forget to fill this later!
   Adu5Pat *gpsEvent = NULL;
   outTree->Branch("gpsEvent",&gpsEvent);
 
 
+  /*  Making the filters */
   cout << "Making the filters" << endl;
   //the spectrum average is used for a couple of filters to make them sort of "adaptive"
+
   char* specAvgDir = getenv("UCORRELATOR_SPECAVG_DIR");
   const UCorrelator::SpectrumAverageLoader *specAvgLoader = new UCorrelator::SpectrumAverageLoader(specAvgDir);
 
