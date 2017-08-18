@@ -154,21 +154,29 @@ void getCutsFromValue(double waisCutFraction = 1e-3) {
   }
 
   const int numInteresting = 4;
-  string interestingValues[numInteresting] = {"template_Wais_WAIS","wavePeakHilb_DF_WAIS","mapPeak_WAIS","mapSNR_WAIS"};
+  string interestingValues[numInteresting] = {"template_Wais","wavePeakHilb_DF","mapPeak","mapSNR"};
 
   for (int value=0; value<numInteresting; value++) {
-    TH1D *hist = (TH1D*)inFile->Get(interestingValues[value].c_str());
+    string name;
+    name = interestingValues[value] + "_WAIS";
+    TH1D *hist = (TH1D*)inFile->Get(name.c_str());
     TH1 *histCut = makeNormCumulative(hist,false);
 
+    name = interestingValues[value]+"_minbias";
+    TH1D *minBiasHist = (TH1D*)inFile->Get(name.c_str());
+    TH1* minBiasRemain = makeNormCumulative(minBiasHist);
+
     double cutLoc = 0;
+    double minBiasValue = 0;
     for (int bin=0; bin<histCut->GetNbinsX(); bin++) {
       if (histCut->GetBinContent(bin+1) > waisCutFraction) {
 	cutLoc = histCut->GetBinCenter(bin+1);
+	minBiasValue = minBiasRemain->GetBinContent(bin+1);
 	break;
     }
   }
 
-    cout << interestingValues[value] << " "  << cutLoc << endl;
+    cout << interestingValues[value] << " "  << cutLoc << " " << minBiasValue << endl;
   }
 
 

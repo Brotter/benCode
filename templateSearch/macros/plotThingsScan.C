@@ -275,3 +275,18 @@ void plotThingsScan(bool decimated=true) {
 
   return;
 }
+
+
+
+void covarianceMatrix() {
+  /*
+
+    Make a covariance matrix plot for the main cuts for the thermal background estimate
+
+   */
+
+
+  TFile *inFile = TFile::Open("07.28.17_17h_decimated.root");
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+
+}
