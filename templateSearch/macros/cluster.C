@@ -230,16 +230,19 @@ void printNotable(TH2D *hist,double threshold=10) {
 
 
 
-void saveEventsNearEvent(int evNum,double threshold) {
+void saveEventsNearCandidates(double threshold) {
   /*
     For my anthropogenic background estimate, I want to see what the distrubtions of all the events that _would_ have 
     clustered with any given "candidate" event.  So this makes a root file with all those events.  Hopefully not too many!
+
+    Lets pull in the cluster.root file with all the clustered events, find the ones that pass the threshold, then
+    build them all at once
+
    */
 
 
-  //get all the events
+  //get ALL the events
   TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
-
 
   int lenEntries = summaryTree->GetEntries();
   cout << lenEntries << " total entries found" << endl;
