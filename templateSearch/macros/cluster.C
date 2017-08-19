@@ -349,6 +349,7 @@ void saveEventsNearCandidates(double threshold) {
 
   //get the candidates (from cuts.root which has way less entries in it)
   AnitaEventSummary *candidateSummaries[numCandidateEvs];
+  AnitaTemplateSummary *candidateTemplates[numCandidateEvs];
   UsefulAdu5Pat *candidateGPS[numCandidateEvs];
 
   TFile *cutFile = TFile::Open("cuts.root");
@@ -358,10 +359,10 @@ void saveEventsNearCandidates(double threshold) {
   }
   TTree *cutTree = (TTree*)cutFile->Get("eventSummary");
   cutTree->BuildIndex("eventNumber");
-
   AnitaEventSummary *cutSum = NULL;
   cutTree->SetBranchAddress("eventSummary",&cutSum);
-
+  AnitaTemplateSummary *tempSum = NULL;
+  cutTree->SetBranchAddress("template",&tempSum);
   Adu5Pat *gpstemp = NULL;
   cutTree->SetBranchAddress("gpsEvent",&gpstemp);
 
@@ -370,11 +371,13 @@ void saveEventsNearCandidates(double threshold) {
     cout << ev << ": event number " << candidateEvs[ev] << " is entry " << entry << endl;
     cutTree->GetEntry(entry);
     candidateSummaries[ev] = (AnitaEventSummary*)cutSum->Clone();
+    candidateTemplates[ev] = new AnitaTemplateSummary(*tempSum);
     candidateGPS[ev] = new UsefulAdu5Pat(gpstemp);
+
   }
  
 
-  //make an output file and trees
+  //make an output file and trees, and save all the candidate info
   TFile *outFile = TFile::Open("candidateClustering.root","recreate");
   TTree *outTree[numCandidateEvs];
   for (int ev=0; ev<numCandidateEvs; ev++) {
@@ -385,6 +388,17 @@ void saveEventsNearCandidates(double threshold) {
     outTree[ev]->Branch("template",&templateSummary);
     outTree[ev]->Branch("noiseSummary",&noiseSummary);
     outTree[ev]->Branch("gpsEvent",&gps);
+
+    name.str("");
+    name << "ev" << candidateEvs[ev] << "Summary";
+    outFile->WriteObject(candidateSummaries[ev],name.str().c_str());
+    name.str("");
+    name << "ev" << candidateEvs[ev] << "Template";
+    outFile->WriteObject(candidateTemplates[ev],name.str().c_str());
+    name.str("");
+    name << "ev" << candidateEvs[ev] << "UsefulGps";
+    outFile->WriteObject(candidateGPS[ev],name.str().c_str());
+
   }
  
 
@@ -404,6 +418,11 @@ void saveEventsNearCandidates(double threshold) {
     close[ev] = 0;
   }
 
+
+  TStopwatch watch;
+  watch.Start(kTRUE);
+  int totalTimeSec = 0;
+
   for (int entryB=0; entryB<lenEntries; entryB++) {
 
     if (entryB%10000 == 0) {
@@ -411,7 +430,14 @@ void saveEventsNearCandidates(double threshold) {
       for (int ev=0; ev<numCandidateEvs; ev++) {
 	cout << close[ev] << " ";
       }
-      cout << ")" << endl; }
+      cout << ") ";
+      int timeElapsed = watch.RealTime();
+      totalTimeSec += timeElapsed;
+      double rate = float(entryB)/totalTimeSec;
+      double remaining = (float(lenEntries-entryB)/rate)/60.;
+      cout << 10000./timeElapsed << "Hz <" << rate << "> " << remaining << " minutes left" << endl;
+      watch.Start();
+    }
     
     summaryTree->GetEntry(entryB);
     
