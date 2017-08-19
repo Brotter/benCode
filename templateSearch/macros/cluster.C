@@ -45,6 +45,76 @@ TChain* importGPS() {
 }
 
 
+double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, AnitaEventSummary *eventB, UsefulAdu5Pat *gpsB) {
+  /*
+
+    The function that actual does the "log likelyhood" angle distance calculation.
+
+    It is really just a geometric average angular difference calculator between two events
+
+   */
+
+  
+  //where event a was seen (a)
+  double thetaA = eventA->peak[0][0].theta;
+  double phiA   = eventA->peak[0][0].phi;
+  double latA   = eventA->peak[0][0].latitude;
+  double lonA   = eventA->peak[0][0].longitude;
+  double altA   = eventA->peak[0][0].altitude;
+    
+  //if event a is further than 1000km from location B, return -9999
+  double distance = gpsB->getDistanceFromSource(latA,lonA,altA);
+  if (distance > 1000e3) return -9999;
+
+  //where event b was seen (b)
+  double thetaB = eventB->peak[0][0].theta;
+  double phiB   = eventB->peak[0][0].phi;
+  double latB   = eventB->peak[0][0].latitude;
+  double lonB   = eventB->peak[0][0].longitude;
+  double altB   = eventB->peak[0][0].altitude;      
+    
+  //where event a is seen from B's location
+  double thetaBA,phiBA; 
+  gpsB->getThetaAndPhiWave(lonA,latA,altA,thetaBA,phiBA);
+  thetaBA *= TMath::RadToDeg();
+  phiBA *= TMath::RadToDeg();
+  //difference between B->b and B->a
+  double diffBAtheta = TMath::Abs(thetaBA - thetaA);
+  double diffBAphi = TMath::Abs(FFTtools::wrap(phiBA - phiB,360,0));
+  if (diffBAphi > 180) diffBAphi = 360 - diffBAphi;
+    
+  //where event b is seen from A's location
+  double thetaAB,phiAB; 
+  gpsA->getThetaAndPhiWave(lonB,latB,altB,thetaAB,phiAB);
+  thetaAB *= TMath::RadToDeg();
+  phiAB   *= TMath::RadToDeg();
+  //difference between A->a and A->b
+  double diffABtheta = TMath::Abs(thetaAB - thetaB);
+  double diffABphi = TMath::Abs(FFTtools::wrap(phiAB - phiA,360,0));
+  if (diffABphi > 180) diffABphi = 360 - diffABphi;      
+    
+
+  const double sigmaTheta = 0.2193;
+  const double sigmaPhi = 0.5429;
+      
+  double diffTheta = TMath::Sqrt(pow(diffABtheta,2) + pow(diffBAtheta,2))/sigmaTheta;
+  double diffPhi = TMath::Sqrt(pow(diffABphi,2) + pow(diffBAphi,2))/sigmaPhi;
+    
+  double diff = TMath::Sqrt(pow(diffTheta,2) + pow(diffPhi,2));
+      
+  //	cout << entryA << " vs " << entryB << " = " << diff << endl;
+  
+  return diff;
+
+}
+
+
+
+
+
+
+
+
 void clusterEventList() {
   /*
     Takes in a list of events and compares their source locations to determine whether they cluster
@@ -239,6 +309,7 @@ void saveEventsNearCandidates(double threshold) {
     build them all at once
 
    */
+  stringstream name,title;
 
 
   //get ALL the events
@@ -260,113 +331,114 @@ void saveEventsNearCandidates(double threshold) {
   summaryTree->SetBranchAddress("gpsEvent",&gps);
 
 
-  //get the "candidate" (written from 
-  stringstream name;
-  name.str("");
-  name << "ev" << evNum << ".root";
-  TFile *evFile = TFile::Open(name.str().c_str());
-  if (!evFile->IsOpen()) {
-    cout << "Couldn't open event file " << name.str() << " , Quitting..." << endl;
+  //get the "candidate" events
+  TFile *clusterFile = TFile::Open("cluster.root");
+  if (!clusterFile->IsOpen()) {
+    cout << "Couldn't find cluster.root, quitting " << endl;
     return;
   }
-  AnitaEventSummary *evSummary = (AnitaEventSummary*)evFile->Get("eventSummary");
-  Adu5Pat *evGPS = (Adu5Pat*)evFile->Get("gpsEvent");
-  UsefulAdu5Pat *usefulGPSA = new UsefulAdu5Pat(evGPS);
+  TGraph *clusteredEvs = (TGraph*)clusterFile->Get("gClosest");
+  vector<int> candidateEvs;
+  for (int ev=0; ev<clusteredEvs->GetN(); ev++) {
+    if (clusteredEvs->GetY()[ev] >= threshold) candidateEvs.push_back(clusteredEvs->GetX()[ev]);
+  }
+  const int numCandidateEvs = candidateEvs.size();
+  clusterFile->Close();
+
+  cout << "Found " << numCandidateEvs << " Candidate Events:" << endl;
+
+  //get the candidates (from cuts.root which has way less entries in it)
+  AnitaEventSummary *candidateSummaries[numCandidateEvs];
+  UsefulAdu5Pat *candidateGPS[numCandidateEvs];
+
+  TFile *cutFile = TFile::Open("cuts.root");
+  if (!cutFile->IsOpen()) {
+    cout << "Couldn't find cuts.root, quitting " << endl;
+    return;
+  }
+  TTree *cutTree = (TTree*)cutFile->Get("eventSummary");
+  cutTree->BuildIndex("eventNumber");
+
+  AnitaEventSummary *cutSum = NULL;
+  cutTree->SetBranchAddress("eventSummary",&cutSum);
+
+  Adu5Pat *gpstemp = NULL;
+  cutTree->SetBranchAddress("gpsEvent",&gpstemp);
+
+  for (int ev=0; ev<numCandidateEvs; ev++){
+    int entry = cutTree->GetEntryNumberWithIndex(candidateEvs[ev]);
+    cout << ev << ": event number " << candidateEvs[ev] << " is entry " << entry << endl;
+    cutTree->GetEntry(entry);
+    candidateSummaries[ev] = (AnitaEventSummary*)cutSum->Clone();
+    candidateGPS[ev] = new UsefulAdu5Pat(gpstemp);
+  }
+ 
+
+  //make an output file and trees
+  TFile *outFile = TFile::Open("candidateClustering.root","recreate");
+  TTree *outTree[numCandidateEvs];
+  for (int ev=0; ev<numCandidateEvs; ev++) {
+    name.str("");
+    name << "ev" << candidateEvs[ev] << "Tree";
+    outTree[ev] = new TTree(name.str().c_str(),name.str().c_str());
+    outTree[ev]->Branch("eventSummary",&eventSummary);
+    outTree[ev]->Branch("template",&templateSummary);
+    outTree[ev]->Branch("noiseSummary",&noiseSummary);
+    outTree[ev]->Branch("gpsEvent",&gps);
+  }
+ 
+
+  //histograms to record distance distributions past threshold
+  TH1D *hCluster[numCandidateEvs];
+  for (int ev=0; ev<numCandidateEvs; ev++) {
+    name.str("");
+    name << "hCluster_" << candidateEvs[ev];
+    title.str("");
+    title << "Event Cluster Distance to Ev " << candidateEvs[ev];
+    hCluster[ev] = new TH1D(name.str().c_str(),title.str().c_str(),1000,0,threshold*4);
+  }
 
 
-  //make an output file and tree
-  name.str("");
-  name << "cluster_ev" << evNum << ".root";
-  TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
-  
-  TTree *outTree = new TTree("summaryTree","summaryTree");
-  outTree->Branch("eventSummary",&eventSummary);
-  outTree->Branch("template",&templateSummary);
-  outTree->Branch("noiseSummary",&noiseSummary);
-  outTree->Branch("gpsEvent",&gps);
+  int close[numCandidateEvs];
+  for (int ev=0; ev<numCandidateEvs; ev++) {
+    close[ev] = 0;
+  }
 
-  
-  //where event a was seen (a)
-  double thetaA = evSummary->peak[0][0].theta;
-  double phiA   = evSummary->peak[0][0].phi;
-  double latA   = evSummary->peak[0][0].latitude;
-  double lonA   = evSummary->peak[0][0].longitude;
-  double altA   = evSummary->peak[0][0].altitude;
-    
-    
-  //a histogram to record distance distribution
-  TH1D *hCluster = new TH1D("hCluster","hCluster",1000,0,threshold*4);
-
-
-  int count = 0;
   for (int entryB=0; entryB<lenEntries; entryB++) {
-    if (entryB%10000 == 0) cout << entryB << "/" << lenEntries << " (" << count << ")" << endl;
+
+    if (entryB%10000 == 0) {
+      cout << entryB << "/" << lenEntries << " ( ";
+      for (int ev=0; ev<numCandidateEvs; ev++) {
+	cout << close[ev] << " ";
+      }
+      cout << ")" << endl; }
     
     summaryTree->GetEntry(entryB);
     
     if (notNotable(eventSummary)) continue;
 
-    int eventNumberB = eventSummary->eventNumber;
-    
     //where event b was captured from (B)
     UsefulAdu5Pat *usefulGPSB = new UsefulAdu5Pat(gps);
 
-
-    //if event a is further than 1000km from location B, just skip it
-    double distance = usefulGPSB->getDistanceFromSource(latA,lonA,altA);
-    if (distance > 1000e3) continue;
-
-    //where event b was seen (b)
-    double thetaB = eventSummary->peak[0][0].theta;
-    double phiB   = eventSummary->peak[0][0].phi;
-    double latB   = eventSummary->peak[0][0].latitude;
-    double lonB   = eventSummary->peak[0][0].longitude;
-    double altB   = eventSummary->peak[0][0].altitude;      
-    
-    //where event a is seen from B's location
-    double thetaBA,phiBA; 
-    usefulGPSB->getThetaAndPhiWave(lonA,latA,altA,thetaBA,phiBA);
-    thetaBA *= TMath::RadToDeg();
-    phiBA *= TMath::RadToDeg();
-    //difference between B->b and B->a
-    double diffBAtheta = TMath::Abs(thetaBA - thetaA);
-    double diffBAphi = TMath::Abs(FFTtools::wrap(phiBA - phiB,360,0));
-    if (diffBAphi > 180) diffBAphi = 360 - diffBAphi;
-    
-    //where event b is seen from A's location
-    double thetaAB,phiAB; 
-    usefulGPSA->getThetaAndPhiWave(lonB,latB,altB,thetaAB,phiAB);
-    thetaAB *= TMath::RadToDeg();
-    phiAB   *= TMath::RadToDeg();
-    //difference between A->a and A->b
-    double diffABtheta = TMath::Abs(thetaAB - thetaB);
-    double diffABphi = TMath::Abs(FFTtools::wrap(phiAB - phiA,360,0));
-    if (diffABphi > 180) diffABphi = 360 - diffABphi;      
-    
-
-    const double sigmaTheta = 0.2193;
-    const double sigmaPhi = 0.5429;
-      
-    double diffTheta = TMath::Sqrt(pow(diffABtheta,2) + pow(diffBAtheta,2))/sigmaTheta;
-    double diffPhi = TMath::Sqrt(pow(diffABphi,2) + pow(diffBAphi,2))/sigmaPhi;
-    
-    double diff = TMath::Sqrt(pow(diffTheta,2) + pow(diffPhi,2));
-      
-    //	cout << entryA << " vs " << entryB << " = " << diff << endl;
-    
-    hCluster->Fill(diff);
-    if (diff < threshold) {
-      outFile->cd();
-      outTree->Fill();
-      count++;
+    for (int ev=0; ev<numCandidateEvs; ev++) {
+      double dist = calcClusterDistance(candidateSummaries[ev],candidateGPS[ev],eventSummary,usefulGPSB);
+      hCluster[ev]->Fill(dist);
+      if (dist <= threshold && dist != -9999) {
+	outTree[ev]->Fill();
+	close[ev]++;
+      }
     }
 
     delete usefulGPSB;
   }      
 
-  cout << "Finished!  Found " << count << " events nearby" << endl;
+  cout << "Finished!" << endl;
 
-  outTree->Write();
+  for (int ev=0; ev<numCandidateEvs; ev++) {
+    hCluster[ev]->Write();
+    outTree[ev]->Write();
+  }
+
   outFile->Close();
 
 }
