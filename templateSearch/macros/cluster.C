@@ -300,7 +300,7 @@ void printNotable(TH2D *hist,double threshold=10) {
 
 
 
-void saveEventsNearCandidates(double threshold) {
+void saveEventsNearCandidates(double threshold, string outFileName="") {
   /*
     For my anthropogenic background estimate, I want to see what the distrubtions of all the events that _would_ have 
     clustered with any given "candidate" event.  So this makes a root file with all those events.  Hopefully not too many!
@@ -378,7 +378,8 @@ void saveEventsNearCandidates(double threshold) {
  
 
   //make an output file and trees, and save all the candidate info
-  TFile *outFile = TFile::Open("candidateClustering.root","recreate");
+  if (outFileName == "") outFileName = "candidateClustering.root";
+  TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
   TTree *outTree[numCandidateEvs];
   for (int ev=0; ev<numCandidateEvs; ev++) {
     name.str("");
