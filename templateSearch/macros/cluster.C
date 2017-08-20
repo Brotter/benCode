@@ -478,6 +478,7 @@ void saveEventsNearCandidates(double threshold, string outFileName="") {
  */
 
 
+
 void makeMinbiasBackgroundHist() {
   /*
     drawCanidateClusters needs background plots, gotta run this to make 'em
@@ -550,12 +551,15 @@ void drawCandidateClusters(double threshold,bool draw=false) {
     name << "ev" << candidateEvs[candNum] << "Tree";
     TTree* currTree = (TTree*)inFile->Get(name.str().c_str());
 
+
+    TH2D* hist1 = new TH2D("hist1","minbias mapPeak vs template; template; map peak",100,0,1,350,0,0.35);
+
     name.str("");
     name << "eventNumber == " << candidateEvs[candNum];
-    currTree->Draw("peak[0][0].value:template.coherent[0][0].cRay[4]","","colz");
+    currTree->Draw("template.coherent[0][0].cRay[4]:peak[0][0].value","","colz");
     currTree->SetMarkerStyle(29);
     currTree->SetMarkerColor(kRed);
-    currTree->Draw("peak[0][0].value:template.coherent[0][0].cRay[4]",name.str().c_str(),"same");
+    currTree->Draw("template.coherent[0][0].cRay[4]:peak[0][0].value",name.str().c_str(),"same");
 
     if (draw) {
       name.str("");
@@ -563,13 +567,14 @@ void drawCandidateClusters(double threshold,bool draw=false) {
       c1->SaveAs(name.str().c_str());
     }
 
-    
+    TH2D* hist2 = new TH2D("hist2","minbias mapPeak vs template; template; map peak",450,0,45,800,0,800);    
+
     name.str("");
     name << "eventNumber == " << candidateEvs[candNum];
-    currTree->Draw("peak[0][0].snr:deconvolved_filtered[0][0].peakHilbert","","colz");
+    currTree->Draw("deconvolved_filtered[0][0].peakHilbert:peak[0][0].snr","","colz");
     currTree->SetMarkerStyle(29);
     currTree->SetMarkerColor(kRed);
-    currTree->Draw("peak[0][0].snr:deconvolved_filtered[0][0].peakHilbert",name.str().c_str(),"same");
+    currTree->Draw("deconvolved_filtered[0][0].peakHilbert:peak[0][0].snr",name.str().c_str(),"same");
 
     if (draw) {
       name.str("");
