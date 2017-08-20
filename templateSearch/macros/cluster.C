@@ -497,7 +497,7 @@ void makeMinbiasBackgroundHist() {
   TFile *outFile = TFile::Open("minbiasBackgrounds.root","recreate");
 
   TH2D* hist1 = new TH2D("hist1","minbias mapPeak vs template; template; map peak",100,0,1,350,0,0.35);
-  summaryTree->Draw("template.coherent[0][0].cRay[4]:peak[0][0].value >> hist1","!flags.isRF","colz");
+  summaryTree->Draw("peak[0][0].value:template.coherent[0][0].cRay[4] >> hist1","!flags.isRF","colz");
   hist1->Write();
 
   TH2D* hist2 = new TH2D("hist2","minbias mapPeak vs template; template; map peak",450,0,45,800,0,800);
@@ -556,10 +556,10 @@ void drawCandidateClusters(double threshold,bool draw=false) {
 
     name.str("");
     name << "eventNumber == " << candidateEvs[candNum];
-    currTree->Draw("template.coherent[0][0].cRay[4]:peak[0][0].value","","colz");
+    currTree->Draw("peak[0][0].value:template.coherent[0][0].cRay[4] >> hist1","","colz");
     currTree->SetMarkerStyle(29);
     currTree->SetMarkerColor(kRed);
-    currTree->Draw("template.coherent[0][0].cRay[4]:peak[0][0].value",name.str().c_str(),"same");
+    currTree->Draw("peak[0][0].value:template.coherent[0][0].cRay[4]",name.str().c_str(),"same");
 
     if (draw) {
       name.str("");
@@ -571,7 +571,7 @@ void drawCandidateClusters(double threshold,bool draw=false) {
 
     name.str("");
     name << "eventNumber == " << candidateEvs[candNum];
-    currTree->Draw("deconvolved_filtered[0][0].peakHilbert:peak[0][0].snr","","colz");
+    currTree->Draw("deconvolved_filtered[0][0].peakHilbert:peak[0][0].snr >> hist2","","colz");
     currTree->SetMarkerStyle(29);
     currTree->SetMarkerColor(kRed);
     currTree->Draw("deconvolved_filtered[0][0].peakHilbert:peak[0][0].snr",name.str().c_str(),"same");
