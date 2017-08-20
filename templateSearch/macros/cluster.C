@@ -375,7 +375,7 @@ void saveEventsNearCandidates(double threshold, string outFileName="") {
     candidateGPS[ev] = new UsefulAdu5Pat(gpstemp);
 
   }
- 
+  cutFile->Close();
 
   //make an output file and trees, and save all the candidate info
   if (outFileName == "") outFileName = "candidateClustering.root";
@@ -468,4 +468,116 @@ void saveEventsNearCandidates(double threshold, string outFileName="") {
 
   outFile->Close();
 
+}
+
+
+
+/*-------------------
+  Candidate Clustering Stuff
+
+ */
+
+
+void makeMinbiasBackgroundHist() {
+  /*
+    drawCanidateClusters needs background plots, gotta run this to make 'em
+  */
+
+  TFile *inFile = TFile::Open("07.28.17_17h_decimated.root");
+  if (!inFile->IsOpen()) {
+    cout << "Couldn't open file" << endl;
+    return;
+  }
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+
+  int lenEntries = summaryTree->GetEntries();
+  cout << "got " << lenEntries << " entries" << endl;
+
+  TFile *outFile = TFile::Open("minbiasBackgrounds.root","recreate");
+
+  TH2D* hist1 = new TH2D("hist1","minbias mapPeak vs template; template; map peak",100,0,1,350,0,0.35);
+  summaryTree->Draw("template.coherent[0][0].cRay[4]:peak[0][0].value >> hist1","!flags.isRF","colz");
+  hist1->Write();
+
+  TH2D* hist2 = new TH2D("hist2","minbias mapPeak vs template; template; map peak",450,0,45,800,0,800);
+  summaryTree->Draw("deconvolved_filtered[0][0].peakHilbert:peak[0][0].snr >> hist2","!flags.isRF","colz");
+  hist2->Write();
+   
+  outFile->Close();
+
+  return;
+}
+
+
+void drawCandidateClusters(double threshold,bool draw=false) {
+  stringstream name;
+  
+  //open the results file
+  TFile *inFile = TFile::Open("candidateCluster_40.root");
+  if (!inFile->IsOpen()) {
+    cout << "Couldn't open file" << endl;
+    return;
+  }
+
+  
+  //parsing the results file is a mess I don't want to deal with, so just get the "candidate" events again
+  TFile *clusterFile = TFile::Open("cluster.root");
+  if (!clusterFile->IsOpen()) {
+    cout << "Couldn't find cluster.root, quitting " << endl;
+    return;
+  }
+  TGraph *clusteredEvs = (TGraph*)clusterFile->Get("gClosest");
+  vector<int> candidateEvs;
+  for (int ev=0; ev<clusteredEvs->GetN(); ev++) {
+    if (clusteredEvs->GetY()[ev] >= threshold) candidateEvs.push_back(clusteredEvs->GetX()[ev]);
+  }
+  const int numCandidateEvs = candidateEvs.size();
+  clusterFile->Close();
+
+  cout << "Found " << numCandidateEvs << " Candidate Events:" << endl;
+
+
+  TCanvas *c1 = new TCanvas("c1","c1",1000,600);
+  for (int candNum=0; candNum<numCandidateEvs; candNum++) {
+    
+    c1->Clear();
+
+    name.str("");
+    name << "hCluster_" << candidateEvs[candNum];
+    TH1D* currHist = (TH1D*)inFile->Get(name.str().c_str());
+
+    name.str("");
+    name << "ev" << candidateEvs[candNum] << "Tree";
+    TTree* currTree = (TTree*)inFile->Get(name.str().c_str());
+
+    name.str("");
+    name << "eventNumber == " << candidateEvs[candNum];
+    currTree->Draw("peak[0][0].value:template.coherent[0][0].cRay[4]","","colz");
+    currTree->SetMarkerStyle(29);
+    currTree->SetMarkerColor(kRed);
+    currTree->Draw("peak[0][0].value:template.coherent[0][0].cRay[4]",name.str().c_str(),"same");
+
+    if (draw) {
+      name.str("");
+      name << "plots/ev" << candidateEvs[candNum] << "_1.png";
+      c1->SaveAs(name.str().c_str());
+    }
+
+    
+    name.str("");
+    name << "eventNumber == " << candidateEvs[candNum];
+    currTree->Draw("peak[0][0].snr:deconvolved_filtered[0][0].peakHilbert","","colz");
+    currTree->SetMarkerStyle(29);
+    currTree->SetMarkerColor(kRed);
+    currTree->Draw("peak[0][0].snr:deconvolved_filtered[0][0].peakHilbert",name.str().c_str(),"same");
+
+    if (draw) {
+      name.str("");
+      name << "plots/ev" << candidateEvs[candNum] << "_2.png";
+      c1->SaveAs(name.str().c_str());
+    }
+
+  }
+
+  return;
 }
