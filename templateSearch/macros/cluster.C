@@ -1049,10 +1049,10 @@ void cluster() {
 }
 
 
-void cluster(int numSplits, int split) {
+void cluster(int numSplits, int split,string baseDir) {
 
   stringstream name;
-  name << "baseCluster_" << split << ".root";
+  name << baseDir << "/baseCluster_" << split << ".root";
 
   saveEventsNearBases(40,numSplits,split,name.str());
 
