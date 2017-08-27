@@ -330,13 +330,16 @@ int main(int argc, char* argv[]) {
   /* CONFIGURATION FOR THE ANALYSIS!!!!!! */
   //and a configuration for the analysis
   UCorrelator::AnalysisConfig *config = new UCorrelator::AnalysisConfig(); 
+
   //set the response to my "single" response
   config->response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseIndividualBRotter;
   //  config->response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseSingleBRotter;
-
   AnitaResponse::AllPassDeconvolution *apd = new AnitaResponse::AllPassDeconvolution();
   config->deconvolution_method = apd;
 
+  //set the stokes windowing to use the entire waveform
+  config->windowStokes = false;
+  
 
 
 
