@@ -1032,12 +1032,57 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
 
 
 
+void mergeClusterHistograms(int numCores=32,int numBases=104) {
+  /*
+    I do clustering with the cluster servers so I gotta merge the results by hand
+   */
 
 
+  stringstream name;
+
+  TChain *eventSummary = new TChain("eventSummary","eventSummary");
 
 
+  TH1D *hCluster[numBases];
+  TList *histList[numBases];
+  for (int base=0; base<numBases; base++) {
+    histList[base] = new TList;
+  }
 
 
+  for (int i=0; i<numCores; i++) {
+    name.str("");
+    name << "baseCluster_" << i << ".root";
+    eventSummary->Add(name.str().c_str());
+
+    TFile *inFile = TFile::Open(name.str().c_str());
+    for (int base=0; base<numBases; base++) {
+      name.str("");
+      name << "hCluster_" << base;
+      TH1D *currHist = (TH1D*)inFile->Get(name.str().c_str());
+      if (base==0) hCluster[base] = (TH1D*)currHist->Clone();
+      histList[base]->Add(currHist);
+    }
+  }
+
+
+  for (int base=0; base<numBases; base++) {
+    hCluster[base]->Merge(histList[base]);
+  }
+  
+    
+  TFile *outFile = TFile::Open("mergeBaseClusters.root","recreate");
+  for (int base=0; base<numBases; base++) {
+    hCluster[base]->Write();
+  }
+  
+  cout << "Copying summary" << endl;
+  eventSummary->CloneTree(-1,"fast");
+
+  outFile->Close();
+
+  return;
+}
 
 
 
