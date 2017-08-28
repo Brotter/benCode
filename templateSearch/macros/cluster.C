@@ -1032,7 +1032,7 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
 
 
 
-void mergeClusterHistograms(int numCores=32,int numBases=104) {
+void mergeClusterHistograms(int numCores=32,int numBases=104,string date="08.23.17_18h") {
   /*
     I do clustering with the cluster servers so I gotta merge the results by hand
    */
@@ -1049,10 +1049,11 @@ void mergeClusterHistograms(int numCores=32,int numBases=104) {
     histList[base] = new TList;
   }
 
+  char* basedir = getenv("ANITA3_RESULTSDIR");
 
   for (int i=0; i<numCores; i++) {
     name.str("");
-    name << "baseCluster_" << i << ".root";
+    name << basedir << "cluster/" << date << "/baseCluster_" << i << ".root";
     eventSummary->Add(name.str().c_str());
 
     TFile *inFile = TFile::Open(name.str().c_str());
