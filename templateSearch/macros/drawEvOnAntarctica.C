@@ -68,7 +68,7 @@ void fillBaseList(Acclaim::AntarcticaMapPlotter *aMap,TGraph *gBaseList) {
   return;
 }
 
-void drawEvOnAntarctica(string fileName="cuts.root") {
+void drawCandidatesOnAntarctica(string fileName="cuts.root") {
 
   /*
 
@@ -213,8 +213,8 @@ void drawEvOnAntarctica(string fileName="cuts.root") {
   aMap->setCurrentTGraph("anitaPosition");
   aMap->DrawTGraph("p");
 
-  aMap->setCurrentTGraph("baseList");
-  aMap->DrawTGraph("psame");
+  //  aMap->setCurrentTGraph("baseList");
+  //  aMap->DrawTGraph("psame");
 
   for (int i=0; i<arrows.size(); i++) {
   arrows[i]->Draw("");
@@ -223,12 +223,12 @@ void drawEvOnAntarctica(string fileName="cuts.root") {
   aMap->setCurrentTGraph("eventLocations");
   aMap->DrawTGraph("psame");
 
-  /*
+  
   for (int i=0; i<highlights.size(); i++) {
-    highlights[i]->Draw("psame");
     highlightArrows[i]->Draw();
+    highlights[i]->Draw("psame");
   }
-  */
+  
 
 
 
@@ -238,3 +238,118 @@ void drawEvOnAntarctica(string fileName="cuts.root") {
 
 
 
+
+
+
+void drawFlightPathOnAntarctica() {
+
+  /*
+    I need a plot of the flight path in chapter two
+   */
+
+  //decimated is messed up right now
+  //  TFile *inFile = TFile::Open("07.28.17_17h_decimated.root");
+  //  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+  //AnitaEventSummary *eventSummary = NULL;
+  //  summaryTree->SetBranchAddress("eventSummary",&eventSummary);
+
+  TFile *inFile = TFile::Open("/Users/brotter/anita16/rootFilesLocal/gpsFileAll.root");
+  TTree* summaryTree = (TTree*)inFile->Get("adu5PatTree");
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("pat",&gps);
+
+  int lenEntries = summaryTree->GetEntries();
+
+
+  double x,y;
+
+  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
+  aMap->addTGraph("anitaPosition","anitaPosition");
+  TGraph *anitaPosition = aMap->getCurrentTGraph();
+  //  anitaPosition->SetMarkerColor(kWhite);
+  
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (entry%10000 == 0) cout << entry << "/" << lenEntries << "(" << (100.*entry)/lenEntries << "%)" << endl;
+    summaryTree->GetEntry(entry);
+    //    if (eventSummary->flags.isRF) continue;
+    //    aMap->getRelXYFromLatLong(eventSummary->anitaLocation.latitude,eventSummary->anitaLocation.longitude,x,y);
+    aMap->getRelXYFromLatLong(gps->latitude,gps->longitude,x,y);    
+    
+        anitaPosition->SetPoint(entry,x,y);
+  }
+
+
+
+  aMap->DrawTGraph("p");
+
+}
+
+
+
+
+void drawClusteredBases() {
+
+  /*
+
+    I have the code that clusters things to known bases, so lets plot those onto the continent too!
+
+  */
+
+
+  
+  TFile *inFile = TFile::Open("mergeBaseClusters.root");
+  TTree* summaryTree = (TTree*)inFile->Get("eventSummary");
+  AnitaEventSummary *eventSummary = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&eventSummary);
+
+  int lenEntries = summaryTree->GetEntries();
+
+
+  double x,y;
+
+  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
+  aMap->addHistogram("baseCluster","baseCluster",1000,1000);
+  TH2D *baseCluster = aMap->getCurrentHistogram();
+  aMap->addTGraph("anitaPosition","anitaPosition");
+  TGraph *anitaPosition = aMap->getCurrentTGraph();
+  anitaPosition->SetMarkerColor(kWhite);
+  
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (entry%10000 == 0) cout << entry << "/" << lenEntries << "(" << (100.*entry)/lenEntries << "%)" << endl;
+    summaryTree->GetEntry(entry);
+    //    if (eventSummary->flags.isRF) continue;
+    //    aMap->getRelXYFromLatLong(eventSummary->anitaLocation.latitude,eventSummary->anitaLocation.longitude,x,y);
+    aMap->getRelXYFromLatLong(eventSummary->peak[0][0].latitude,eventSummary->peak[0][0].longitude,x,y);    
+    baseCluster->Fill(x,y);
+
+    aMap->getRelXYFromLatLong(eventSummary->anitaLocation.latitude,eventSummary->anitaLocation.longitude,x,y);
+    anitaPosition->SetPoint(entry,x,y);
+  }
+
+
+  aMap->setCurrentHistogram("baseCluster");
+  aMap->DrawHist("colz");
+
+  aMap->setCurrentTGraph("anitaPosition");
+  aMap->DrawTGraph("psame");
+
+
+  aMap->addTGraph("baseList","baseList");
+  TGraph *gBaseList = aMap->getCurrentTGraph();
+  gBaseList->SetMarkerStyle(20); //20=filled circle
+  gBaseList->SetMarkerSize(0.2);
+  gBaseList->SetMarkerColor(kRed);
+  fillBaseList(aMap,gBaseList);
+
+
+  aMap->setCurrentTGraph("baseList");
+  aMap->DrawTGraph("psame");
+
+
+}
+
+
+
+void drawEvOnAntarctica() {
+  cout << "loaded drawEvOnAntarctica.C" << endl;
+}
