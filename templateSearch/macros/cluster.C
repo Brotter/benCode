@@ -1049,7 +1049,7 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
   baseTree->SetBranchAddress("fullLat",&lat);
   baseTree->SetBranchAddress("fullLong",&lon);
   baseTree->SetBranchAddress("alt",&alt);
-  TString *baseName;
+  string *baseName = NULL;
   baseTree->SetBranchAddress("name",&baseName);
 
   int numBases = baseTree->GetEntries();
