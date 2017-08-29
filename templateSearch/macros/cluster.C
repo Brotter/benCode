@@ -1057,21 +1057,29 @@ void mergeClusterHistograms(int numCores=32,int numBases=104,string date="08.23.
   for (int i=0; i<numCores; i++) {
     name.str("");
     name << basedir << "cluster/" << date << "/baseCluster_" << i << ".root";
+    cout << "loading: " << name.str() << endl;
+
     eventSummary->Add(name.str().c_str());
 
     TFile *inFile = TFile::Open(name.str().c_str());
+
     for (int base=0; base<numBases; base++) {
       name.str("");
       name << "hCluster_" << base;
       TH1D *currHist = (TH1D*)inFile->Get(name.str().c_str());
-      if (base==0) hCluster[base] = (TH1D*)currHist->Clone();
+      if (i==0) hCluster[base] = (TH1D*)currHist->Clone();
+      cout << name.str() << " " << currHist->GetEntries() << endl;
       histList[base]->Add(currHist);
     }
+
   }
 
-
+  cout << "merging" << endl;
   for (int base=0; base<numBases; base++) {
+    cout << "base:" << base << endl;
+    hCluster[base]->Reset();
     hCluster[base]->Merge(histList[base]);
+
   }
   
     
@@ -1082,6 +1090,8 @@ void mergeClusterHistograms(int numCores=32,int numBases=104,string date="08.23.
   
   cout << "Copying summary" << endl;
   eventSummary->CloneTree(-1,"fast");
+  outFile->Write();
+  
 
   outFile->Close();
 
