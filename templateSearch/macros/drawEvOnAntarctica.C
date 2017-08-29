@@ -298,7 +298,7 @@ void drawClusteredBases() {
 
   
   TFile *inFile = TFile::Open("mergeBaseClusters.root");
-  TTree* summaryTree = (TTree*)inFile->Get("eventSummary");
+  TTree* summaryTree = (TTree*)inFile->Get("summaryTree");
   AnitaEventSummary *eventSummary = NULL;
   summaryTree->SetBranchAddress("eventSummary",&eventSummary);
 
