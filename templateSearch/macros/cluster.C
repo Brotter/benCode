@@ -9,6 +9,44 @@
 
 bool debug=false;
 
+
+//I need to make this a library or something
+TH1* makeNormCumulative(TH1* inHist,Bool_t forward=true) {
+  /*
+    Makes a "normalized cumulative cut fraction" graph I think
+
+    Should let me set cuts on a specific amount of "reduction"
+
+    forward specifies the direction of the cumulative sum
+   */
+
+
+  TH1* copyHist = (TH1*)inHist->Clone();
+  
+  double integral = 0;
+  for (int i=0; i<copyHist->GetNbinsX(); i++) {
+    double value = copyHist->GetBinContent(i);
+    integral += value;
+  }
+
+  copyHist->Scale(1./integral);
+  TH1* outHist = (TH1*)copyHist->GetCumulative(forward);
+
+  for (int i=0; i<copyHist->GetNbinsX()+1; i++) {
+    double value = outHist->GetBinContent(i);
+    outHist->SetBinContent(i,1.-value);
+
+  }
+  delete copyHist;
+
+  if (forward) outHist->GetYaxis()->SetTitle("Surviving Fraction");
+  else         outHist->GetYaxis()->SetTitle("Fraction of Events Cut");
+  return outHist;
+}
+
+
+
+
 bool notNotable(AnitaEventSummary *summary) {
   /*
     in case I included ones that aren't interesting
@@ -219,13 +257,15 @@ void categorizeClusters(double threshold) {
 
     more complicated way to cluster that categorizes things instead of just comparing them vs each other
 
+
+    UNFINISHED
    */
 
   //grab the file with all the events that survive cuts
   TFile *inFile = TFile::Open("cuts.root");
-  TTree *summaryTree = (TTree*)inFile->Get("eventSummary");
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
   if (summaryTree == NULL) {
-    cout << "Couldn't find cutSummary in file! Quitting" << endl;
+    cout << "Couldn't find summaryTree in cuts.root! Quitting" << endl;
     return;
   }
   AnitaEventSummary *summary = NULL;
@@ -331,7 +371,11 @@ void saveEventsNearCandidates(double threshold, string outFileName="") {
     cout << "Couldn't find cuts.root, quitting " << endl;
     return;
   }
-  TTree *cutTree = (TTree*)cutFile->Get("eventSummary");
+  TTree *cutTree = (TTree*)cutFile->Get("summaryTree");
+  if (cutTree == NULL) {
+    cout << "couldn't find summaryTree in cuts.root" << endl;
+    return;
+  }
   cutTree->BuildIndex("eventNumber");
   AnitaEventSummary *cutSum = NULL;
   cutTree->SetBranchAddress("eventSummary",&cutSum);
@@ -506,6 +550,14 @@ void makeMinbiasBackgroundHist() {
 }
 
 void drawCandidateClusters(double threshold,bool save=false) {
+  /*
+
+    Draws and saves a bunch of images for each "candidate" (determined by `threshold`) that show their distributions
+    compared to a pre-made list of events that cluster with that candidate.  So you have to run saveEventsNearCandidates() first
+
+   */
+
+
   stringstream name;
   
   //open the results file
@@ -642,6 +694,10 @@ void drawCandidateClusters(double threshold,bool save=false) {
 
 
 void draw2DCandidateClusters(double threshold,bool save=false) {
+  /*
+    Same as the 1d counterpart
+   */
+
   stringstream name;
   
   //open the results file
@@ -774,9 +830,77 @@ void draw2DCandidateClusters(double threshold,bool save=false) {
 }
 
 
+void saveCandidates(double threshold) {
+  /*
+    
+    Find all the candidates further than threshold from another event, and save their summaries to a separate file
+
+   */
+
+  //get the closest-distance graph
+  TFile *clusterFile = TFile::Open("cluster.root");
+  if (!clusterFile->IsOpen()) {
+    cout << "Couldn't find cluster.root, run clusterEventList() first " << endl;
+    return;
+  }
+  TGraph *clusteredEvs = (TGraph*)clusterFile->Get("gClosest");
+ 
+
+  //get the summaries for all the "candidates" that passed cuts
+  TFile *inFile = TFile::Open("cuts.root");
+  if (!inFile->IsOpen()) {
+    cout << "Couldn't find cuts.root, run separateNotable_fromFile() first " << endl;
+    return;
+  }
+  TTree *summaryTree = (TTree*)inFile->Get("eventSummary");
+  if (summaryTree == NULL) {
+    cout << "Couldn't find summaryTree in cuts.root" << endl;
+    return;
+  }
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *templateSummary = NULL;
+  AnitaNoiseSummary *noiseSummary = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&templateSummary);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSummary);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+
+  summaryTree->BuildIndex("eventNumber");
 
 
+  //make output tree and output file
+  TFile *outFile = TFile::Open("candidates.root","recreate");
+  TTree *outTree = new TTree("summaryTree","summaryTree");
+  outTree->Branch("eventSummary",&evSum); 
+  outTree->Branch("eventSummary",&evSum);
+  outTree->Branch("template",&templateSummary);
+  outTree->Branch("noiseSummary",&noiseSummary);
+  outTree->Branch("gpsEvent",&gps);
 
+  
+  //loop through clusteredEvents graph and save the ones that are above threshold
+
+  for (int i=0; i<clusteredEvs->GetN(); i++) {
+    double closest = clusteredEvs->GetY()[i];
+    if (closest > threshold) {
+      int evNum = clusteredEvs->GetX()[i];
+      int entry = summaryTree->GetEntryNumberWithBestIndex(evNum);
+      if (entry < 0) {
+	cout << "event not found: " << evNum << " -> " << entry << endl;
+	break;
+      }
+      summaryTree->GetEntry(entry);
+      outFile->cd();
+      outTree->Fill();
+    }
+  }
+    
+  outTree->Write();
+  outFile->Close();
+
+  return;
+}
 
 
 /*
@@ -852,7 +976,7 @@ double calcBaseDistance(AnitaEventSummary *event, UsefulAdu5Pat *gps,double lat,
 
    */
 
-  if (gps->getDistanceFromSource(lon,lat,alt) > 1000e3) {
+  if (gps->getDistanceFromSource(lat,lon,alt) > 1000e3) {
     return -9999;
   }
 
@@ -895,6 +1019,7 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
 
   Basically identical to saveEventsNearCandidates
 
+
  */
   stringstream name,title;
 
@@ -924,6 +1049,8 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
   baseTree->SetBranchAddress("fullLat",&lat);
   baseTree->SetBranchAddress("fullLong",&lon);
   baseTree->SetBranchAddress("alt",&alt);
+  string *baseName;
+  baseTree->SetBranchAddress("name",&baseName);
 
   int numBases = baseTree->GetEntries();
 
@@ -932,7 +1059,7 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
   //make an output file and trees, and save all the candidate info
   if (outFileName == "") outFileName = "baseClustering.root";
   TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
-  TTree *outTree = new TTree("eventSummary","eventSummary");
+  TTree *outTree = new TTree("summaryTree","summaryTree");
   outTree->Branch("eventSummary",&eventSummary);
   outTree->Branch("template",&templateSummary);
   outTree->Branch("noiseSummary",&noiseSummary);
@@ -942,10 +1069,11 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
   //histograms to record distance distributions past threshold
   TH1D *hCluster[numBases];
   for (int base=0; base<numBases; base++) {
+    baseTree->GetEntry(base);
     name.str("");
     name << "hCluster_" << base;
     title.str("");
-    title << "Event Cluster Distance to Base Num " << base;
+    title << "Event Cluster Distance to " << *baseName;
     hCluster[base] = new TH1D(name.str().c_str(),title.str().c_str(),1000,0,threshold*4);
   }
 
@@ -1098,6 +1226,89 @@ void mergeClusterHistograms(int numCores=32,int numBases=104,string date="08.23.
   return;
 }
 
+
+void drawBaseDistributionsWithCandidates(bool cumulative=false) {
+  /*
+
+    I want to see what the distributions of known base pointed events is vs the distributions of candidates
+
+   */
+
+
+  //get base pointed event summaries
+  TFile *baseFile = TFile::Open("mergeBaseClusters.root");
+  TTree *baseTree = (TTree*)baseFile->Get("eventSummary");
+
+  //get candidate event summaries
+  TFile *candidateFile = TFile::Open("candidates.root");
+  TTree *candidateTree = (TTree*)candidateFile->Get("summaryTree");
+  candidateTree->SetLineColor(kRed);
+
+  TCanvas *c1 = new TCanvas("c1","c1",1000,600);
+  TVirtualPad *pad;
+
+  
+  TH1D *hMapPeak = new TH1D("hMapPeak","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
+  TH1D *hMapPeakCand = new TH1D("hMapPeakCand","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
+  baseTree->Draw("peak[0][0].value >> hMapPeak");
+  candidateTree->Draw("peak[0][0].value >> hMapPeakCand","","same");
+  TH1D *hMapSNR = new TH1D("hMapSNR","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
+  TH1D *hMapSNRCand = new TH1D("hMapSNRCand","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
+  baseTree->Draw("peak[0][0].snr >> hMapSNR");
+  candidateTree->Draw("peak[0][0].snr >> hMapSNRCand","","same");
+  TH1D *hPeakHilbertDF = new TH1D("hPeakHilbertDF","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
+  TH1D *hPeakHilbertDFCand = new TH1D("hPeakHilbertDFCand","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
+  baseTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDF");
+  candidateTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDFCand","","same");
+  TH1D *hTemplate = new TH1D("hTemplate","cRay +4 Correlation;cRay +4 Correlation;count",250,0,1);
+  TH1D *hTemplateCand = new TH1D("hTemplateCand","cRay +4 Correlation;cRay +4 Correlation;count",250,0,1);
+  baseTree->Draw("template.coherent[0][0].cRay[4] >> hTemplate");
+  candidateTree->Draw("template.coherent[0][0].cRay[4] >> hTemplateCand","","same");
+
+  hMapPeakCand->SetLineColor(kRed);
+  hMapSNRCand->SetLineColor(kRed);
+  hPeakHilbertDFCand->SetLineColor(kRed);
+  hTemplateCand->SetLineColor(kRed);
+
+  c1->Clear();
+  c1->Divide(2,2);
+
+  pad = c1->cd(1);
+  pad->SetLogy();
+  if (cumulative) {
+    makeNormCumulative(hMapPeak)->Draw();
+    makeNormCumulative(hMapPeakCand)->Draw("same"); }
+  else {
+    hMapPeak->Draw();
+    hMapPeakCand->Draw("same"); }
+  pad = c1->cd(2);
+  pad->SetLogy();
+  if (cumulative) {
+    makeNormCumulative(hMapSNR)->Draw();
+    makeNormCumulative(hMapSNRCand)->Draw("same"); }
+  else {
+    hMapSNR->Draw();
+    hMapSNRCand->Draw("same"); }  
+  pad = c1->cd(3);
+  pad->SetLogy();
+  if (cumulative) {
+    makeNormCumulative(hPeakHilbertDF)->Draw();
+    makeNormCumulative(hPeakHilbertDFCand)->Draw("same"); }
+  else {
+    hPeakHilbertDF->Draw();
+    hPeakHilbertDFCand->Draw("same"); }
+  pad = c1->cd(4);
+  pad->SetLogy();
+  if (cumulative) {
+    makeNormCumulative(hTemplate)->Draw();
+    makeNormCumulative(hTemplateCand)->Draw("same"); }
+  else {
+    hTemplate->Draw();
+    hTemplateCand->Draw("same"); }
+   
+
+  return;
+}
 
 
 /*********************************************************************************
