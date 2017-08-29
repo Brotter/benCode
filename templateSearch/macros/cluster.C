@@ -900,7 +900,7 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
 
 
   //get ALL the events
-  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C(\"07.28.17_17h/\",false)");
 
   int lenEntries = summaryTree->GetEntries();
   cout << lenEntries << " total entries found" << endl;
@@ -1001,16 +1001,19 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
 
 
     bool filled=false;
+    
     for (int base=0; base<numBases; base++) {
       baseTree->GetEntry(base);
-      double dist = calcBaseDistance(eventSummary,usefulGPS,lat,lon,alt);
+      double tempAlt = alt;
+      if (tempAlt<0) tempAlt=0;
+      double dist = calcBaseDistance(eventSummary,usefulGPS,lat,lon,tempAlt);
       hCluster[base]->Fill(dist);
       if (dist <= threshold && dist != -9999) {
+	close[base]++;
 	if (!filled) {
 	  outTree->Fill();
 	  filled = true;
 	}
-	close[base]++;
       }
     }
 
