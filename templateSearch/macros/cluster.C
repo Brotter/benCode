@@ -1331,18 +1331,22 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
   if (doCut) thermalCut = "peak[0][0].value > 0.0435 && peak[0][0].snr > 9.05 && deconvolved_filtered[0][0].peakHilbert > 47.5 && template.coherent[0][0].cRay[4] > 0.666";
   else thermalCut = "";
 
+  cout << "1/4" << endl;
   TH1D *hMapPeak = new TH1D("hMapPeak","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
   TH1D *hMapPeakCand = new TH1D("hMapPeakCand","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
   baseTree->Draw("peak[0][0].value >> hMapPeak",thermalCut);
   candidateTree->Draw("peak[0][0].value >> hMapPeakCand",thermalCut,"same");
+  cout << "2/4" << endl;
   TH1D *hMapSNR = new TH1D("hMapSNR","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
   TH1D *hMapSNRCand = new TH1D("hMapSNRCand","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
   baseTree->Draw("peak[0][0].snr >> hMapSNR",thermalCut);
   candidateTree->Draw("peak[0][0].snr >> hMapSNRCand",thermalCut,"same");
+  cout << "3/4" << endl;
   TH1D *hPeakHilbertDF = new TH1D("hPeakHilbertDF","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
   TH1D *hPeakHilbertDFCand = new TH1D("hPeakHilbertDFCand","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
   baseTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDF",thermalCut);
   candidateTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDFCand",thermalCut,"same");
+  cout << "4/4" << endl;
   TH1D *hTemplate = new TH1D("hTemplate","cRay +4 Correlation;cRay +4 Correlation;count",250,0,1);
   TH1D *hTemplateCand = new TH1D("hTemplateCand","cRay +4 Correlation;cRay +4 Correlation;count",250,0,1);
   baseTree->Draw("template.coherent[0][0].cRay[4] >> hTemplate",thermalCut);
@@ -1356,7 +1360,6 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
   c1->Clear();
   c1->Divide(2,2);
 
-  cout << "1/4" << endl;
   pad = c1->cd(1);
   pad->SetLogy();
   if (cumulative) {
@@ -1366,7 +1369,6 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
     hMapPeak->Draw();
     hMapPeakCand->Draw("same"); }
 
-  cout << "2/4" << endl;
   pad = c1->cd(2);
   pad->SetLogy();
   if (cumulative) {
@@ -1376,7 +1378,6 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
     hMapSNR->Draw();
     hMapSNRCand->Draw("same"); }  
 
-  cout << "3/4" << endl;
   pad = c1->cd(3);
   pad->SetLogy();
   if (cumulative) {
@@ -1386,7 +1387,6 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
     hPeakHilbertDF->Draw();
     hPeakHilbertDFCand->Draw("same"); }
 
-  cout << "4/4" << endl;
   pad = c1->cd(4);
   pad->SetLogy();
   if (cumulative) {
