@@ -1181,7 +1181,7 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
 
 
 
-void mergeClusterHistograms(int numCores=32,int numBases=104,string date="08.28.17_22h") {
+void mergeBaseClusterBoth(int numCores=32,int numBases=104,string date="08.28.17_22h") {
   /*
     I do clustering with the cluster servers so I gotta merge the results by hand
    */
@@ -1244,8 +1244,69 @@ void mergeClusterHistograms(int numCores=32,int numBases=104,string date="08.28.
   return;
 }
 
+void drawBaseClusterHists() {
+  /*	
+	I made all those histograms for base clusters, so lets plot them 
+  */
+  stringstream name;
+  
+  const int numBases = 104; //thats just how many there are                                                                                     
+  TCanvas *c1 = new TCanvas("c1","",1000,600);
+  
 
-void drawBaseDistributionsWithCandidates(bool cumulative=false) {
+  TFile *inFile = TFile::Open("mergeBaseClusters.root");
+
+  for (int base=0; base<numBases; base++) {
+    name.str("");
+    name << "hCluster_"<< base;
+    TH1D* currHist = (TH1D*)inFile->Get(name.str().c_str());
+
+    if (currHist == NULL) continue;
+
+    if (currHist->Integral() == 0) continue;
+    
+    currHist->Draw();
+    
+    name.str("");
+    name << "baseDists/base" << base << ".png";
+    c1->SaveAs(name.str().c_str());
+  }
+}
+
+
+
+void drawQuadrent(TH1D *hBlackIn, TH1D *hRedIn) {
+
+  TH1 *hRed = makeNormCumulative(hRedIn,false);
+  TH1 *hBlack   = makeNormCumulative(hBlackIn);
+
+  hBlack->SetStats(false);
+  hRed->SetStats(false);
+
+  hBlack->GetYaxis()->SetRangeUser(1e-2,1);
+  hRed->GetYaxis()->SetRangeUser(1e-2,1);
+
+  hRed->GetYaxis()->SetTitleColor(kRed);
+  hRed->SetLineColor(kRed);
+  hBlack->SetLineColor(kBlack);
+
+  TPad *p1 = new TPad("p1","",0,0,1,1);
+  p1->SetLogy();
+  TPad *p2 = new TPad("p2","",0,0,1,1);
+  p2->SetLogy();
+  p2->SetFillStyle(4000);
+  p2->SetFillColor(0);
+  p2->SetFrameFillStyle(0);
+  p1->Draw();
+  p1->cd();
+  hBlack->Draw();
+  p2->Draw();
+  p2->cd();
+  hRed->Draw("Y+");
+
+}
+
+void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false) {
   /*
 
     I want to see what the distributions of known base pointed events is vs the distributions of candidates
@@ -1255,7 +1316,7 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false) {
 
   //get base pointed event summaries
   TFile *baseFile = TFile::Open("mergeBaseClusters.root");
-  TTree *baseTree = (TTree*)baseFile->Get("eventSummary");
+  TTree *baseTree = (TTree*)baseFile->Get("summaryTree");
 
   //get candidate event summaries
   TFile *candidateFile = TFile::Open("candidates.root");
@@ -1266,22 +1327,26 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false) {
   TVirtualPad *pad;
 
   
+  TCut thermalCut;
+  if (doCut) thermalCut = "peak[0][0].value > 0.0435 && peak[0][0].snr > 9.05 && deconvolved_filtered[0][0].peakHilbert > 47.5 && template.coherent[0][0].cRay[4] > 0.666";
+  else thermalCut = "";
+
   TH1D *hMapPeak = new TH1D("hMapPeak","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
   TH1D *hMapPeakCand = new TH1D("hMapPeakCand","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
-  baseTree->Draw("peak[0][0].value >> hMapPeak");
-  candidateTree->Draw("peak[0][0].value >> hMapPeakCand","","same");
+  baseTree->Draw("peak[0][0].value >> hMapPeak",thermalCut);
+  candidateTree->Draw("peak[0][0].value >> hMapPeakCand",thermalCut,"same");
   TH1D *hMapSNR = new TH1D("hMapSNR","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
   TH1D *hMapSNRCand = new TH1D("hMapSNRCand","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
-  baseTree->Draw("peak[0][0].snr >> hMapSNR");
-  candidateTree->Draw("peak[0][0].snr >> hMapSNRCand","","same");
+  baseTree->Draw("peak[0][0].snr >> hMapSNR",thermalCut);
+  candidateTree->Draw("peak[0][0].snr >> hMapSNRCand",thermalCut,"same");
   TH1D *hPeakHilbertDF = new TH1D("hPeakHilbertDF","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
   TH1D *hPeakHilbertDFCand = new TH1D("hPeakHilbertDFCand","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
-  baseTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDF");
-  candidateTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDFCand","","same");
+  baseTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDF",thermalCut);
+  candidateTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDFCand",thermalCut,"same");
   TH1D *hTemplate = new TH1D("hTemplate","cRay +4 Correlation;cRay +4 Correlation;count",250,0,1);
   TH1D *hTemplateCand = new TH1D("hTemplateCand","cRay +4 Correlation;cRay +4 Correlation;count",250,0,1);
-  baseTree->Draw("template.coherent[0][0].cRay[4] >> hTemplate");
-  candidateTree->Draw("template.coherent[0][0].cRay[4] >> hTemplateCand","","same");
+  baseTree->Draw("template.coherent[0][0].cRay[4] >> hTemplate",thermalCut);
+  candidateTree->Draw("template.coherent[0][0].cRay[4] >> hTemplateCand",thermalCut,"same");
 
   hMapPeakCand->SetLineColor(kRed);
   hMapSNRCand->SetLineColor(kRed);
@@ -1291,35 +1356,42 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false) {
   c1->Clear();
   c1->Divide(2,2);
 
+  cout << "1/4" << endl;
   pad = c1->cd(1);
   pad->SetLogy();
   if (cumulative) {
-    makeNormCumulative(hMapPeak)->Draw();
-    makeNormCumulative(hMapPeakCand)->Draw("same"); }
+    drawQuadrent(hMapPeak,hMapPeakCand);
+  }
   else {
     hMapPeak->Draw();
     hMapPeakCand->Draw("same"); }
+
+  cout << "2/4" << endl;
   pad = c1->cd(2);
   pad->SetLogy();
   if (cumulative) {
-    makeNormCumulative(hMapSNR)->Draw();
-    makeNormCumulative(hMapSNRCand)->Draw("same"); }
+    drawQuadrent(hMapSNR,hMapSNRCand);
+  }
   else {
     hMapSNR->Draw();
     hMapSNRCand->Draw("same"); }  
+
+  cout << "3/4" << endl;
   pad = c1->cd(3);
   pad->SetLogy();
   if (cumulative) {
-    makeNormCumulative(hPeakHilbertDF)->Draw();
-    makeNormCumulative(hPeakHilbertDFCand)->Draw("same"); }
+    drawQuadrent(hPeakHilbertDF,hPeakHilbertDFCand);
+  }
   else {
     hPeakHilbertDF->Draw();
     hPeakHilbertDFCand->Draw("same"); }
+
+  cout << "4/4" << endl;
   pad = c1->cd(4);
   pad->SetLogy();
   if (cumulative) {
-    makeNormCumulative(hTemplate)->Draw();
-    makeNormCumulative(hTemplateCand)->Draw("same"); }
+    drawQuadrent(hTemplate,hTemplateCand);
+  }
   else {
     hTemplate->Draw();
     hTemplateCand->Draw("same"); }
@@ -1328,6 +1400,68 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false) {
   return;
 }
 
+
+void printCandidatePValues(bool doCut=true) {
+
+  /* 
+
+     Like it says, rushed for time
+
+   */
+
+  //get base pointed event summaries
+  TFile *baseFile = TFile::Open("mergeBaseClusters.root");
+  TTree *baseTree = (TTree*)baseFile->Get("summaryTree");
+
+  //get candidate event summaries
+  TFile *candidateFile = TFile::Open("candidates.root");
+  TTree *candidateTree = (TTree*)candidateFile->Get("summaryTree");
+  AnitaEventSummary *candSum = NULL;
+  candidateTree->SetBranchAddress("eventSummary",&candSum);
+  AnitaTemplateSummary *candTemp = NULL;
+  candidateTree->SetBranchAddress("template",&candTemp);
+
+  TCanvas *c1 = new TCanvas("c1","c1",1000,600);
+  TVirtualPad *pad;
+
+  
+  TCut thermalCut;
+  if (doCut) thermalCut = "peak[0][0].value > 0.0435 && peak[0][0].snr > 9.05 && deconvolved_filtered[0][0].peakHilbert > 47.5 && template.coherent[0][0].cRay[4] > 0.666";
+  else thermalCut = "";
+
+  TH1D *hMapPeak = new TH1D("hMapPeak","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
+  baseTree->Draw("peak[0][0].value >> hMapPeak",thermalCut);
+  TH1D *hMapSNR = new TH1D("hMapSNR","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
+  baseTree->Draw("peak[0][0].snr >> hMapSNR",thermalCut);
+  TH1D *hPeakHilbertDF = new TH1D("hPeakHilbertDF","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
+  baseTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDF",thermalCut);
+  TH1D *hTemplate = new TH1D("hTemplate","cRay +4 Correlation;cRay +4 Correlation;count",250,0,1);
+  baseTree->Draw("template.coherent[0][0].cRay[4] >> hTemplate",thermalCut);
+
+  TH1 *hMapPeakC   = makeNormCumulative(hMapPeak);
+  TH1 *hMapSNRC   = makeNormCumulative(hMapSNR);
+  TH1 *hPeakHilbertDFC   = makeNormCumulative(hPeakHilbertDF);
+  TH1 *hTemplateC   = makeNormCumulative(hTemplate);
+
+  for (int entry=0; entry<candidateTree->GetEntries(); entry++) {
+    candidateTree->GetEntry(entry);
+    int bin;
+    bin = hMapPeakC->GetXaxis()->FindBin(candSum->peak[0][0].value);
+    double mapPeakVal = hMapPeakC->GetBinContent(bin);
+
+    bin = hMapSNRC->GetXaxis()->FindBin(candSum->peak[0][0].snr);
+    double mapPeakSNR = hMapSNRC->GetBinContent(bin);
+
+    bin = hPeakHilbertDFC->GetXaxis()->FindBin(candSum->deconvolved_filtered[0][0].peakHilbert);
+    double peakHilbert = hPeakHilbertDFC->GetBinContent(bin);
+
+    bin = hTemplateC->GetXaxis()->FindBin(candTemp->coherent[0][0].cRay[4]);
+    double cRayTemp = hTemplateC->GetBinContent(bin);
+
+    cout << candSum->eventNumber << " " << mapPeakVal << " " << mapPeakSNR << " " << peakHilbert << " " << cRayTemp << " " <<  mapPeakVal*peakHilbert*cRayTemp << endl;
+  }
+
+}
 
 /*********************************************************************************
 In case you want to call from the command line you gotta edit this because macros are dumb!
