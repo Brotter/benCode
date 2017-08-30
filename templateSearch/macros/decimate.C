@@ -12,7 +12,7 @@
 
 
 
-void decimate(string date="07.28.17_17h") {
+void decimate(string date="07.28.17_17h",int downfactor=10) {
 
 
 
@@ -48,13 +48,15 @@ void decimate(string date="07.28.17_17h") {
 
   cout << "found " << lenEntries << " entries" << endl;
 
+  int cnt=0;
   for (int entry=0; entry<lenEntries; entry++) {
     summaryTree->GetEntry(entry);
     
-    if (entry%10000 == 0) cout << entry << "/" << lenEntries << endl;
+    if (entry%10000 == 0) cout << entry << "/" << lenEntries << " (" << cnt << ")" << endl;
 
-    if (entry%10 == 0) {
+    if (entry%downfactor == 0) {
       outTree->Fill();
+      cnt++;
     }
 
   }
