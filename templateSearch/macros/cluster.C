@@ -1163,7 +1163,7 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
 
 
 
-void mergeClusterHistograms(int numCores=32,int numBases=104,string date="08.23.17_18h") {
+void mergeClusterHistograms(int numCores=32,int numBases=104,string date="08.28.17_22h") {
   /*
     I do clustering with the cluster servers so I gotta merge the results by hand
    */
@@ -1171,7 +1171,7 @@ void mergeClusterHistograms(int numCores=32,int numBases=104,string date="08.23.
 
   stringstream name;
 
-  TChain *eventSummary = new TChain("eventSummary","eventSummary");
+  TChain *eventSummary = new TChain("summaryTree","summaryTree");
 
 
   TH1D *hCluster[numBases];
