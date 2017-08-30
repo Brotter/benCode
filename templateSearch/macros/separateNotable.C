@@ -132,7 +132,7 @@ void separateNotable_fromFile(string fileName="makeCuts_weak.csv") {
   TGraph *evNums = new TGraph(fileName.c_str());
 
   TFile *outFile = TFile::Open("cuts.root","recreate");
-  TTree *cutTree = new TTree("eventSummary","eventSummary");
+  TTree *cutTree = new TTree("summaryTree","summaryTree");
   AnitaEventSummary *evSum = NULL;
   AnitaTemplateSummary *tempSum = NULL;
   AnitaNoiseSummary *noiseSum = NULL;
@@ -166,11 +166,11 @@ void separateNotable_hardCoded() {
 
 
   TFile *inFile = TFile::Open("cuts.root");  
-  TTree *summaryTree = (TTree*)inFile->Get("eventSummary");
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
   summaryTree->BuildIndex("eventNumber");
 
   TFile *outFile = TFile::Open("unclusteredEvs.root","recreate");
-  TTree *cutTree = new TTree("eventSummary","eventSummary");
+  TTree *cutTree = new TTree("summaryTree","summaryTree");
   AnitaEventSummary *evSum = NULL;
   AnitaTemplateSummary *tempSum = NULL;
   AnitaNoiseSummary *noiseSum = NULL;
