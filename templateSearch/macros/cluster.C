@@ -1064,7 +1064,12 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
   outTree->Branch("template",&templateSummary);
   outTree->Branch("noiseSummary",&noiseSummary);
   outTree->Branch("gpsEvent",&gps);
- 
+
+  //and some new stuff that is important to remember
+  int baseNum;
+  double sigmaDist;
+  outTree->Branch("baseNum",&baseNum);
+  outTree->Branch("sigmaDist",&sigmaDist);
 
   //histograms to record distance distributions past threshold
   TH1D *hCluster[numBases];
@@ -1128,21 +1133,34 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
     UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
 
 
-    bool filled=false;
+    bool fill=false;
     
+    int closestBase = -1;
+    double closestBaseDist  = -1;
+
+    //loop through bases
     for (int base=0; base<numBases; base++) {
       baseTree->GetEntry(base);
       double tempAlt = alt;
       if (tempAlt<0) tempAlt=0;
+
       double dist = calcBaseDistance(eventSummary,usefulGPS,lat,lon,tempAlt);
+
       hCluster[base]->Fill(dist);
+
       if (dist <= threshold && dist != -9999) {
 	close[base]++;
-	if (!filled) {
-	  outTree->Fill();
-	  filled = true;
+	fill=true;
+	if (closestBase==-1 || closestBaseDist > dist) {
+	  closestBase = base;
+	  closestBaseDist = dist;
 	}
       }
+    }
+    if (fill) {
+      baseNum = closestBase;
+      sigmaDist = closestBaseDist;
+      outTree->Fill();
     }
 
     delete usefulGPS;
