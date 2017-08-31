@@ -514,31 +514,37 @@ void makeMinbiasBackgroundHist() {
 
   TFile *outFile = TFile::Open("minbiasBackgrounds.root","recreate");
 
+  cout << "1" << endl;
   TH2D* histMapPeakVsTemplate = new TH2D("histMapPeakVsTemplate","minbias",100,0,1,350,0,0.35);
   summaryTree->Draw("peak[0][0].value:template.coherent[0][0].cRay[4] >> histMapPeakVsTemplate","!flags.isRF","colz");
   histMapPeakVsTemplate->SetStats(0);
   histMapPeakVsTemplate->Write();
 
+  cout << "2" << endl;
   TH2D* histMapSNRVsHilbert = new TH2D("histMapSNRVsHilbert","minbias",800,0,800,450,0,45);
   summaryTree->Draw("peak[0][0].snr:deconvolved_filtered[0][0].peakHilbert >> histMapSNRVsHilbert","!flags.isRF","colz");
   histMapSNRVsHilbert->SetStats(0);
   histMapSNRVsHilbert->Write();
 
+  cout << "3" << endl;
   TH1D* histMapPeak = new TH1D("histMapPeak","minbias;Map Peak; Count",350,0,0.35);
   summaryTree->Draw("peak[0][0].value >> histMapPeak","!flags.isRF");
   histMapPeak->SetStats(0);
   histMapPeak->Write();
 
+  cout << "4" << endl;
   TH1D* histMapSNR = new TH1D("histMapSNR","minbias;Map SNR; Count",450,0,45);
   summaryTree->Draw("peak[0][0].snr >> histMapSNR","!flags.isRF");
   histMapSNR->SetStats(0);
   histMapSNR->Write();
 
+  cout << "5" << endl;
   TH1D* histTemplate = new TH1D("histTemplate","minbias; cRay +4 Template Correlation; Count",100,0,1);
   summaryTree->Draw("template.coherent[0][0].cRay[4] >> histTemplate","!flags.isRF");
   histTemplate->SetStats(0);
   histTemplate->Write();
 
+  cout << "6" << endl;
   TH1D* histHilbert = new TH1D("histHilbert","minbias; Deconvolved Hilbert Peak; Count",800,0,800);
   summaryTree->Draw("deconvolved_filtered[0][0].peakHilbert >> histHilbert","!flags.isRF");
   histHilbert->SetStats(0);
@@ -1326,7 +1332,8 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
   TCanvas *c1 = new TCanvas("c1","c1",1000,600);
   TVirtualPad *pad;
 
-  
+  TCut pulserCut = "flags.pulser == 0";
+
   TCut thermalCut;
   if (doCut) thermalCut = "peak[0][0].value > 0.0435 && peak[0][0].snr > 9.05 && deconvolved_filtered[0][0].peakHilbert > 47.5 && template.coherent[0][0].cRay[4] > 0.666";
   else thermalCut = "";
@@ -1401,7 +1408,7 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
 }
 
 
-void printCandidatePValues(bool doCut=true) {
+void saveCandidatePValues(bool doCut=true,string fileName="") {
 
   /* 
 
@@ -1429,12 +1436,16 @@ void printCandidatePValues(bool doCut=true) {
   if (doCut) thermalCut = "peak[0][0].value > 0.0435 && peak[0][0].snr > 9.05 && deconvolved_filtered[0][0].peakHilbert > 47.5 && template.coherent[0][0].cRay[4] > 0.666";
   else thermalCut = "";
 
+  cout << "1" << endl;
   TH1D *hMapPeak = new TH1D("hMapPeak","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
   baseTree->Draw("peak[0][0].value >> hMapPeak",thermalCut);
+  cout << "2" << endl;
   TH1D *hMapSNR = new TH1D("hMapSNR","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
   baseTree->Draw("peak[0][0].snr >> hMapSNR",thermalCut);
+  cout << "3" << endl;
   TH1D *hPeakHilbertDF = new TH1D("hPeakHilbertDF","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
   baseTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDF",thermalCut);
+  cout << "4" << endl;
   TH1D *hTemplate = new TH1D("hTemplate","cRay +4 Correlation;cRay +4 Correlation;count",250,0,1);
   baseTree->Draw("template.coherent[0][0].cRay[4] >> hTemplate",thermalCut);
 
@@ -1442,6 +1453,10 @@ void printCandidatePValues(bool doCut=true) {
   TH1 *hMapSNRC   = makeNormCumulative(hMapSNR);
   TH1 *hPeakHilbertDFC   = makeNormCumulative(hPeakHilbertDF);
   TH1 *hTemplateC   = makeNormCumulative(hTemplate);
+
+  if (fileName=="") fileName="pValues.csv";
+  ofstream outFile(fileName);
+  outFile << "eventNumber,mapPeakVal,mapPeakSNR,peakHilbertDF,cRayTemplate" << endl;
 
   for (int entry=0; entry<candidateTree->GetEntries(); entry++) {
     candidateTree->GetEntry(entry);
@@ -1458,10 +1473,22 @@ void printCandidatePValues(bool doCut=true) {
     bin = hTemplateC->GetXaxis()->FindBin(candTemp->coherent[0][0].cRay[4]);
     double cRayTemp = hTemplateC->GetBinContent(bin);
 
-    cout << candSum->eventNumber << " " << mapPeakVal << " " << mapPeakSNR << " " << peakHilbert << " " << cRayTemp << " " <<  mapPeakVal*peakHilbert*cRayTemp << endl;
+    outFile << candSum->eventNumber << "," << mapPeakVal << "," << mapPeakSNR << "," << peakHilbert << "," << cRayTemp << "," <<  mapPeakVal*peakHilbert*cRayTemp << endl;
   }
 
+  outFile.close();
+
 }
+
+
+void printCandidateVsBases() {
+  /*
+    print out whether the candidates cluster with any bases
+   */
+
+  return;
+}
+
 
 /*********************************************************************************
 In case you want to call from the command line you gotta edit this because macros are dumb!
