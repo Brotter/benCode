@@ -16,7 +16,94 @@
 */
 
 
-void makeCuts(bool draw=true,int strength=0) {
+//I need to make this a library or something
+TH1* makeNormCumulative(TH1* inHist,Bool_t forward=true) {
+  /*
+    Makes a "normalized cumulative cut fraction" graph I think
+
+    Should let me set cuts on a specific amount of "reduction"
+
+    forward specifies the direction of the cumulative sum
+   */
+
+
+  TH1* copyHist = (TH1*)inHist->Clone();
+  
+  double integral = 0;
+  for (int i=0; i<copyHist->GetNbinsX(); i++) {
+    double value = copyHist->GetBinContent(i);
+    integral += value;
+  }
+
+  copyHist->Scale(1./integral);
+  TH1* outHist = (TH1*)copyHist->GetCumulative(forward);
+
+  for (int i=0; i<copyHist->GetNbinsX()+1; i++) {
+    double value = outHist->GetBinContent(i);
+    outHist->SetBinContent(i,1.-value);
+
+  }
+  delete copyHist;
+
+  if (forward) outHist->GetYaxis()->SetTitle("Surviving Fraction");
+  else         outHist->GetYaxis()->SetTitle("Fraction of Events Cut");
+  return outHist;
+}
+
+
+double findCrossing(TH1* hist,double value) {
+  double outValue;
+  for (int bin=0; bin<hist->GetNbinsX(); bin++) {
+    if (hist->GetBinContent(bin+1) < value) {
+      outValue = hist->GetBinCenter(bin+1);
+      break;
+    }
+  }
+  
+  return outValue;
+}
+  
+
+string getThermalCuts(double reduction=1e-3) {
+  /*
+    I need a way to get the cut values from thermal events.  This should do it!
+
+    uses the histograms from makeMinbiasBackgroundHist() in cluster.C
+
+   */
+
+
+  TFile *inFile = TFile::Open("minbiasBackgrounds.root");
+  if (!inFile->IsOpen()) {
+    cout << "Couldn't find minbiasBackgrounds.root" << endl;
+    return "";
+  }
+  
+  TH1* hMapPeak = makeNormCumulative((TH1D*)inFile->Get("histMapPeak"));
+  double mapPeakVal = findCrossing(hMapPeak,reduction);
+
+  TH1* hMapSNR = makeNormCumulative((TH1D*)inFile->Get("histMapSNR"));
+  double mapPeakSNR = findCrossing(hMapSNR,reduction);
+
+  TH1* hTemplate = makeNormCumulative((TH1D*)inFile->Get("histTemplate"));
+  double templateVal = findCrossing(hTemplate,reduction);
+
+  TH1* hHilbert = makeNormCumulative((TH1D*)inFile->Get("histHilbert"));
+  double hilbertPeak = findCrossing(hHilbert,reduction);  
+  
+  stringstream name;
+  name << "peak[0][0].value > " << mapPeakVal << " && ";
+  name << "peak[0][0].snr > " << mapPeakSNR << " && ";
+  name << "template.coherent[0][0].cRay[4] > " << templateVal << " && ";
+  name << "deconvolved_filtered[0][0].peakHilbert > " << hilbertPeak;
+
+  return name.str();
+
+   
+  
+}
+
+void savePassingEvents(bool draw=true,int strength=0) {
 
 
 
@@ -126,5 +213,11 @@ void makeCuts(bool draw=true,int strength=0) {
     summaryTree->Scan("eventNumber",allCuts.c_str());
   } 
 
+  return;
+}
+
+
+void makeCuts() {
+  cout << "loaded makeCuts.C" << endl;
   return;
 }
