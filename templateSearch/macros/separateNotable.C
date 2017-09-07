@@ -116,7 +116,7 @@ void separateNotable_fromScratch() {
 
 
 
-void separateNotable_fromFile(string fileName="makeCuts_weak.csv") {
+void separateNotable_fromFile(string fileName="makeCuts_weak.csv",string outFileName="") {
   /*
     Take the output of a Scan file (that has had the *'s replaced with nothing and the first few lines cut off)
     command:
@@ -125,13 +125,15 @@ void separateNotable_fromFile(string fileName="makeCuts_weak.csv") {
     And saves those files to a new root file
    */
 
+  TGraph *evNums = new TGraph(fileName.c_str());
+  cout << "Opened " << fileName << " as input file, found " << evNums->GetN() << " events to save" << endl;
 
   TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
   summaryTree->BuildIndex("eventNumber");
 
-  TGraph *evNums = new TGraph(fileName.c_str());
-
-  TFile *outFile = TFile::Open("cuts.root","recreate");
+  if (outFileName=="") outFileName = "cuts.root";
+  cout << "Using: " << outFileName << " as output file" << endl;
+  TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
   TTree *cutTree = new TTree("summaryTree","summaryTree");
   AnitaEventSummary *evSum = NULL;
   AnitaTemplateSummary *tempSum = NULL;
