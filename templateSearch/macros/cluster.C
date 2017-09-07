@@ -930,6 +930,15 @@ TTree *getBaseTree() {
   return baseCampTree;
 }
 
+TTree *getBaseTree(double *lat, double *lon, double *alt, string** baseName) {
+  TTree* baseTree = getBaseTree();
+  baseTree->SetBranchAddress("fullLat",lat);
+  baseTree->SetBranchAddress("fullLong",lon);
+  baseTree->SetBranchAddress("alt",alt);
+  baseTree->SetBranchAddress("name",baseName);
+  return baseTree;
+}
+  
 
 TGraph* getBaseGraph() {
   /*
@@ -982,7 +991,7 @@ double calcBaseDistance(AnitaEventSummary *event, UsefulAdu5Pat *gps,double lat,
 
    */
 
-  if (gps->getDistanceFromSource(lat,lon,alt) > 1000e3) {
+  if (gps->getDistanceFromSource(lat,lon,alt) > 600e3) {
     return -9999;
   }
 
@@ -1332,32 +1341,33 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
   TCanvas *c1 = new TCanvas("c1","c1",1000,600);
   TVirtualPad *pad;
 
-  TCut pulserCut = "flags.pulser == 0";
 
-  TCut thermalCut;
-  if (doCut) thermalCut = "peak[0][0].value > 0.0435 && peak[0][0].snr > 9.05 && deconvolved_filtered[0][0].peakHilbert > 47.5 && template.coherent[0][0].cRay[4] > 0.666";
-  else thermalCut = "";
+  TCut allCuts;
+  if (doCut) allCuts = "peak[0][0].value > 0.0435 && peak[0][0].snr > 9.05 && deconvolved_filtered[0][0].peakHilbert > 47.5 && template.coherent[0][0].cRay[4] > 0.666 && flags.pulser==0";
+  //if (doCut) allCuts = "peak[0][0].value > 0.0695 && peak[0][0].snr > 13.35 && template.coherent[0][0].cRay[4] > 0.485 && deconvolved_filtered[0][0].peakHilbert > 37.5 && flags.pulser==0";
+  //  if (doCut) allCuts = "peak[0][0].value > 0.0055 && peak[0][0].snr > 1.35 && template.coherent[0][0].cRay[4] > 0.115 && deconvolved_filtered[0][0].peakHilbert > 11.5 && flags.pulser==0";
+  else allCuts = "flags.pulser==0";
 
   cout << "1/4" << endl;
   TH1D *hMapPeak = new TH1D("hMapPeak","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
   TH1D *hMapPeakCand = new TH1D("hMapPeakCand","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
-  baseTree->Draw("peak[0][0].value >> hMapPeak",thermalCut);
-  candidateTree->Draw("peak[0][0].value >> hMapPeakCand",thermalCut,"same");
+  baseTree->Draw("peak[0][0].value >> hMapPeak",allCuts);
+  candidateTree->Draw("peak[0][0].value >> hMapPeakCand",allCuts,"same");
   cout << "2/4" << endl;
   TH1D *hMapSNR = new TH1D("hMapSNR","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
   TH1D *hMapSNRCand = new TH1D("hMapSNRCand","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
-  baseTree->Draw("peak[0][0].snr >> hMapSNR",thermalCut);
-  candidateTree->Draw("peak[0][0].snr >> hMapSNRCand",thermalCut,"same");
+  baseTree->Draw("peak[0][0].snr >> hMapSNR",allCuts);
+  candidateTree->Draw("peak[0][0].snr >> hMapSNRCand",allCuts,"same");
   cout << "3/4" << endl;
   TH1D *hPeakHilbertDF = new TH1D("hPeakHilbertDF","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
   TH1D *hPeakHilbertDFCand = new TH1D("hPeakHilbertDFCand","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
-  baseTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDF",thermalCut);
-  candidateTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDFCand",thermalCut,"same");
+  baseTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDF",allCuts);
+  candidateTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDFCand",allCuts,"same");
   cout << "4/4" << endl;
   TH1D *hTemplate = new TH1D("hTemplate","cRay +4 Correlation;cRay +4 Correlation;count",250,0,1);
   TH1D *hTemplateCand = new TH1D("hTemplateCand","cRay +4 Correlation;cRay +4 Correlation;count",250,0,1);
-  baseTree->Draw("template.coherent[0][0].cRay[4] >> hTemplate",thermalCut);
-  candidateTree->Draw("template.coherent[0][0].cRay[4] >> hTemplateCand",thermalCut,"same");
+  baseTree->Draw("template.coherent[0][0].cRay[4] >> hTemplate",allCuts);
+  candidateTree->Draw("template.coherent[0][0].cRay[4] >> hTemplateCand",allCuts,"same");
 
   hMapPeakCand->SetLineColor(kRed);
   hMapSNRCand->SetLineColor(kRed);
@@ -1431,23 +1441,26 @@ void saveCandidatePValues(bool doCut=true,string fileName="") {
   TCanvas *c1 = new TCanvas("c1","c1",1000,600);
   TVirtualPad *pad;
 
-  
-  TCut thermalCut;
-  if (doCut) thermalCut = "peak[0][0].value > 0.0435 && peak[0][0].snr > 9.05 && deconvolved_filtered[0][0].peakHilbert > 47.5 && template.coherent[0][0].cRay[4] > 0.666";
-  else thermalCut = "";
+  TCut allCuts;
+  if (doCut) allCuts = "peak[0][0].value > 0.0435 && peak[0][0].snr > 9.05 && deconvolved_filtered[0][0].peakHilbert > 47.5 && template.coherent[0][0].cRay[4] > 0.666 && flags.pulser==0";
+  //  if (doCut) allCuts = "peak[0][0].value > 0.0695 && peak[0][0].snr > 13.35 && template.coherent[0][0].cRay[4] > 0.485 && deconvolved_filtered[0][0].peakHilbert > 37.5 && flags.pulser==0";
+  // if (doCut) allCuts = "peak[0][0].value > 0.0055 && peak[0][0].snr > 1.35 && template.coherent[0][0].cRay[4] > 0.115 && deconvolved_filtered[0][0].peakHilbert > 11.5 && flags.pulser==0";
+  else allCuts = "flags.pulser==0";
 
+  
+  
   cout << "1" << endl;
   TH1D *hMapPeak = new TH1D("hMapPeak","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
-  baseTree->Draw("peak[0][0].value >> hMapPeak",thermalCut);
+  baseTree->Draw("peak[0][0].value >> hMapPeak",allCuts);
   cout << "2" << endl;
   TH1D *hMapSNR = new TH1D("hMapSNR","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
-  baseTree->Draw("peak[0][0].snr >> hMapSNR",thermalCut);
+  baseTree->Draw("peak[0][0].snr >> hMapSNR",allCuts);
   cout << "3" << endl;
   TH1D *hPeakHilbertDF = new TH1D("hPeakHilbertDF","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
-  baseTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDF",thermalCut);
+  baseTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDF",allCuts);
   cout << "4" << endl;
   TH1D *hTemplate = new TH1D("hTemplate","cRay +4 Correlation;cRay +4 Correlation;count",250,0,1);
-  baseTree->Draw("template.coherent[0][0].cRay[4] >> hTemplate",thermalCut);
+  baseTree->Draw("template.coherent[0][0].cRay[4] >> hTemplate",allCuts);
 
   TH1 *hMapPeakC   = makeNormCumulative(hMapPeak);
   TH1 *hMapSNRC   = makeNormCumulative(hMapSNR);
@@ -1456,24 +1469,45 @@ void saveCandidatePValues(bool doCut=true,string fileName="") {
 
   if (fileName=="") fileName="pValues.csv";
   ofstream outFile(fileName);
-  outFile << "eventNumber,mapPeakVal,mapPeakSNR,peakHilbertDF,cRayTemplate" << endl;
+  outFile << "eventNumber,mapPeakVal,PmapPeakVal,mapPeakSNR,PmapPeakSNR,peakHilbertDF,PpeakHilbertDF,cRayTemplate,PcRayTemplate" << endl;
 
   for (int entry=0; entry<candidateTree->GetEntries(); entry++) {
     candidateTree->GetEntry(entry);
+
+    if (TMath::Abs(candSum->peak[0][0].hwAngle) > 31.75 || candSum->flags.maxBottomToTopRatio[0] > 6 || candSum->eventNumber == 84114142) {
+      continue;
+    }
+
+
     int bin;
-    bin = hMapPeakC->GetXaxis()->FindBin(candSum->peak[0][0].value);
-    double mapPeakVal = hMapPeakC->GetBinContent(bin);
+    double mapPeakVal = candSum->peak[0][0].value;
+    bin = hMapPeakC->GetXaxis()->FindBin(mapPeakVal);
+    double PmapPeakVal = hMapPeakC->GetBinContent(bin);
 
-    bin = hMapSNRC->GetXaxis()->FindBin(candSum->peak[0][0].snr);
-    double mapPeakSNR = hMapSNRC->GetBinContent(bin);
+    double mapPeakSNR = candSum->peak[0][0].snr;
+    bin = hMapSNRC->GetXaxis()->FindBin(mapPeakSNR);
+    double PmapPeakSNR = hMapSNRC->GetBinContent(bin);
 
-    bin = hPeakHilbertDFC->GetXaxis()->FindBin(candSum->deconvolved_filtered[0][0].peakHilbert);
-    double peakHilbert = hPeakHilbertDFC->GetBinContent(bin);
+    double peakHilbert = candSum->deconvolved_filtered[0][0].peakHilbert;
+    bin = hPeakHilbertDFC->GetXaxis()->FindBin(peakHilbert);
+    double PpeakHilbert = hPeakHilbertDFC->GetBinContent(bin);
 
-    bin = hTemplateC->GetXaxis()->FindBin(candTemp->coherent[0][0].cRay[4]);
-    double cRayTemp = hTemplateC->GetBinContent(bin);
+    double cRayTemp = candTemp->coherent[0][0].cRay[4];
+    bin = hTemplateC->GetXaxis()->FindBin(cRayTemp);
+    double PcRayTemp = hTemplateC->GetBinContent(bin);
 
-    outFile << candSum->eventNumber << "," << mapPeakVal << "," << mapPeakSNR << "," << peakHilbert << "," << cRayTemp << "," <<  mapPeakVal*peakHilbert*cRayTemp << endl;
+
+    //write event out to file
+    outFile << candSum->eventNumber << ",";
+    outFile << mapPeakVal << ",";
+    outFile << PmapPeakVal << ",";
+    outFile << mapPeakSNR << ",";
+    outFile << PmapPeakSNR << ",";
+    outFile << peakHilbert << ",";
+    outFile << PpeakHilbert << ",";
+    outFile << cRayTemp << ",";
+    outFile << PcRayTemp << ",";
+    outFile <<  PmapPeakVal*PpeakHilbert*PcRayTemp << endl;
   }
 
   outFile.close();
@@ -1481,10 +1515,60 @@ void saveCandidatePValues(bool doCut=true,string fileName="") {
 }
 
 
-void printCandidateVsBases() {
+void printCandidateVsBases(string inFileName) {
   /*
     print out whether the candidates cluster with any bases
    */
+
+  TFile *inFile = TFile::Open(inFileName.c_str());
+  if (!inFile->IsOpen()) {
+    cout << "Coudln't open " << inFileName << endl;
+    return;
+  }
+
+  TTree* summaryTree = (TTree*)inFile->Get("summaryTree");
+  if (summaryTree == NULL) {
+    cout << "File didn't have a summaryTree! quitting" << endl;
+    return;
+  }
+
+
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " candidates" << endl;
+
+
+  double lat,lon,alt;
+  string *baseName = NULL;
+  TTree* baseTree = getBaseTree(&lat,&lon,&alt,&baseName);
+  
+
+  stringstream name;
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    double closest = 9999;
+    UsefulAdu5Pat *useful = new UsefulAdu5Pat(gps);
+
+    for (int base=0; base<baseTree->GetEntries(); base++) {
+      baseTree->GetEntry(base);
+      double dist = calcBaseDistance(evSum,useful,lat,lon,alt);
+      if (closest > dist && dist != -9999) {
+	closest = dist;
+	name.str("");
+	name << *baseName;
+      }
+    }
+    cout << "ev" << evSum->eventNumber << " : " << closest;
+    if (closest < 40) cout << " " << name.str();
+    cout << endl;
+    delete useful;
+  }
+
+	
 
   return;
 }
