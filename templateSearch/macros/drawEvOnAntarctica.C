@@ -245,19 +245,21 @@ void drawFlightPathOnAntarctica() {
   /*
     I need a plot of the flight path in chapter two
    */
+  stringstream name;
 
-  //decimated is messed up right now
-  //  TFile *inFile = TFile::Open("07.28.17_17h_decimated.root");
-  //  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
-  //AnitaEventSummary *eventSummary = NULL;
-  //  summaryTree->SetBranchAddress("eventSummary",&eventSummary);
+  char* dataDir = getenv("ANITA_ROOT_DATA");
 
-  TFile *inFile = TFile::Open("/Users/brotter/anita16/rootFilesLocal/gpsFileAll.root");
-  TTree* summaryTree = (TTree*)inFile->Get("adu5PatTree");
+  
+  TChain* gpsTree = new TChain("adu5PatTree","adu5PatTree");
+  for (int i=120; i<440; i++) {
+    name.str("");
+    name << dataDir << "/run" << i << "/gpsFile" << i << ".root";
+    gpsTree->Add(name.str().c_str());
+  }
   Adu5Pat *gps = NULL;
-  summaryTree->SetBranchAddress("pat",&gps);
+  gpsTree->SetBranchAddress("pat",&gps);
 
-  int lenEntries = summaryTree->GetEntries();
+  int lenEntries = gpsTree->GetEntries();
 
 
   double x,y;
@@ -269,16 +271,35 @@ void drawFlightPathOnAntarctica() {
   
   for (int entry=0; entry<lenEntries; entry++) {
     if (entry%10000 == 0) cout << entry << "/" << lenEntries << "(" << (100.*entry)/lenEntries << "%)" << endl;
-    summaryTree->GetEntry(entry);
+    gpsTree->GetEntry(entry);
     //    if (eventSummary->flags.isRF) continue;
     //    aMap->getRelXYFromLatLong(eventSummary->anitaLocation.latitude,eventSummary->anitaLocation.longitude,x,y);
     aMap->getRelXYFromLatLong(gps->latitude,gps->longitude,x,y);    
     
-        anitaPosition->SetPoint(entry,x,y);
+    anitaPosition->SetPoint(entry,x,y);
   }
 
 
 
+  aMap->DrawTGraph("p");
+
+}
+
+
+void drawBaseListOnAntarctica() {
+
+  /*
+    I need a plot of the flight path in chapter two
+   */
+  stringstream name;
+
+  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
+  aMap->addTGraph("baseList","baseList");
+  TGraph *gBaseList = aMap->getCurrentTGraph();
+  gBaseList->SetMarkerStyle(20); //20=filled circle
+  gBaseList->SetMarkerSize(1);
+  gBaseList->SetMarkerColor(kRed);
+  placeBasesOnMap(aMap,gBaseList);
   aMap->DrawTGraph("p");
 
 }
@@ -320,10 +341,10 @@ void drawClusteredBases(bool thermalCut=false) {
     summaryTree->GetEntry(entry);
 
     if (thermalCut) {
-      if (eventSummary->peak[0][0].value > 0.0435 ||
-	  eventSummary->peak[0][0].snr > 9.05 ||
-	  eventSummary->deconvolved_filtered[0][0].peakHilbert > 47.5 ||
-	  templateSummary->coherent[0][0].cRay[4] > 0.666) { 
+      if (eventSummary->peak[0][0].value < 0.0055 ||
+	  eventSummary->peak[0][0].snr < 1.35 ||
+	  eventSummary->deconvolved_filtered[0][0].peakHilbert < 11.5 ||
+	  templateSummary->coherent[0][0].cRay[4] < 0.115) { 
 	continue;
       } }
 
@@ -449,8 +470,221 @@ void plotBasesWithClusteredEvents() {
   return;
 }
 	       
-	       
+  
 
+       
+void drawDirectEvents(){
+  /*
+    Direct events are events too!  Lets just point them in some generalized direction I guess?
+   */
+
+  
+  //make an Antarctica map
+  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
+
+  cout << "Getting base list" << endl;
+  aMap->addTGraph("baseList","baseList");
+  TGraph *gBaseList = aMap->getCurrentTGraph();
+  placeBasesOnMap(aMap,gBaseList);
+  gBaseList->SetMarkerStyle(20); //20=filled circle
+  gBaseList->SetMarkerColor(kGreen);
+  gBaseList->SetMarkerSize(1);
+  cout << "got " << gBaseList->GetN() << " bases" << endl;
+
+  vector<TArrow*> directArrows;
+
+  TFile *directFile = TFile::Open("aboveHorizon.root");
+  if (!directFile->IsOpen()) {
+    cout << "Couldn't open aboveHorizon.root" << endl;
+    return;
+  }
+
+  TTree* directTree = (TTree*)directFile->Get("directTree");
+  int lenEntries = directTree->GetEntries();
+  cout << "Found " << lenEntries << " entries" << endl;
+  AnitaEventSummary *directSum = NULL;
+  directTree->SetBranchAddress("eventSummary",&directSum);
+  Adu5Pat *directGPS = NULL;
+  directTree->SetBranchAddress("gpsEvent",&directGPS);
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    directTree->GetEntry(entry);
+
+    cout << "entry:" << entry << endl;
+
+    double latEv,lonEv,altEv,theta_adj;
+    double xEv,yEv,xA,yA;
+    
+    UsefulAdu5Pat *directUseful = new UsefulAdu5Pat(directGPS);
+    int status = directUseful->traceBackToContinent(TMath::DegToRad()*directSum->peak[0][0].phi,
+					      TMath::DegToRad()*6.5,
+					      &lonEv,&latEv,&altEv,&theta_adj);
+
+    double latA = directSum->anitaLocation.latitude;
+    double lonA = directSum->anitaLocation.longitude;
+
+    aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
+    aMap->getRelXYFromLatLong(latA, lonA, xA, yA);
+
+    cout << latEv << " " << lonEv << endl;
+    cout << latA  << " " << lonA  << endl;
+    cout << "x,y: " << xEv << "," << yEv << endl;
+
+    TArrow *currArrow = new TArrow(xA,yA,xEv,yEv,0.01,"|>");
+    directArrows.push_back(currArrow);
+  }
+
+  aMap->DrawTGraph("p");
+  
+  for (int i=0; i<directArrows.size(); i++) {
+    directArrows[i]->Draw();
+  }
+  
+  return;
+}
+  
+
+void drawDirectAndReflected() {
+  /*
+    
+    do em both to see if there are weird clusters like that
+
+   */
+  stringstream name;
+
+
+  //make an Antarctica map
+  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
+
+  cout << "Getting base list" << endl;
+  aMap->addTGraph("baseList","baseList");
+  TGraph *gBaseList = aMap->getCurrentTGraph();
+  placeBasesOnMap(aMap,gBaseList);
+  gBaseList->SetMarkerStyle(20); //20=filled circle
+  gBaseList->SetMarkerColor(kGreen);
+  gBaseList->SetMarkerSize(1);
+  cout << "got " << gBaseList->GetN() << " bases" << endl;
+
+
+  vector<TGraph*> evNumGraphs;
+
+  vector<TArrow*> directArrows;
+
+  TFile *directFile = TFile::Open("aboveHorizon.root");
+  if (!directFile->IsOpen()) {
+    cout << "Couldn't open aboveHorizon.root" << endl;
+    return;
+  }
+
+  TTree* directTree = (TTree*)directFile->Get("summaryTree");
+  int lenEntries = directTree->GetEntries();
+  cout << "Found " << lenEntries << " entries" << endl;
+  AnitaEventSummary *directSum = NULL;
+  directTree->SetBranchAddress("eventSummary",&directSum);
+  Adu5Pat *directGPS = NULL;
+  directTree->SetBranchAddress("gpsEvent",&directGPS);
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    directTree->GetEntry(entry);
+
+    cout << "entry:" << entry << endl;
+
+    double latEv,lonEv,altEv,theta_adj;
+    double xEv,yEv,xA,yA;
+    
+    UsefulAdu5Pat *directUseful = new UsefulAdu5Pat(directGPS);
+    int status = directUseful->traceBackToContinent(TMath::DegToRad()*directSum->peak[0][0].phi,
+					      TMath::DegToRad()*6.5,
+					      &lonEv,&latEv,&altEv,&theta_adj);
+
+    double latA = directSum->anitaLocation.latitude;
+    double lonA = directSum->anitaLocation.longitude;
+
+    aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
+    aMap->getRelXYFromLatLong(latA, lonA, xA, yA);
+
+    cout << latEv << " " << lonEv << endl;
+    cout << latA  << " " << lonA  << endl;
+    cout << "x,y: " << xEv << "," << yEv << endl;
+
+    TArrow *currArrow = new TArrow(xA,yA,xEv,yEv,0.01,"|>");
+    directArrows.push_back(currArrow);
+
+    name.str("");
+    name << "ev" << directSum->eventNumber;
+    aMap->addTGraph(name.str().c_str(),name.str().c_str());
+    TGraph *currGraph = aMap->getCurrentTGraph();
+    currGraph->SetPoint(0,xA,yA);
+    evNumGraphs.push_back(currGraph);
+
+  }
+   
+  vector<TArrow*> reflectArrows;
+
+  TFile *reflectFile = TFile::Open("candidates.root");
+  if (!reflectFile->IsOpen()) {
+    cout << "Couldn't open candidates.root" << endl;
+    return;
+  }
+
+  TTree* reflectTree = (TTree*)reflectFile->Get("summaryTree");
+  int reflectEntries = reflectTree->GetEntries();
+  cout << "Found " << lenEntries << " entries" << endl;
+  AnitaEventSummary *reflectSum = NULL;
+  reflectTree->SetBranchAddress("eventSummary",&reflectSum);
+  Adu5Pat *reflectGPS = NULL;
+  reflectTree->SetBranchAddress("gpsEvent",&reflectGPS);
+
+  for (int entry=0; entry<reflectEntries; entry++) {
+    reflectTree->GetEntry(entry);
+
+    double xA,yA,latEv,lonEv,xEv,yEv;
+
+    //fill the position graph with ANITA's location
+    latEv = reflectSum->anitaLocation.latitude;
+    lonEv = reflectSum->anitaLocation.longitude;
+    aMap->getRelXYFromLatLong(latEv,lonEv,xA,yA);
+
+    //plot the event source location
+    latEv = reflectSum->peak[0][0].latitude;
+    lonEv = reflectSum->peak[0][0].longitude;
+    aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
+    TArrow *currArrow = new TArrow(xA,yA,xEv,yEv,0.003,"|>");
+    currArrow->SetLineWidth(2);
+    currArrow->SetLineColor(kRed);
+    currArrow->SetFillColor(kRed);
+    reflectArrows.push_back(currArrow);
+
+    name.str("");
+    name << "ev" << reflectSum->eventNumber;
+    aMap->addTGraph(name.str().c_str(),name.str().c_str());
+    TGraph *currGraph = aMap->getCurrentTGraph();
+    currGraph->SetPoint(0,xA,yA);
+    evNumGraphs.push_back(currGraph);
+
+
+  }
+
+  aMap->setCurrentTGraph("baseList");
+  aMap->DrawTGraph("p");
+  
+  for (int i=0; i<directArrows.size(); i++) {
+    directArrows[i]->Draw();
+  }
+  
+  for (int i=0; i<reflectArrows.size(); i++) {
+    reflectArrows[i]->Draw();
+  }
+
+  for (int i=0; i<evNumGraphs.size(); i++) {
+    evNumGraphs[i]->SetMarkerStyle(kDiamond);
+    evNumGraphs[i]->SetMarkerSize(1);
+    evNumGraphs[i]->Draw("psame");
+  }
+  
+  return;
+}
+  
 
 
 void drawEvOnAntarctica() {
