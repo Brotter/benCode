@@ -31,6 +31,11 @@ TGraph* findGeomagneticAngle() {
   for (int entry=0; entry<summaryTree->GetEntries(); entry++) {
     summaryTree->GetEntry(entry);
 
+    //quality cuts
+    if (TMath::Abs(evSum->peak[0][0].hwAngle) > 31.75 || evSum->flags.maxBottomToTopRatio[0] > 6) {
+      continue;
+    }
+
     cout << "--------------------------------------------------" << endl;
 
     UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
