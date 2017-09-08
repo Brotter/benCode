@@ -1007,17 +1007,19 @@ double calcBaseDistance(AnitaEventSummary *event, UsefulAdu5Pat *gps,double lat,
   double theta = event->peak[0][0].theta;
   
   //difference between A->a and A->b
+  cout << "theta:" << theta << " - " << thetaBase;
+  cout << " | phi:" << phi << " - " << phiBase;
   double diffTheta = TMath::Abs(theta - thetaBase);
   double diffPhi = TMath::Abs(FFTtools::wrap(phi - phiBase,360,0));
   if (diffPhi > 180) diffPhi = 360 - diffPhi;
-    
+  
 
   const double sigmaTheta = 0.2193;
   const double sigmaPhi = 0.5429;
       
   double diff = TMath::Sqrt(pow(diffTheta/sigmaTheta,2) + pow(diffPhi/sigmaPhi,2));
       
-  //  cout << "diff: " << diff << endl;
+  cout << " | diff: " << diff << endl;
   
   return diff;
 
@@ -1551,6 +1553,7 @@ void printCandidateVsBases(string inFileName) {
   for (int entry=0; entry<lenEntries; entry++) {
     summaryTree->GetEntry(entry);
     double closest = 9999;
+    double closestNum = -1;
     UsefulAdu5Pat *useful = new UsefulAdu5Pat(gps);
 
     for (int base=0; base<baseTree->GetEntries(); base++) {
@@ -1558,18 +1561,23 @@ void printCandidateVsBases(string inFileName) {
       double dist = calcBaseDistance(evSum,useful,lat,lon,alt);
       if (closest > dist && dist != -9999) {
 	closest = dist;
+	closestNum = base;
 	name.str("");
 	name << *baseName;
       }
     }
-    cout << "ev" << evSum->eventNumber << " : " << closest;
-    if (closest < 40) cout << " " << name.str();
-    cout << endl;
+    cout << "ev" << evSum->eventNumber << " : " << closest << " " << name.str() << " " << closestNum << endl;
     delete useful;
   }
 
 	
 
+  return;
+}
+
+
+void drawEventErrorEllipse() {
+  
   return;
 }
 
