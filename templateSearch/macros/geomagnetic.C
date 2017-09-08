@@ -32,7 +32,8 @@ TGraph* findGeomagneticAngle() {
     summaryTree->GetEntry(entry);
 
     //quality cuts
-    if (TMath::Abs(evSum->peak[0][0].hwAngle) > 31.75 || evSum->flags.maxBottomToTopRatio[0] > 6) {
+    if (TMath::Abs(evSum->peak[0][0].hwAngle) > 45 || evSum->flags.maxBottomToTopRatio[0] > 6) {
+      cout << "ev" << evSum->eventNumber << " cut due to hw or blast" << endl;
       continue;
     }
 
