@@ -1,6 +1,8 @@
 #include "AntarcticaMapPlotter.h"
 #include "AnitaEventSummary.h"
 #include "AnitaConventions.h"
+#include "BaseList.h"
+#include "AntarcticaGeometry.h"
 #include <Riostream.h>
 
 /*
@@ -29,6 +31,22 @@ int evToRun(int ev) {
 
 
 void placeBasesOnMap(Acclaim::AntarcticaMapPlotter *aMap,TGraph *gBaseList) {
+
+  BaseList::makeBaseList();
+
+
+  double x,y;
+  for (int baseNum=0; baseNum < BaseList::getNumBases(); baseNum++) {
+    BaseList::base base = BaseList::getBase(baseNum);
+    AntarcticCoord coord = base.getPosition(0);
+    aMap->getRelXYFromLatLong(coord.x,coord.y, x,y);
+    gBaseList->SetPoint(gBaseList->GetN(),x,y);
+  }
+
+  return;
+}
+
+void placeBasesOnMap_old(Acclaim::AntarcticaMapPlotter *aMap,TGraph *gBaseList) {
 
   stringstream name;
 
@@ -67,7 +85,7 @@ void placeBasesOnMap(Acclaim::AntarcticaMapPlotter *aMap,TGraph *gBaseList) {
   return;
 }
 
-void drawCandidatesOnAntarctica(string fileName="cuts.root") {
+void drawCandidatesOnAntarctica_hardcoded(string fileName="cuts.root") {
 
   /*
 
@@ -196,7 +214,7 @@ void drawCandidatesOnAntarctica(string fileName="cuts.root") {
 
 
   }
-
+  
   aMap->addTGraph("baseList","baseList");
   TGraph *gBaseList = aMap->getCurrentTGraph();
   gBaseList->SetMarkerStyle(20); //20=filled circle
@@ -212,8 +230,8 @@ void drawCandidatesOnAntarctica(string fileName="cuts.root") {
   aMap->setCurrentTGraph("anitaPosition");
   aMap->DrawTGraph("p");
 
-  //  aMap->setCurrentTGraph("baseList");
-  //  aMap->DrawTGraph("psame");
+  aMap->setCurrentTGraph("baseList");
+  aMap->DrawTGraph("psame");
 
   for (int i=0; i<arrows.size(); i++) {
   arrows[i]->Draw("");
@@ -237,6 +255,127 @@ void drawCandidatesOnAntarctica(string fileName="cuts.root") {
 
 
 
+
+void drawCandidatesOnAntarctica(string fileName="candidates.root",bool moreCuts = true) {
+
+  /*
+
+    Draws all events from a bunch of AnitaEventSummaries in a file
+
+   */
+
+  stringstream name;
+
+  TFile *inFile = TFile::Open(fileName.c_str());
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+
+  if (summaryTree == NULL) {
+    cout << "Couldn't find summaryTree in file " << fileName << endl;
+  }
+
+  AnitaEventSummary *summary = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&summary);
+
+  cout << "found " << summaryTree->GetEntries() << " events in " << fileName << endl;
+
+  
+  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
+
+  aMap->addTGraph("anitaPosition","anitaPosition");
+  TGraph *anitaPosition = aMap->getCurrentTGraph();
+  anitaPosition->SetMarkerColor(kWhite);
+
+  vector<TArrow*> arrows;
+
+  vector<TArrow*> highlightArrows;
+  vector<TGraph*> highlights;
+
+
+  int count=0;
+  for (int entry=0; entry<summaryTree->GetEntries(); entry++) {
+    summaryTree->GetEntry(entry);
+
+    if (moreCuts) {
+      //blasts
+      if (summary->flags.maxBottomToTopRatio[0] > 3) continue;
+    
+      //point at bases (from cluster.C)
+      if (summary->eventNumber == 11116669 || 
+	  summary->eventNumber == 11989349 || 
+	  summary->eventNumber == 16952229 || 
+	  summary->eventNumber == 33484995 || 
+	  summary->eventNumber == 58592863 ||
+	  summary->eventNumber == 62273732 || 
+	  summary->eventNumber == 63210848 ||
+	  summary->eventNumber == 80561103 || 
+	  summary->eventNumber == 83877990 || 
+	  summary->eventNumber == 84114142) continue;
+    }
+
+
+
+    count++;
+    double xA,yA,latEv,lonEv,xEv,yEv;
+
+    //fill the position graph with ANITA's location
+    latEv = summary->anitaLocation.latitude;
+    lonEv = summary->anitaLocation.longitude;
+    aMap->getRelXYFromLatLong(latEv,lonEv,xA,yA);
+    anitaPosition->SetPoint(entry,xA,yA);
+
+    //plot the event source location
+    latEv = summary->peak[0][0].latitude;
+    lonEv = summary->peak[0][0].longitude;
+    aMap->getRelXYFromLatLong(latEv,lonEv,xEv,yEv);
+    TArrow *currArrow = new TArrow(xA,yA,xEv,yEv,0.003,"|>");
+
+    name.str("");
+    name << "event" << summary->eventNumber;
+    cout << name.str() << " " << latEv << "|" << lonEv << endl;
+    TGraph *gHighlight = new TGraph();
+    gHighlight->SetName(name.str().c_str());
+    gHighlight->SetTitle(name.str().c_str());
+    gHighlight->SetMarkerStyle(29); //29=star
+    gHighlight->SetMarkerSize(1);
+    gHighlight->SetMarkerColor(kGreen);
+    gHighlight->SetPoint(0,xEv,yEv);
+    highlights.push_back(gHighlight);
+    
+    currArrow->SetLineWidth(2);
+    //    currArrow->SetLineColor(kGreen);
+    //    currArrow->SetFillColor(kGreen);
+    highlightArrows.push_back(currArrow);
+
+  }
+  
+  cout << count << " were not blasts and didn't point at bases" << endl;
+
+  aMap->addTGraph("baseList","baseList");
+  TGraph *gBaseList = aMap->getCurrentTGraph();
+  gBaseList->SetMarkerStyle(20); //20=filled circle
+  gBaseList->SetMarkerSize(1);
+  gBaseList->SetMarkerColor(kRed);
+  placeBasesOnMap(aMap,gBaseList);
+
+
+  aMap->setCurrentTGraph("anitaPosition");
+  aMap->DrawTGraph("p");
+
+  aMap->setCurrentTGraph("baseList");
+  aMap->DrawTGraph("psame");
+  
+  for (int i=0; i<highlights.size(); i++) {
+    highlights[i]->Draw("psame");
+    highlightArrows[i]->Draw();
+
+  }
+  
+
+
+
+
+  return;
+}
 
 
 
@@ -289,16 +428,23 @@ void drawFlightPathOnAntarctica() {
 void drawBaseListOnAntarctica() {
 
   /*
-    I need a plot of the flight path in chapter two
+    I need a base map that tells me the name, and number, for each base so I can figure out what is what
+
+    unfinished
+
    */
   stringstream name;
 
+  
+  //  vector <TGraph*> gBaseList;
+  TGraph *gBaseList;
+
   Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
   aMap->addTGraph("baseList","baseList");
-  TGraph *gBaseList = aMap->getCurrentTGraph();
-  gBaseList->SetMarkerStyle(20); //20=filled circle
-  gBaseList->SetMarkerSize(1);
-  gBaseList->SetMarkerColor(kRed);
+  TGraph *currGraph = aMap->getCurrentTGraph();
+  currGraph->SetMarkerStyle(20); //20=filled circle
+  currGraph->SetMarkerSize(1);
+  currGraph->SetMarkerColor(kRed);
   placeBasesOnMap(aMap,gBaseList);
   aMap->DrawTGraph("p");
 
@@ -469,7 +615,7 @@ void plotBasesWithClusteredEvents() {
 
   return;
 }
-	       
+
   
 
        
@@ -477,7 +623,7 @@ void drawDirectEvents(){
   /*
     Direct events are events too!  Lets just point them in some generalized direction I guess?
    */
-
+  stringstream name;
   
   //make an Antarctica map
   Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
@@ -491,6 +637,7 @@ void drawDirectEvents(){
   gBaseList->SetMarkerSize(1);
   cout << "got " << gBaseList->GetN() << " bases" << endl;
 
+  vector<TGraph*> candidates;
   vector<TArrow*> directArrows;
 
   TFile *directFile = TFile::Open("aboveHorizon.root");
@@ -499,7 +646,7 @@ void drawDirectEvents(){
     return;
   }
 
-  TTree* directTree = (TTree*)directFile->Get("directTree");
+  TTree* directTree = (TTree*)directFile->Get("summaryTree");
   int lenEntries = directTree->GetEntries();
   cout << "Found " << lenEntries << " entries" << endl;
   AnitaEventSummary *directSum = NULL;
@@ -531,13 +678,26 @@ void drawDirectEvents(){
     cout << "x,y: " << xEv << "," << yEv << endl;
 
     TArrow *currArrow = new TArrow(xA,yA,xEv,yEv,0.01,"|>");
+    if (directSum->eventNumber == 39599205) {
+      currArrow->SetLineColor(kRed);
+      currArrow->SetFillColor(kRed);
+    }
     directArrows.push_back(currArrow);
+
+    name.str("");
+    name << "ev" << directSum->eventNumber;
+    TGraph *currEv = new TGraph();
+    currEv->SetName(name.str().c_str());
+    currEv->SetPoint(0,xEv,yEv);
+    candidates.push_back(currEv);
+
   }
 
   aMap->DrawTGraph("p");
   
   for (int i=0; i<directArrows.size(); i++) {
     directArrows[i]->Draw();
+    candidates[i]->Draw("same");
   }
   
   return;
@@ -684,6 +844,39 @@ void drawDirectAndReflected() {
   
   return;
 }
+
+
+void drawTemplateMap() {
+  /*
+    Draws a 2d histogram on antarctica with the template correlation value
+   */
+
+
+  Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
+
+  aMap->addProfile("templateProf","tempalteProf",1000,1000);
+  
+  TFile *inFile = TFile::Open("mergeBaseClusters.root");
+  TTree* summaryTree = (TTree*)inFile->Get("summaryTree");
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  AnitaTemplateSummary *tempSum = NULL;
+  summaryTree->SetBranchAddress("template",&tempSum);
+
+
+  int lenEntries = summaryTree->GetEntries();
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (entry%10000 == 0) cout << "Hi CRAB!!! " << entry << "/" << lenEntries << endl;
+    summaryTree->GetEntry(entry);
+    aMap->Fill(evSum->peak[0][0].latitude,evSum->peak[0][0].longitude,tempSum->coherent[0][0].cRay[4]);
+  }
+
+  aMap->DrawHist("colz");
+
+  return;
+}
+
   
 
 

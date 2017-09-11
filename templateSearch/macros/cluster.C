@@ -1,4 +1,6 @@
 #include "Adu5Pat.h"
+#include "BaseList.h"
+#include "AntarcticaGeometry.h"
 
 /*
 
@@ -984,14 +986,18 @@ TGraph* getBaseGraph() {
 
 
 
-double calcBaseDistance(AnitaEventSummary *event, UsefulAdu5Pat *gps,double lat, double lon,double alt) {
+double calcBaseDistance(AnitaEventSummary *event, UsefulAdu5Pat *gps,double lat, double lon,double alt,
+			bool debug=false) {
   /*
 
     For calculating the clustering to bases which only have one definate known location
 
    */
+  const double Re = 6371e3; //km
+  double distToHorizon = TMath::Sqrt(event->anitaLocation.altitude*(2*Re+event->anitaLocation.altitude));
 
-  if (gps->getDistanceFromSource(lat,lon,alt) > 600e3) {
+  if (gps->getDistanceFromSource(lat,lon,alt) > distToHorizon) {
+    //    if (debug) cout << "calcBaseDistance(): too far, " << gps->getDistanceFromSource(lat,lon,alt) << endl;
     return -9999;
   }
 
@@ -1007,8 +1013,8 @@ double calcBaseDistance(AnitaEventSummary *event, UsefulAdu5Pat *gps,double lat,
   double theta = event->peak[0][0].theta;
   
   //difference between A->a and A->b
-  cout << "theta:" << theta << " - " << thetaBase;
-  cout << " | phi:" << phi << " - " << phiBase;
+  if (debug) cout << "theta:" << theta << " - " << thetaBase;
+  if (debug) cout << " | phi:" << phi << " - " << phiBase;
   double diffTheta = TMath::Abs(theta - thetaBase);
   double diffPhi = TMath::Abs(FFTtools::wrap(phi - phiBase,360,0));
   if (diffPhi > 180) diffPhi = 360 - diffPhi;
@@ -1019,7 +1025,7 @@ double calcBaseDistance(AnitaEventSummary *event, UsefulAdu5Pat *gps,double lat,
       
   double diff = TMath::Sqrt(pow(diffTheta/sigmaTheta,2) + pow(diffPhi/sigmaPhi,2));
       
-  cout << " | diff: " << diff << endl;
+  if (debug) cout << " | diff: " << diff << endl;
   
   return diff;
 
@@ -1517,7 +1523,7 @@ void saveCandidatePValues(bool doCut=true,string fileName="") {
 }
 
 
-void printCandidateVsBases(string inFileName) {
+void printCandidateVsBases(string inFileName="candidates.root",bool debug=false) {
   /*
     print out whether the candidates cluster with any bases
    */
@@ -1543,11 +1549,17 @@ void printCandidateVsBases(string inFileName) {
   int lenEntries = summaryTree->GetEntries();
   cout << "Found " << lenEntries << " candidates" << endl;
 
-
+  /* Old way, which skips a bunch I think
   double lat,lon,alt;
   string *baseName = NULL;
   TTree* baseTree = getBaseTree(&lat,&lon,&alt,&baseName);
-  
+  */
+
+  //new way to get bases from Cosmin!
+  BaseList::makeBaseList();
+
+
+  int count = 0;
 
   stringstream name;
   for (int entry=0; entry<lenEntries; entry++) {
@@ -1556,22 +1568,53 @@ void printCandidateVsBases(string inFileName) {
     double closestNum = -1;
     UsefulAdu5Pat *useful = new UsefulAdu5Pat(gps);
 
-    for (int base=0; base<baseTree->GetEntries(); base++) {
-      baseTree->GetEntry(base);
-      double dist = calcBaseDistance(evSum,useful,lat,lon,alt);
+    for (int baseNum=0; baseNum < BaseList::getNumBases(); baseNum++) {
+      BaseList::base base = BaseList::getBase(baseNum);
+
+      if (!base.isValid(evSum->realTime)) continue;
+
+      AntarcticCoord coord = base.getPosition(evSum->realTime);
+      coord.to(AntarcticCoord::CoordType::WGS84);
+      double dist = calcBaseDistance(evSum,useful,coord.x,coord.y,coord.z,debug);
       if (closest > dist && dist != -9999) {
+	if (debug) {
+	  cout << "evCoords:" << evSum->anitaLocation.latitude << " " << evSum->anitaLocation.longitude << endl;
+	  cout << "baseCoords:" << coord.x << " " << coord.y << " " <<  coord.z << endl;}
 	closest = dist;
-	closestNum = base;
+	closestNum = baseNum;
 	name.str("");
-	name << *baseName;
+	name << base.getName();
       }
     }
+
+    for (int baseNum=0; baseNum < BaseList::getNumPaths(); baseNum++) {
+      BaseList::path base = BaseList::getPath(baseNum);
+
+      if (!base.isValid(evSum->realTime)) continue;
+      
+      AntarcticCoord coord = base.getPosition(evSum->realTime);
+      coord.to(AntarcticCoord::CoordType::WGS84);
+      double dist = calcBaseDistance(evSum,useful,coord.x,coord.y,coord.z,debug);
+      if (closest > dist && dist != -9999) {
+	if (debug) {
+	  cout << "evCoords:" << evSum->anitaLocation.latitude << " " << evSum->anitaLocation.longitude << endl;
+	  cout << "baseCoords:" << coord.x << " " << coord.y << " " <<  coord.z << endl; }
+	closest = dist;
+	closestNum = baseNum;
+	name.str("");
+	name << base.getName();
+      }
+    }
+
+    if (closest > 40) count++;
+
     cout << "ev" << evSum->eventNumber << " : " << closest << " " << name.str() << " " << closestNum << endl;
     delete useful;
   }
 
 	
-
+  cout << "Only " << count << " were more than 40 away from a base" << endl;
+  
   return;
 }
 
