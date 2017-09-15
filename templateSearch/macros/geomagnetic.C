@@ -19,13 +19,13 @@ TGraph* findGeomagneticAngle() {
   summaryTree->SetBranchAddress("eventSummary",&evSum);
   summaryTree->SetBranchAddress("gpsEvent",&gps);
 
-  TGraph *gExVsMeas = new TGraph();
+  TGraphErrors *gExVsMeas = new TGraphErrors();
   gExVsMeas->SetName("gExVsMeas");
   gExVsMeas->SetTitle("Geomagnetic Polarization, measured vs expected; Expected Polarisation Angle (degrees); Measured Polarisation Angle (degrees)");
 
-  TH1D *hMeas = new TH1D("hMeas","Measured Polarization Angle",46,-45,45);
-  TH1D *hExp = new TH1D("hExp","Expected Polarization Angle",46,-45,45);
-  TH1D *hDiff = new TH1D("hDiff","Difference between Measured and Expected",91,-90,90);
+  TH1D *hMeas = new TH1D("hMeas","Measured Polarization Angle;degrees;count",46,-45,45);
+  TH1D *hExp = new TH1D("hExp","Expected Polarization Angle;degrees;count",46,-45,45);
+  TH1D *hDiff = new TH1D("hDiff","Difference between Measured and Expected;degrees;count",91,-90,90);
 
 
   for (int entry=0; entry<summaryTree->GetEntries(); entry++) {
@@ -36,6 +36,8 @@ TGraph* findGeomagneticAngle() {
       cout << "ev" << evSum->eventNumber << " cut due to hw or blast" << endl;
       continue;
     }
+    
+
 
     cout << "--------------------------------------------------" << endl;
 
@@ -62,7 +64,7 @@ TGraph* findGeomagneticAngle() {
     hExp->Fill(exPol);
     hDiff->Fill(TMath::Abs(measPol-exPol));
     gExVsMeas->SetPoint(entry,exPol,measPol);
-
+    gExVsMeas->SetPointError(entry,5,5);
     delete usefulGPS;
   }
 

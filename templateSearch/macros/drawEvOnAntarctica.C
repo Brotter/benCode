@@ -29,6 +29,29 @@ int evToRun(int ev) {
 
 }
 
+void placeHiCalOnMap(Acclaim::AntarcticaMapPlotter *aMap,TGraph *gHiCal) {
+  
+  TFile *hiCalFile = TFile::Open("/Users/brotter/anita16/benCode/HiCal/anita_hical_bearing_all.root");
+  TTree *hiCalTree = (TTree*)hiCalFile->Get("HCbearingTree");
+  double lat,lon;
+  hiCalTree->SetBranchAddress("hicalLat",&lat);
+  hiCalTree->SetBranchAddress("hicalLon",&lon);
+  
+  
+  double x,y;
+  for (int entry=0; entry<hiCalTree->GetEntries(); entry++) {
+    if (entry%10==0) {
+      hiCalTree->GetEntry(entry);
+      aMap->getRelXYFromLatLong(lat,lon,x,y);
+      gHiCal->SetPoint(gHiCal->GetN(),x,y);
+    }
+  }
+
+  gHiCal->SetMarkerColor(kBlue);
+
+  return;
+}
+
 
 void placeBasesOnMap(Acclaim::AntarcticaMapPlotter *aMap,TGraph *gBaseList) {
 
@@ -45,6 +68,7 @@ void placeBasesOnMap(Acclaim::AntarcticaMapPlotter *aMap,TGraph *gBaseList) {
 
   return;
 }
+
 
 void placeBasesOnMap_old(Acclaim::AntarcticaMapPlotter *aMap,TGraph *gBaseList) {
 
@@ -285,6 +309,13 @@ void drawCandidatesOnAntarctica(string fileName="candidates.root",bool moreCuts 
   TGraph *anitaPosition = aMap->getCurrentTGraph();
   anitaPosition->SetMarkerColor(kWhite);
 
+
+  cout << "Getting HiCal" << endl;
+  aMap->addTGraph("hiCal","hiCal");
+  TGraph *gHiCal = aMap->getCurrentTGraph();
+  placeHiCalOnMap(aMap,gHiCal);
+
+
   vector<TArrow*> arrows;
 
   vector<TArrow*> highlightArrows;
@@ -297,10 +328,13 @@ void drawCandidatesOnAntarctica(string fileName="candidates.root",bool moreCuts 
 
     if (moreCuts) {
       //blasts
-      if (summary->flags.maxBottomToTopRatio[0] > 3) continue;
+      if (summary->flags.maxBottomToTopRatio[0] > 3) {
+	cout << summary->eventNumber << " is a blast" << endl;
+	continue;
+      }
     
-      //point at bases (from cluster.C)
-      if (summary->eventNumber == 11116669 || 
+      //point at bases (from cluster.C) NOT DOING THIS ANYMORE!
+      /*      if (summary->eventNumber == 11116669 || 
 	  summary->eventNumber == 11989349 || 
 	  summary->eventNumber == 16952229 || 
 	  summary->eventNumber == 33484995 || 
@@ -310,6 +344,15 @@ void drawCandidatesOnAntarctica(string fileName="candidates.root",bool moreCuts 
 	  summary->eventNumber == 80561103 || 
 	  summary->eventNumber == 83877990 || 
 	  summary->eventNumber == 84114142) continue;
+      */
+
+      //hardware trigger angle
+      if (TMath::Abs(summary->peak[0][0].hwAngle) > 45) continue;
+
+      //geomagnetic > 10 (from geomagnetic.C)
+      if (summary->eventNumber == 84114142 || summary->eventNumber == 84405480) continue;
+      
+     
     }
 
 
@@ -362,6 +405,9 @@ void drawCandidatesOnAntarctica(string fileName="candidates.root",bool moreCuts 
   aMap->DrawTGraph("p");
 
   aMap->setCurrentTGraph("baseList");
+  //  aMap->DrawTGraph("psame");
+
+  aMap->setCurrentTGraph("hiCal");
   aMap->DrawTGraph("psame");
   
   for (int i=0; i<highlights.size(); i++) {
@@ -437,11 +483,11 @@ void drawBaseListOnAntarctica() {
 
   
   //  vector <TGraph*> gBaseList;
-  TGraph *gBaseList;
 
   Acclaim::AntarcticaMapPlotter *aMap = new Acclaim::AntarcticaMapPlotter();
   aMap->addTGraph("baseList","baseList");
   TGraph *currGraph = aMap->getCurrentTGraph();
+  TGraph *gBaseList = currGraph;
   currGraph->SetMarkerStyle(20); //20=filled circle
   currGraph->SetMarkerSize(1);
   currGraph->SetMarkerColor(kRed);
@@ -632,10 +678,16 @@ void drawDirectEvents(){
   aMap->addTGraph("baseList","baseList");
   TGraph *gBaseList = aMap->getCurrentTGraph();
   placeBasesOnMap(aMap,gBaseList);
-  gBaseList->SetMarkerStyle(20); //20=filled circle
+  //  gBaseList->SetMarkerStyle(20); //20=filled circle
   gBaseList->SetMarkerColor(kGreen);
-  gBaseList->SetMarkerSize(1);
+  gBaseList->SetMarkerSize(0.05);
   cout << "got " << gBaseList->GetN() << " bases" << endl;
+
+
+  cout << "Getting HiCal" << endl;
+  aMap->addTGraph("hiCal","hiCal");
+  TGraph *gHiCal = aMap->getCurrentTGraph();
+  placeHiCalOnMap(aMap,gHiCal);
 
   vector<TGraph*> candidates;
   vector<TArrow*> directArrows;
@@ -659,6 +711,10 @@ void drawDirectEvents(){
 
     cout << "entry:" << entry << endl;
 
+    //2 sigma above horizon cut
+    double Re = 6371e3;
+    if (TMath::ACos(Re/(directSum->anitaLocation.altitude+Re))*TMath::RadToDeg() - directSum->peak[0][0].theta < 0.5) continue;
+
     double latEv,lonEv,altEv,theta_adj;
     double xEv,yEv,xA,yA;
     
@@ -678,10 +734,9 @@ void drawDirectEvents(){
     cout << "x,y: " << xEv << "," << yEv << endl;
 
     TArrow *currArrow = new TArrow(xA,yA,xEv,yEv,0.01,"|>");
-    if (directSum->eventNumber == 39599205) {
-      currArrow->SetLineColor(kRed);
-      currArrow->SetFillColor(kRed);
-    }
+    //    currArrow->SetLineColor(entry);
+    //    currArrow->SetFillColor(entry);
+    currArrow->SetLineWidth(2);
     directArrows.push_back(currArrow);
 
     name.str("");
@@ -878,6 +933,19 @@ void drawTemplateMap() {
 }
 
   
+void drawHiCalOnAntarctica() {
+  /*
+
+    Jess sent me a bunch of HiCal stuff, so I should plot it for my thesis!
+
+  */
+
+  
+
+  return;
+}
+
+    
 
 
 void drawEvOnAntarctica() {

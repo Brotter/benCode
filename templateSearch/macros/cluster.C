@@ -1354,18 +1354,20 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
   if (doCut) allCuts = "peak[0][0].value > 0.0435 && peak[0][0].snr > 9.05 && deconvolved_filtered[0][0].peakHilbert > 47.5 && template.coherent[0][0].cRay[4] > 0.666 && flags.pulser==0";
   //if (doCut) allCuts = "peak[0][0].value > 0.0695 && peak[0][0].snr > 13.35 && template.coherent[0][0].cRay[4] > 0.485 && deconvolved_filtered[0][0].peakHilbert > 37.5 && flags.pulser==0";
   //  if (doCut) allCuts = "peak[0][0].value > 0.0055 && peak[0][0].snr > 1.35 && template.coherent[0][0].cRay[4] > 0.115 && deconvolved_filtered[0][0].peakHilbert > 11.5 && flags.pulser==0";
-  else allCuts = "flags.pulser==0";
-
+  //  else allCuts = "flags.pulser==0 && flags.maxBottomToTopRatio < 3";
+  //point at bases (from cluster.C)                                                                                        
+  else allCuts = "flags.pulser==0 && flags.maxBottomToTopRatio[0] < 3 && TMath::Abs(peak[0][0].hwAngle) < 45 && eventNumber != 84405480 && eventNumber != 84114142";
   cout << "1/4" << endl;
   TH1D *hMapPeak = new TH1D("hMapPeak","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
   TH1D *hMapPeakCand = new TH1D("hMapPeakCand","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
   baseTree->Draw("peak[0][0].value >> hMapPeak",allCuts);
-  candidateTree->Draw("peak[0][0].value >> hMapPeakCand",allCuts,"same");
+  int numCands = candidateTree->Draw("peak[0][0].value >> hMapPeakCand",allCuts,"same");
+  cout << "numCands:" << numCands << endl;
   cout << "2/4" << endl;
-  TH1D *hMapSNR = new TH1D("hMapSNR","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
-  TH1D *hMapSNRCand = new TH1D("hMapSNRCand","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
-  baseTree->Draw("peak[0][0].snr >> hMapSNR",allCuts);
-  candidateTree->Draw("peak[0][0].snr >> hMapSNRCand",allCuts,"same");
+  TH1D *hLinPolFrac = new TH1D("hLinPolFrac","Linear Polarization;Linear Polarization Fraction;count",250,0,1);
+  TH1D *hLinPolFracCand = new TH1D("hLinPolFracCand","Linear Polarization;Linear Polarization Fraction;count",250,0,1);
+  baseTree->Draw("coherent_filtered[0][0].linearPolFrac() >> hLinPolFrac",allCuts);
+  candidateTree->Draw("coherent_filtered[0][0].linearPolFrac() >> hLinPolFracCand",allCuts,"same");
   cout << "3/4" << endl;
   TH1D *hPeakHilbertDF = new TH1D("hPeakHilbertDF","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
   TH1D *hPeakHilbertDFCand = new TH1D("hPeakHilbertDFCand","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
@@ -1378,7 +1380,7 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
   candidateTree->Draw("template.coherent[0][0].cRay[4] >> hTemplateCand",allCuts,"same");
 
   hMapPeakCand->SetLineColor(kRed);
-  hMapSNRCand->SetLineColor(kRed);
+  hLinPolFracCand->SetLineColor(kRed);
   hPeakHilbertDFCand->SetLineColor(kRed);
   hTemplateCand->SetLineColor(kRed);
 
@@ -1397,11 +1399,11 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
   pad = c1->cd(2);
   pad->SetLogy();
   if (cumulative) {
-    drawQuadrent(hMapSNR,hMapSNRCand);
+    drawQuadrent(hLinPolFrac,hLinPolFracCand);
   }
   else {
-    hMapSNR->Draw();
-    hMapSNRCand->Draw("same"); }  
+    hLinPolFrac->Draw();
+    hLinPolFracCand->Draw("same"); }  
 
   pad = c1->cd(3);
   pad->SetLogy();
@@ -1426,11 +1428,16 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
 }
 
 
-void saveCandidatePValues(bool doCut=true,string fileName="") {
+void saveCandidatePValues(bool doCut=false,string fileName="") {
 
   /* 
 
-     Like it says, rushed for time
+     Basically, calculate the fraction of events above any given event in each distribution
+
+     If they were all uncorrelated, Ptot = TT(Px)
+
+     They aren't though, so you have to do some chain rule probability stuff
+
 
    */
 
@@ -1453,16 +1460,16 @@ void saveCandidatePValues(bool doCut=true,string fileName="") {
   if (doCut) allCuts = "peak[0][0].value > 0.0435 && peak[0][0].snr > 9.05 && deconvolved_filtered[0][0].peakHilbert > 47.5 && template.coherent[0][0].cRay[4] > 0.666 && flags.pulser==0";
   //  if (doCut) allCuts = "peak[0][0].value > 0.0695 && peak[0][0].snr > 13.35 && template.coherent[0][0].cRay[4] > 0.485 && deconvolved_filtered[0][0].peakHilbert > 37.5 && flags.pulser==0";
   // if (doCut) allCuts = "peak[0][0].value > 0.0055 && peak[0][0].snr > 1.35 && template.coherent[0][0].cRay[4] > 0.115 && deconvolved_filtered[0][0].peakHilbert > 11.5 && flags.pulser==0";
-  else allCuts = "flags.pulser==0";
-
+  //  else allCuts = "flags.pulser==0 && flags.maxBottomToTopRatio < 3 && eventNumber != 11116669 && eventNumber != 11989349 && eventNumber != 16952229 && eventNumber != 33484995 && eventNumber != 58592863 && eventNumber != 62273732 && eventNumber != 63210848 && eventNumber != 80561103 && eventNumber != 83877990 && eventNumber != 84114142";
+  else allCuts = "flags.pulser==0 && flags.maxBottomToTopRatio[0] < 3 && TMath::Abs(peak[0][0].hwAngle) < 45";
   
   
   cout << "1" << endl;
   TH1D *hMapPeak = new TH1D("hMapPeak","Interferometric Map Peak;Interferometric Map Peak;count",250,0,0.5);
   baseTree->Draw("peak[0][0].value >> hMapPeak",allCuts);
   cout << "2" << endl;
-  TH1D *hMapSNR = new TH1D("hMapSNR","Interferometric Map SNR;Interferometric Map SNR;count",250,0,50);
-  baseTree->Draw("peak[0][0].snr >> hMapSNR",allCuts);
+  TH1D *hLinPolFrac = new TH1D("hLinPolFrac","Linear Polarization;Linear Polarization Fraction;count",250,0,1);
+  baseTree->Draw("coherent_filtered[0][0].linearPolFrac() >> hLinPolFrac",allCuts);
   cout << "3" << endl;
   TH1D *hPeakHilbertDF = new TH1D("hPeakHilbertDF","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
   baseTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDF",allCuts);
@@ -1471,18 +1478,30 @@ void saveCandidatePValues(bool doCut=true,string fileName="") {
   baseTree->Draw("template.coherent[0][0].cRay[4] >> hTemplate",allCuts);
 
   TH1 *hMapPeakC   = makeNormCumulative(hMapPeak);
-  TH1 *hMapSNRC   = makeNormCumulative(hMapSNR);
+  TH1 *hLinPolFracC   = makeNormCumulative(hLinPolFrac);
   TH1 *hPeakHilbertDFC   = makeNormCumulative(hPeakHilbertDF);
   TH1 *hTemplateC   = makeNormCumulative(hTemplate);
 
   if (fileName=="") fileName="pValues.csv";
   ofstream outFile(fileName);
-  outFile << "eventNumber,mapPeakVal,PmapPeakVal,mapPeakSNR,PmapPeakSNR,peakHilbertDF,PpeakHilbertDF,cRayTemplate,PcRayTemplate" << endl;
+  outFile << "#eventNumber,mapPeakVal,PmapPeakVal,mapPeakSNR,PmapPeakSNR,peakHilbertDF,PpeakHilbertDF,cRayTemplate,PcRayTemplate" << endl;
 
   for (int entry=0; entry<candidateTree->GetEntries(); entry++) {
     candidateTree->GetEntry(entry);
+    
+    bool skip=false;
 
-    if (TMath::Abs(candSum->peak[0][0].hwAngle) > 31.75 || candSum->flags.maxBottomToTopRatio[0] > 6 || candSum->eventNumber == 84114142) {
+    if (TMath::Abs(candSum->peak[0][0].hwAngle) > 45) {
+      cout << candSum->eventNumber << " hw angle doesn't match peak angle" << endl;
+      continue;
+    }
+    if (candSum->flags.maxBottomToTopRatio[0] > 3 ) {
+      cout << candSum->eventNumber << " blast" << endl;
+      continue;
+    }
+   
+    if (candSum->eventNumber == 84114142 || candSum->eventNumber == 84405480) {
+      cout << candSum->eventNumber << " doesn't have right geomagnetic" << endl;
       continue;
     }
 
@@ -1492,9 +1511,9 @@ void saveCandidatePValues(bool doCut=true,string fileName="") {
     bin = hMapPeakC->GetXaxis()->FindBin(mapPeakVal);
     double PmapPeakVal = hMapPeakC->GetBinContent(bin);
 
-    double mapPeakSNR = candSum->peak[0][0].snr;
-    bin = hMapSNRC->GetXaxis()->FindBin(mapPeakSNR);
-    double PmapPeakSNR = hMapSNRC->GetBinContent(bin);
+    double linearPolFrac = candSum->coherent_filtered[0][0].linearPolFrac();
+    bin = hLinPolFracC->GetXaxis()->FindBin(linearPolFrac);
+    double PlinearPolFrac = hLinPolFracC->GetBinContent(bin);
 
     double peakHilbert = candSum->deconvolved_filtered[0][0].peakHilbert;
     bin = hPeakHilbertDFC->GetXaxis()->FindBin(peakHilbert);
@@ -1509,8 +1528,8 @@ void saveCandidatePValues(bool doCut=true,string fileName="") {
     outFile << candSum->eventNumber << ",";
     outFile << mapPeakVal << ",";
     outFile << PmapPeakVal << ",";
-    outFile << mapPeakSNR << ",";
-    outFile << PmapPeakSNR << ",";
+    outFile << linearPolFrac << ",";
+    outFile << PlinearPolFrac << ",";
     outFile << peakHilbert << ",";
     outFile << PpeakHilbert << ",";
     outFile << cRayTemp << ",";
@@ -1521,6 +1540,59 @@ void saveCandidatePValues(bool doCut=true,string fileName="") {
   outFile.close();
 
 }
+
+
+
+void make2DCovarience(bool savePlots=false) {
+  stringstream name,toPlot;
+
+  //get base pointed event summaries
+  TFile *baseFile = TFile::Open("mergeBaseClusters.root");
+  TTree *baseTree = (TTree*)baseFile->Get("summaryTree");
+
+  //things you tell to TTree::Draw() so that it draws
+  string plotStrings[4] = {"peak[0][0].value","coherent_filtered.linearPolFrac()","deconvolved_filtered[0][0].peakHilbert","template.coherent[0][0].cRay[4]"};
+
+  //if you want to save them, they should have descriptive names
+  string plotNames[6] = {"mapPeak_linPol.png","mapPeak_hilb.png","mapPeak_temp.png","linPol_hilb.png","linPol_temp","hilb_temp.png"};
+
+  string cutString = "flags.pulser==0 && flags.maxBottomToTopRatio < 3 && TMath::Abs(peak[0][0].hwAngle) < 45";
+
+  TH2D *hCovariance = new TH2D("hCovariance","hCovariance",4,-0.5,3.5, 4,-0.5,3.5);
+
+  int count=0;
+  for (int i=0; i<4; i++) {
+    for (int j=i+1; j<4; j++) {
+      toPlot.str("");
+      toPlot << plotStrings[i] << ":" << plotStrings[j];
+      name.str("");
+      name << "c" << i << j;
+      TCanvas *c1 = new TCanvas(name.str().c_str(),"",1000,600);
+      c1->SetLogz();
+      TVirtualPad *pad1 = c1->cd(1);
+      baseTree->Draw(toPlot.str().c_str(),cutString.c_str(),"colz");
+
+      if (savePlots) c1->SaveAs(plotNames[count].c_str());
+
+      TH2D* currHist = (TH2D*)pad1->GetPrimitive("htemp");
+      double covar = currHist->GetCorrelationFactor(1,2);
+      cout << toPlot.str() << " " << covar << endl;
+
+      hCovariance->Fill(i,j,covar);
+
+      count++;
+    }
+  }
+
+  TCanvas *c1 = new TCanvas(name.str().c_str(),"",1000,600);
+  hCovariance->Draw("colz");
+
+
+}
+
+
+
+
 
 
 void printCandidateVsBases(string inFileName="candidates.root",bool debug=false) {
@@ -1617,6 +1689,11 @@ void printCandidateVsBases(string inFileName="candidates.root",bool debug=false)
   
   return;
 }
+
+
+
+
+
 
 
 void drawEventErrorEllipse() {

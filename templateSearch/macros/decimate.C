@@ -19,9 +19,9 @@ void decimate(string date="07.28.17_17h",int downfactor=10) {
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
   char* resultsDir = getenv("ANITA3_RESULTSDIR");
   stringstream name;
-  for (int run=0; run<256; run++) {
+  for (int core=0; core<256; core++) {
     name.str("");
-    name << resultsDir << "templateSearch/" << date << "/" << run << ".root";
+    name << resultsDir << "templateSearch/" << date << "/" << core << ".root";
     summaryTree->Add(name.str().c_str());
   }
 

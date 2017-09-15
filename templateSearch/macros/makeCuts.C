@@ -176,11 +176,19 @@ void savePassingEvents(bool draw=true,int strength=0) {
   }
 
 
-  /* Cuts that should _always_ be made */
+  /* Cuts that should _always_ be made for candidates*/
+  // not flagged as a pulser
   cuts.push_back("flags.pulser == 0");
+  // needs an rf trigger
   cuts.push_back("flags.isRF");
-  cuts.push_back("(TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(peak[0][0].phi - ldb.phi,360,0)),2) + pow(TMath::Abs(FFTtools::wrap(peak[0][0].theta - ldb.theta,360,0)),2))  > 4 || ldb.distance  > 1000e3)");
-  cuts.push_back("(TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(peak[0][0].phi - wais.phi,360,0)),2)+pow(TMath::Abs(FFTtools::wrap(peak[0][0].theta - wais.theta,360,0)),2))  > 4 || wais.distance  > 1000e3)");
+  //not pointed at ldb when it is nearby (~700km)
+  cuts.push_back("(TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(peak[0][0].phi - ldb.phi,360,0)),2) + pow(TMath::Abs(FFTtools::wrap(peak[0][0].theta - ldb.theta,360,0)),2))  > 4 || ldb.distance  > 700e3)");
+  //not pointed at wais when it is nearby (~700km)
+  cuts.push_back("(TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(peak[0][0].phi - wais.phi,360,0)),2)+pow(TMath::Abs(FFTtools::wrap(peak[0][0].theta - wais.theta,360,0)),2))  > 4 || wais.distance  > 700e3)");
+  //not a blast event
+  cuts.push_back("flags.maxBottomToTopRatio > 3");
+  //not pointing "above" zero (- == up), since not even direct CRs will be above zero (no atmosphere!)
+  cuts.push_back("peak[0][0].theta > 0");
 
 
 
