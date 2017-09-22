@@ -947,6 +947,96 @@ void drawHiCalOnAntarctica() {
 
     
 
+void drawSingleEvOnAntarctica(int evNum, string inFileName = "") {
+  /*
+    Draw a single event on to the continent if you can
+    if inFileName is filled, it loads that file looking for a summaryTree to get the event from.
+    Otherwise it loads the whole thing.
+  */
+  
+  TChain *summaryTree;
+  if (inFileName == "") {
+    summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+  }
+  else {
+    summaryTree = new TChain("summaryTree","summaryTree");
+    summaryTree->Add(inFileName.c_str());
+  }
+
+  summaryTree->BuildIndex("eventNumber");
+  int entry=summaryTree->GetEntryNumberWithIndex(evNum);
+  if (entry==-1) {
+    cout << "Couldn't find event number " << evNum << ". Quitting" << endl;
+    return;
+  }
+
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  
+  summaryTree->GetEntry(entry);
+
+  AntarcticaBackground *aBkgd = new AntarcticaBackground();
+  
+  TGraphAntarctica *gEv = new TGraphAntarctica();
+  gEv->SetPoint(0,evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+  
+  
+  
+  aBkgd->Draw();
+  gEv->Draw("psame");
+
+  return;
+}
+
+
+
+void checkGPS(int evNum, string inFileName = "") {
+  /*
+
+    Cosmin fucked up getSourceLatLon or something stupid
+
+    if inFileName is filled, it loads that file looking for a summaryTree to get the event from.
+    Otherwise it loads the whole thing.
+  */
+  
+  TChain *summaryTree;
+  if (inFileName == "") {
+    summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+  }
+  else {
+    summaryTree = new TChain("summaryTree","summaryTree");
+    summaryTree->Add(inFileName.c_str());
+  }
+
+  summaryTree->BuildIndex("eventNumber");
+  int entry=summaryTree->GetEntryNumberWithIndex(evNum);
+  if (entry==-1) {
+    cout << "Couldn't find event number " << evNum << ". Quitting" << endl;
+    return;
+  }
+
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+
+  summaryTree->GetEntry(entry);
+
+  UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
+  double lat,lon,alt,theta_adj;
+  int hitsCont = usefulGPS->traceBackToContinent(TMath::DegToRad()*evSum->peak[0][0].phi,
+						 TMath::DegToRad()*evSum->peak[0][0].theta,
+						 &lon,&lat,&alt,&theta_adj);
+  cout << "hitsCont: " << hitsCont << endl;
+  cout << "eventSum: " << evSum->peak[0][0].latitude << " : " << evSum->peak[0][0].longitude << " : " << evSum->peak[0][0].altitude << endl;
+  cout << "now: " << lat << " : " << lon << " : " << alt << endl;
+  
+  
+  return;
+}
+
+  
+
 
 void drawEvOnAntarctica() {
   cout << "loaded drawEvOnAntarctica.C" << endl;
