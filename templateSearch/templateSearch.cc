@@ -490,7 +490,7 @@ int main(int argc, char* argv[]) {
 
       data = new AnitaDataset(runToGet,false);
       //set the polarity blinding to be on, unless you're looking at wais pulses specifically maybe
-      if (!waisFlag) data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
+      if (!waisFlag) {data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);}
       entriesInCurrRun = data->N();
 
       cout << "AnitaDataset switched to run " << runToGet << endl;
@@ -609,7 +609,7 @@ int main(int argc, char* argv[]) {
     analyzer->clearInteractiveMemory();
   }
 
-
+  cout << "Processed " << processedEvs << " events, skipped " << skippedEvs << endl;
   cout << endl << "Final Processing Rate: " << float(totalEntriesToDo)/totalTimeSec << "ev/sec" << endl;
 
   outFile->cd();
