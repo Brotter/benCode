@@ -122,6 +122,8 @@ double* findExpectedError(int evNum, string inFileName="",bool plots=false) {
 
 TGraph* findGeoMagneticAngle() {
 
+  GeoMagnetic::setDebug(true);
+
   TFile *inFile = TFile::Open("candidates.root");
   TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
   AnitaEventSummary *evSum = NULL;
@@ -143,24 +145,23 @@ TGraph* findGeoMagneticAngle() {
   for (int entry=0; entry<summaryTree->GetEntries(); entry++) {
     summaryTree->GetEntry(entry);
 
+
+    cout << "--------------------------------------------------" << endl;
     //quality cuts
     if (TMath::Abs(evSum->peak[0][0].hwAngle) > 45 || evSum->flags.maxBottomToTopRatio[0] > 6) {
       cout << "ev" << evSum->eventNumber << " cut due to hw or blast" << endl;
       continue;
     }
-    
-
-
-    cout << "--------------------------------------------------" << endl;
 
     UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
 
     double phi = TMath::DegToRad() * evSum->peak[0][0].phi;
     double theta = TMath::DegToRad() * evSum->peak[0][0].theta;
 
-    cout << "Phi: " << phi << " Theta: " << theta << endl;
+    cout << "EventNumber: " << evSum->eventNumber << endl;
+    cout << "Phi: " << evSum->peak[0][0].phi << " Theta: " << evSum->peak[0][0].theta << endl;
 
-    double exPol = TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisation(*usefulGPS,phi,theta);
+    double exPol = -1 * TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisation(*usefulGPS,phi,theta);
 
     /*exPol = TMath::Abs(exPol);
     if (exPol > 90) exPol = 180-exPol;
@@ -280,7 +281,7 @@ void findGeoMagneticNoise() {
       cout << evSum->peak[0][0].latitude << endl;
       cout << "skipping... theta=" << theta*TMath::RadToDeg() << endl;
       expectUp = -999;
-      measUp = -999;
+      measured = -999;
     }
 
     geomagTree->Fill();

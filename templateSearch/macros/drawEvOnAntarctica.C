@@ -7,8 +7,9 @@
 
 /*
 
-  I want to plot the events onto the continent, probably with the base list, so that I can see how likely they are an event
+  I want to plot the events onto the continent, probably with the base list, so that I can see how likely they are to be event
 
+  This ends up just holding all the plotting scripts I wrote.
 
  */
 
@@ -989,6 +990,22 @@ void drawSingleEvOnAntarctica(int evNum, string inFileName = "") {
 }
 
 
+void drawRampdemMap() {
+  /*
+    Whats the height of all the points above the geoid from RampdemReader?
+
+    I think thats what AntarcticaBackground does...
+   */
+
+  AntarcticaBackground *aBkgd = new AntarcticaBackground(RampdemReader::surface);
+  TGraphAntarctica *gEv = new TGraphAntarctica();
+  gEv->SetPoint(0,80.5,-70.2);
+  aBkgd->Draw();
+  gEv->Draw("psame");
+
+  return;
+}
+  
 
 void checkGPS(int evNum, string inFileName = "") {
   /*

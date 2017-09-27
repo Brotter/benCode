@@ -262,3 +262,64 @@ void separateNotable_singleEv(int evNum) {
 
   return;
 }
+
+
+void separateTrueCandidates() {
+  /*
+    Okay I've been dealing with these dumb lists from forever ago, so lets make a new one with direct and reflected and only the non-blast things.
+   */
+
+  
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add("candidates.root");
+  summaryTree->Add("aboveHorizon.root");
+
+  TFile *outFile = TFile::Open("trueCandidates.root","recreate");
+  TTree *cutTree = new TTree("summaryTree","summaryTree");
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  cutTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  cutTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  cutTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  cutTree->Branch("gpsEvent",&gps);
+
+  int lenEntries = summaryTree->GetEntries();
+  cout << "number of events in tree: " << lenEntries << endl;
+
+  int count=0;
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    cout << entry << "/" << lenEntries << " : " << evSum->eventNumber << endl;
+
+    if (evSum->flags.maxBottomToTopRatio[0] > 3) {
+      cout << "nope, blast event" << endl;
+      continue;
+    }
+    if (TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->ldb.phi,360,0)) < 6 && evSum->ldb.distance < 650e3) {
+      cout << "nope, points at ldb" << endl;
+      continue;
+    }
+    if (TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->wais.phi,360,0)) < 6 && evSum->wais.distance < 650e3) {
+      cout << "nope, points at wais" << endl;
+      continue;
+    }
+    
+    count++;
+
+    cout << "good" << endl;
+  }
+
+  cout << "total saved: " << count << endl;
+
+
+  return;
+
+}
