@@ -28,12 +28,12 @@ else
     exit
 fi
 
-
+numCores=256
 
 for localCore in `seq 0 63`; do
     absoluteCore=$((localCore+startCore))
     startEntry=$((numEntries*(absoluteCore)))
     stopEntry=$((numEntries* (absoluteCore+1)))
-    ./templateSearch --wais ${sharedDir}/${absoluteCore} ${numCores} ${localCore} 1> ${sharedDir}/log/${localCore}.log 2>&1 &
+    ./templateSearch --wais ${sharedDir}/${absoluteCore} ${numCores} ${absoluteCore} 1> ${sharedDir}/log/${absoluteCore}.log 2>&1 &
 done
     
