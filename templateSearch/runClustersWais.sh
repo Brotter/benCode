@@ -14,9 +14,23 @@ sharedDir="/home/brotter/nfsShared/results/templateSearch/"${startTime}"_wais"
 mkdir ${sharedDir}
 mkdir ${sharedDir}"/log"
 
-numCores=32
+if [ `hostname | cut -d"." -f1` == "anitaI" ]; then
+    startCore=0
+elif [ `hostname | cut -d"." -f1` == "anitaII" ]; then
+    startCore=64
+elif [ `hostname | cut -d"." -f1` == "anitaIII" ]; then
+    startCore=128
+elif [ `hostname | cut -d"." -f1` == "anitaIV" ]; then
+    startCore=192
+else
+    echo "The server isn't an anita cluster server, so you shouldn't use this script"	
 
-for localCore in `seq 0 $((numCores-1))`; do
+    exit
+fi
+
+
+
+for localCore in `seq 0 63`; do
     absoluteCore=$((localCore+startCore))
     startEntry=$((numEntries*(absoluteCore)))
     stopEntry=$((numEntries* (absoluteCore+1)))
