@@ -8,9 +8,9 @@
 #
 
 
-ssh anitai   'killall -SIGQUIT templateSearch'
-ssh anitaii  'killall -SIGQUIT templateSearch'
-ssh anitaiii 'killall -SIGQUIT templateSearch'
-ssh anitaiv  'killall -SIGQUIT templateSearch'
+ssh anitai   'killall -SIGTERM templateSearch'
+ssh anitaii  'killall -SIGTERM templateSearch'
+ssh anitaiii 'killall -SIGTERM templateSearch'
+ssh anitaiv  'killall -SIGTERM templateSearch'
 
 

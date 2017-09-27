@@ -63,14 +63,8 @@ using namespace std;
 TFile* outFile = NULL; //the pointer has to be global otherwise the inturrupts can't call it
 void emergencyClose(int sig) {
   
-  /*
-  if (paused) {
-    unpause();
-    return;
-  }
-  */
-  if (sig==15) cout << endl << "emergencyClose(): SIGTERM Signal caught!" << endl;
-  else if (sig==3) cout << endl << "emergencyClose(): SIGQUIT Signal caught!" << endl;
+  if (sig==15) cout << endl << "emergencyClose(): SIGTERM Signal caught! Pausing!" << endl;
+  else if (sig==3) cout << endl << "emergencyClose(): SIGQUIT Signal caught! Qutting!" << endl;
   else cout << endl << "emergencyClose(): A signal was caught!" << endl;
   cout << endl << "Okay I guess you want me to stop :(  Just kidding I'm not sad!  Let me save first...  " << endl;
 
