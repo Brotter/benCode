@@ -6,6 +6,7 @@
 #include <fstream>
 #include <ctime>
 #include <random>
+#include <iomanip>
 //root
 #include "TTree.h"
 #include "TChain.h"
@@ -43,6 +44,8 @@
 #include "FilteredAnitaEvent.h"
 #include "SystemResponse.h"
 #include "UCUtil.h"
+#include "GeoMagnetic.h"
+
 
 //my stuff
 //#include "windowing.h"
@@ -267,6 +270,8 @@ int main(int argc, char* argv[]) {
   stringstream name;
 
 
+
+
   //open up the output file
   name.str("");
   name << outFileName << ".root";
@@ -287,6 +292,7 @@ int main(int argc, char* argv[]) {
   //and add gps data too, don't forget to fill this later!
   Adu5Pat *gpsEvent = NULL;
   outTree->Branch("gpsEvent",&gpsEvent);
+
 
 
   /*  Making the filters */
@@ -362,11 +368,18 @@ int main(int argc, char* argv[]) {
   AnitaNoiseSummary *noiseSummary = new AnitaNoiseSummary();
   outTree->Branch("noiseSummary",&noiseSummary);
 
-
   //the thing that calculates the summary is persistant between events
   cout << "creating noise machine" << endl;
   AnitaNoiseMachine *noiseMachine = new AnitaNoiseMachine();
   noiseMachine->fillMap = false;
+
+
+  //also lets add the geomagnetic estimates, one for upgoing, one for "reflected"
+  cout << "+geomagnetic" << endl;
+  double geomagExpect,geomagExpectUp;
+  outTree->Branch("geomagExpect",&geomagExpect);
+  outTree->Branch("geomagExpectUp",&geomagExpectUp);
+
 
   /*=================
   //get the templates
@@ -510,8 +523,6 @@ int main(int argc, char* argv[]) {
 
     processedEvs++;
 
-    delete usefulGPS;
-
     //update the gps data!
     gpsEvent = data->gps();
 
@@ -565,6 +576,13 @@ int main(int argc, char* argv[]) {
       }
     }
 
+    //do the geomagnetic stuff
+    double phiRad = eventSummary->peak[0][0].phi * TMath::DegToRad();
+    double thetaRad = eventSummary->peak[0][0].theta * TMath::DegToRad();
+    geomagExpect = GeoMagnetic::getExpectedPolarisation(*usefulGPS,phiRad,thetaRad);
+    geomagExpectUp = GeoMagnetic::getExpectedPolarisationUpgoing(*usefulGPS,phiRad,thetaRad,2000);
+	
+
 
     //okay all done, now I can write out and move to the next event
 
@@ -572,6 +590,8 @@ int main(int argc, char* argv[]) {
     outTree->Fill();
     //  outTree->FlushBaskets(); //maybe will make writing at the end faster?
 
+
+    delete usefulGPS;
     noiseSummary->deleteHists(); //I don't want to save histograms for every event I guess
 
     analyzer->clearInteractiveMemory();
