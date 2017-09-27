@@ -299,6 +299,10 @@ int main(int argc, char* argv[]) {
   //Make a filter strategy
   FilterStrategy *fStrat = UCorrelator::getStrategyWithKey("sinsub_10_3_ad_2");
 
+  //Make (or use) the sine subtract cache
+  //  UCorrelator::SineSubtractCache
+
+
   /** doing it by construction instead of by key which doesn't work for whatever reason */
   //  with a debug file
   //  name.str("");
@@ -340,7 +344,8 @@ int main(int argc, char* argv[]) {
   //set the stokes windowing to use the entire waveform
   config->windowStokes = false;
   
-
+  //lets try to do only the first peak (I never use the others)
+  config->nmaxima = 2;
 
 
 
@@ -561,26 +566,25 @@ int main(int argc, char* argv[]) {
     templateSummary->zeroInternals();
     templateSummary_filtered->zeroInternals();
 
-    for (int dir=0; dir< AnitaEventSummary::maxDirectionsPerPol; dir++) {
-      for (int poli=0; poli<2; poli++) {
-	//not filtered
-	const AnalysisWaveform *waveform = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,dir,false);
-	templateMachine->doTemplateAnalysis(waveform,poli,dir,templateSummary);
-	//filtered
-	const AnalysisWaveform *waveform_filtered = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,dir,true);
-	templateMachine->doTemplateAnalysis(waveform_filtered,poli,dir,templateSummary_filtered);
-
-	if (dir==0) {
-	  const AnitaResponse::DeconvolutionMethod *deconv = analyzer->getResponseManager()->getDeconvolutionMethod();
-	  const AnalysisWaveform *waveform_deconv = analyzer->getDeconvolved((AnitaPol::AnitaPol_t)poli,dir,false);
-	  templateMachine->doDeconvolvedTemplateAnalysis(waveform_deconv,deconv,poli,dir,templateSummary);
-
-	  const AnalysisWaveform *waveform_deconv_filtered = analyzer->getDeconvolved((AnitaPol::AnitaPol_t)poli,dir,true);
-	  templateMachine->doDeconvolvedTemplateAnalysis(waveform_deconv_filtered,deconv,poli,dir,templateSummary_filtered);
-
-	}
-      }
+    int dir=0;//only going to do the first peak
+    for (int poli=0; poli<2; poli++) {
+      //not filtered
+      const AnalysisWaveform *waveform = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,dir,false);
+      templateMachine->doTemplateAnalysis(waveform,poli,dir,templateSummary);
+      //filtered
+      const AnalysisWaveform *waveform_filtered = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,dir,true);
+      templateMachine->doTemplateAnalysis(waveform_filtered,poli,dir,templateSummary_filtered);
+      
+      const AnitaResponse::DeconvolutionMethod *deconv = analyzer->getResponseManager()->getDeconvolutionMethod();
+      const AnalysisWaveform *waveform_deconv = analyzer->getDeconvolved((AnitaPol::AnitaPol_t)poli,dir,false);
+      templateMachine->doDeconvolvedTemplateAnalysis(waveform_deconv,deconv,poli,dir,templateSummary);
+      
+      const AnalysisWaveform *waveform_deconv_filtered = analyzer->getDeconvolved((AnitaPol::AnitaPol_t)poli,dir,true);
+      templateMachine->doDeconvolvedTemplateAnalysis(waveform_deconv_filtered,deconv,poli,dir,templateSummary_filtered);
+      
+      
     }
+      
 
     //do the geomagnetic stuff
     double phiRad = eventSummary->peak[0][0].phi * TMath::DegToRad();
