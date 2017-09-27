@@ -489,7 +489,8 @@ int main(int argc, char* argv[]) {
       if (entry != 0) entryToStartAt = 0; //startEntryInRun becomes zero after the first runswitch
 
       data = new AnitaDataset(runToGet,false);
-      data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
+      //set the polarity blinding to be on, unless you're looking at wais pulses specifically maybe
+      if (!waisFlag) data->setStrategy(AnitaDataset::BlindingStrategy::kRandomizePolarity);
       entriesInCurrRun = data->N();
 
       cout << "AnitaDataset switched to run " << runToGet << endl;
