@@ -362,7 +362,9 @@ int main(int argc, char* argv[]) {
   cout << "+template results" << endl;
   AnitaTemplateSummary *templateSummary = new AnitaTemplateSummary();
   outTree->Branch("template",&templateSummary);
-
+  //and one for the filtered I guess (if I ever fix it)
+  AnitaTemplateSummary *templateSummary_filtered = new AnitaTemplateSummary();
+  outTree->Branch("template_filtered",&templateSummary_filtered);
   //and the noise summary too
   cout << "+noise summary" << endl;
   AnitaNoiseSummary *noiseSummary = new AnitaNoiseSummary();
@@ -562,16 +564,25 @@ int main(int argc, char* argv[]) {
     */
 
     templateSummary->zeroInternals();
+    templateSummary_filtered->zeroInternals();
 
     for (int dir=0; dir< AnitaEventSummary::maxDirectionsPerPol; dir++) {
       for (int poli=0; poli<2; poli++) {
-	const AnalysisWaveform *waveform = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,dir,true);
+	//not filtered
+	const AnalysisWaveform *waveform = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,dir,false);
 	templateMachine->doTemplateAnalysis(waveform,poli,dir,templateSummary);
+	//filtered
+	const AnalysisWaveform *waveform_filtered = analyzer->getCoherent((AnitaPol::AnitaPol_t)poli,dir,true);
+	templateMachine->doTemplateAnalysis(waveform_filtered,poli,dir,templateSummary_filtered);
 
 	if (dir==0) {
-	  const AnalysisWaveform *waveform_deconv = analyzer->getDeconvolved((AnitaPol::AnitaPol_t)poli,dir,true);
 	  const AnitaResponse::DeconvolutionMethod *deconv = analyzer->getResponseManager()->getDeconvolutionMethod();
+	  const AnalysisWaveform *waveform_deconv = analyzer->getDeconvolved((AnitaPol::AnitaPol_t)poli,dir,false);
 	  templateMachine->doDeconvolvedTemplateAnalysis(waveform_deconv,deconv,poli,dir,templateSummary);
+
+	  const AnalysisWaveform *waveform_deconv_filtered = analyzer->getDeconvolved((AnitaPol::AnitaPol_t)poli,dir,true);
+	  templateMachine->doDeconvolvedTemplateAnalysis(waveform_deconv_filtered,deconv,poli,dir,templateSummary_filtered);
+
 	}
       }
     }
