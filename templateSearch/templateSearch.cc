@@ -343,7 +343,8 @@ int main(int argc, char* argv[]) {
   config->deconvolution_method = apd;
 
   //set the stokes windowing to use the entire waveform
-  config->windowStokes = false;
+  config->windowStokes = true;
+  config->stokesWindowLength = 500; //in "points" which are 100ps I think, so this is 50ns
   
   //lets try to do only the first peak (I never use the others)
   config->nmaxima = 2;
@@ -376,12 +377,13 @@ int main(int argc, char* argv[]) {
   noiseMachine->fillMap = false;
 
 
-  //also lets add the geomagnetic estimates, one for upgoing, one for "reflected"
+  /* //also lets add the geomagnetic estimates, one for upgoing, one for "reflected"
+     //this adds really non-trivailly to the time it takes to process things
   cout << "+geomagnetic" << endl;
   double geomagExpect,geomagExpectUp;
   outTree->Branch("geomagExpect",&geomagExpect);
   outTree->Branch("geomagExpectUp",&geomagExpectUp);
-
+  */
 
   /*=================
   //get the templates
@@ -428,7 +430,7 @@ int main(int argc, char* argv[]) {
   Acclaim::ProgressBar p(totalEntriesToDo);
   TStopwatch watch; //!< ROOT's stopwatch class, used to time the progress since object construction
   watch.Start(kTRUE);
-  int totalTimeSec;
+  int totalTimeSec = 0;
   
 
   /*==============================
@@ -448,25 +450,35 @@ int main(int argc, char* argv[]) {
 	int timeElapsed = watch.RealTime(); //+1 to prevent divide by zero error
 	totalTimeSec += timeElapsed;
 	double totalTimeMin = float(totalTimeSec)/60.;
+	double totalTimeHour = totalTimeMin/60.;
 
 	double instRateSec = float(refreshRate)/timeElapsed;
 	double totalRateSec = float(entry)/totalTimeSec;	
 	double totalRateMin = float(entry)/totalTimeMin;
 
+	double processedFraction = float(processedEvs)/entry;
+
 	double procRateSec = float(processedEvs)/totalTimeSec;
 	double procRateMin = float(processedEvs)/totalTimeMin;
 
-	double secondsLeft =float(totalEntriesToDo-entry)/totalRateSec;
-	double minutesLeft =float(totalEntriesToDo-entry)/totalRateMin;
+	double secondsLeft = (processedFraction*(totalEntriesToDo-entry))/totalRateSec;
+	double minutesLeft = secondsLeft/60.;
+	double hoursLeft   = minutesLeft/60.;
+	  
 	
 	cout << std::setprecision(3);
-	cout << entry << "/" << totalEntriesToDo << " evs in " << totalTimeMin << " mins,";
-	cout << " (" << processedEvs << " processed) ";
-	if (timeElapsed != 0) {
-	  cout << procRateSec << "ev/sec (" << instRateSec << " ev/sec instant) | ";
-	}
-	cout << secondsLeft << " seconds (" << minutesLeft << " mins) remain";
-	cout << " {" << entryToGet << "/" << entriesInCurrRun << " in run}";
+	cout << entry << "/" << totalEntriesToDo << " evs in ";
+	if (totalTimeHour > 1.)     cout << totalTimeHour << " hours,";
+	else if (totalTimeMin > 1.) cout << totalTimeMin  << " minutes,";
+	else                        cout << totalTimeSec  << " seconds,";
+
+	cout << " (" << processedEvs << " worked evs @ " << procRateSec << "ev/sec";
+	cout <<  " (" << instRateSec << " ev/sec inst) | ";
+	cout << (1-processedFraction)*100. << "% skipped| ";
+
+	if (hoursLeft > 1.)        cout << hoursLeft << " hours remaining";
+	else if (minutesLeft > 1.) cout << minutesLeft << " minutes remaining";
+	else                       cout << secondsLeft << " seconds remaining";
 	
 	cout << endl;
 	fflush(stdout);
@@ -587,12 +599,12 @@ int main(int argc, char* argv[]) {
     }
       
 
-    //do the geomagnetic stuff
+    /*    //do the geomagnetic stuff
     double phiRad = eventSummary->peak[0][0].phi * TMath::DegToRad();
     double thetaRad = eventSummary->peak[0][0].theta * TMath::DegToRad();
     geomagExpect = GeoMagnetic::getExpectedPolarisation(*usefulGPS,phiRad,thetaRad);
     geomagExpectUp = GeoMagnetic::getExpectedPolarisationUpgoing(*usefulGPS,phiRad,thetaRad,2000);
-	
+    */
 
 
     //okay all done, now I can write out and move to the next event
