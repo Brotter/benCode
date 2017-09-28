@@ -349,6 +349,12 @@ int main(int argc, char* argv[]) {
   //lets try to do only the first peak (I never use the others)
   config->nmaxima = 2;
 
+  //lets also try to always get the bottom ring to be the "first" waveform in the coherent sum
+  config->set_bottom_first = true;
+
+  //and maybe 5 phi sectors instead of 4
+  config->combine_nantennas = 15;
+
 
 
   //and create an analyzer object
