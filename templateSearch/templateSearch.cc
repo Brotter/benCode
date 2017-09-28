@@ -304,32 +304,6 @@ int main(int argc, char* argv[]) {
   //  UCorrelator::SineSubtractCache
 
 
-  /** doing it by construction instead of by key which doesn't work for whatever reason */
-  //  with a debug file
-  //  name.str("");
-  //  name << outFileName << "_filtOutFile.root";
-  //  TFile *filterOutFile = TFile::Open(name.str().c_str(),"recreate"); 
-  //  FilterStrategy strategy(filterOutFile);
-  //  without a debug file
-  //  FilterStrategy *fStrat = new FilterStrategy();
-  //
-  //Sine subtract alghorithm (this is the complicated way to do it)
-  //  UCorrelator::SineSubtractFilter *sineSub = new UCorrelator::SineSubtractFilter(10,3);
-  //  sineSub->makeAdaptive(specAvgLoader,2);
-  //  fStrat->addOperation(sineSub);
-  // This seems like it should work and is easier
-  //add "adsinsub_2_5_13" (default in MagicDisplay)
-  //  UCorrelator::fillStrategyWithKey(fStrat,"sinsub_05_1_ad_1");
-  //
-  //Brick wall filter, should be way faster
-  // UCorrelator::AdaptiveBrickWallFilter(const UCorrelator::SpectrumAverageLoader * spec, double thresh=2, bool fillNotch = true);  
-  // Don't fill in the noise because whats the point of that really
-  //  UCorrelator::AdaptiveBrickWallFilter *brickWall = new UCorrelator::AdaptiveBrickWallFilter(specAvgLoader,2,false);
-  //  fStrat->addOperation(brickWall);
-  //
-  //  with abby's list of filtering
-  //  UCorrelator::applyAbbysFilterStrategy(&fStrat);
-
 
 
   /* CONFIGURATION FOR THE ANALYSIS!!!!!! */
@@ -352,9 +326,13 @@ int main(int argc, char* argv[]) {
   //lets also try to always get the bottom ring to be the "first" waveform in the coherent sum
   config->set_bottom_first = true;
 
+  //and to make the previous one obsolete, make it calculate the offsets compared to some central point
+  config->delay_to_center = true;
+
   //and maybe 5 phi sectors instead of 4
   config->combine_nantennas = 15;
 
+  
 
 
   //and create an analyzer object
