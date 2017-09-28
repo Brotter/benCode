@@ -8,9 +8,9 @@
 #
 
 
-ssh anitai 'cd ~/anita16/anitaBuildTool; ./updateComponents 0; make; make install' &
-ssh anitaii 'cd ~/anita16/anitaBuildTool; ./updateComponents 0; make; make install' &
-ssh anitaiii 'cd ~/anita16/anitaBuildTool; ./updateComponents 0; make; make install' &
-ssh anitaiv 'cd ~/anita16/anitaBuildTool; ./updateComponents 0; make; make install' &
+ssh anitai 'cd ~/anita16/anitaBuildTool; ./updateComponents.sh 0; make; make install' &
+ssh anitaii 'cd ~/anita16/anitaBuildTool; ./updateComponents.sh 0; make; make install' &
+ssh anitaiii 'cd ~/anita16/anitaBuildTool; ./updateComponents.sh 0; make; make install' &
+ssh anitaiv 'cd ~/anita16/anitaBuildTool; ./updateComponents.sh 0; make; make install' &
 
 
