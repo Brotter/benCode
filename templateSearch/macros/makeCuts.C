@@ -148,7 +148,7 @@ void savePassingEvents(bool draw=true,int strength=0) {
   cuts.push_back("TMath::Abs("+waveformString+"linearPolAngle()) < 15"); 
   */
 
-  /*  Generated from getCutsFromValue() @ 10^-3 cut of WAIS(default) (weakest)*/
+  /*  Generated from drawThingsScan.C::getCutsFromValue() @ 10^-3 cut of WAIS(default) (weakest)*/
   /*     Gets you 6121 total passing events */
   if (strength==0) {
     cuts.push_back("template.coherent[0][0].cRay[4] > 0.666");

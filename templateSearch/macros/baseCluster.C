@@ -254,8 +254,6 @@ void saveEventsNearBases(double threshold=40.,int numSplits=1,int split=0, strin
     
     summaryTree->GetEntry(entry);
     
-    if (notNotable(eventSummary)) continue;
-
     //where event b was captured from (B)
     UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
 
@@ -472,3 +470,21 @@ void printCandidateVsBases(string inFileName="candidates.root",bool debug=false)
 
 
 
+
+/*********************************************************************************
+In case you want to call from the command line you gotta edit this because macros are dumb!
+*/
+void baseCluster() {
+  cout << "loaded baseCluster.C" << endl;
+}
+
+
+void baseCluster(int numSplits, int split,string baseDir) {
+
+  stringstream name;
+  name << baseDir << "/baseCluster_" << split << ".root";
+
+  saveEventsNearBases(40,numSplits,split,name.str());
+
+  return;
+}
