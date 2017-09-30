@@ -5,44 +5,8 @@
   I was living in cluster.C for whatever reason.
 
  */
-
-
-//I need to make this a library or something
-TH1* makeNormCumulative(TH1* inHist,Bool_t forward=true) {
-  /*
-    Makes a "normalized cumulative cut fraction" graph I think
-
-    Should let me set cuts on a specific amount of "reduction"
-
-    forward specifies the direction of the cumulative sum
-   */
-
-
-  TH1* copyHist = (TH1*)inHist->Clone();
-  
-  double integral = 0;
-  for (int i=0; i<copyHist->GetNbinsX(); i++) {
-    double value = copyHist->GetBinContent(i);
-    integral += value;
-  }
-
-  copyHist->Scale(1./integral);
-  TH1* outHist = (TH1*)copyHist->GetCumulative(forward);
-
-  for (int i=0; i<copyHist->GetNbinsX()+1; i++) {
-    double value = outHist->GetBinContent(i);
-    outHist->SetBinContent(i,1.-value);
-
-  }
-  delete copyHist;
-
-  if (forward) outHist->GetYaxis()->SetTitle("Surviving Fraction");
-  else         outHist->GetYaxis()->SetTitle("Fraction of Events Cut");
-  return outHist;
-}
-
-
-
+#include "Normalize.C" //makeNormCumulative
+#include "AnitaConventions.h"
 
 void drawQuadrent(TH1D *hBlackIn, TH1D *hRedIn) {
 
@@ -430,3 +394,66 @@ void makeMinbiasBackgroundHist() {
 
   return;
 }
+
+
+int numberOfEventsExceedingCandidate(int candNum) {
+  /*
+
+    Reads in the pseudoBaseCluster.root list, which includes all events from near events that pass cuts, and 
+    returns the number of events that have reduced quantities higher than the candidate selected
+
+    The candNum is just the index it occurs in, 
+    if you pick an index higher than the total number of candidates it will yell at you
+
+   */
+
+  TFile *candFile = TFile::Open("candidates.root");
+  TTree *candTree = (TTree*)candFile->Get("summaryTree");
+  AnitaEventSummary *candEvSum = NULL;
+  candTree->SetBranchAddress("eventSummary",&candEvSum);
+  AnitaTemplateSummary *candTempSum = NULL;
+  candTree->SetBranchAddress("template",&candTempSum);
+
+  if (candNum >= candTree->GetEntries()) {
+    cout << "selected candidate number " << candNum << " is greater than number of candidates (" << candTree->GetEntries() << ")";
+    cout << endl << "Quitting" << endl;
+    return -1;
+  }
+
+  candTree->GetEntry(candNum);
+
+
+  //Cut values:
+  double templateCorr = candTempSum->coherent[0][0].cRay[4];
+  double mapPeak = candEvSum->peak[0][0].value;
+  double hilbPeak = candEvSum->deconvolved_filtered[0][0].peakHilbert;
+  double linPolFrac = candEvSum->coherent[0][0].linearPolFrac();
+  
+
+  
+  TFile *backFile = TFile::Open("pseudoBaseCluster.root");
+  TTree *backTree = (TTree*)backFile->Get("summaryTree");
+  AnitaEventSummary *backEvSum = NULL;
+  backTree->SetBranchAddress("eventSummary",&backEvSum);
+  AnitaTemplateSummary *backTempSum = NULL;
+  backTree->SetBranchAddress("template",&backTempSum);
+  
+  
+  int lenEntries = backTree->GetEntries();
+  cout << "Found " << lenEntries << " background events from impulsive sources" << endl;
+  
+  stringstream name;
+  name.str("");
+  name << "template.coherent[0][0].cRay[4] > " << templateCorr;
+  name << " && ";
+  name << "peak[0][0].value > " << mapPeak;
+  name << " && ";
+  name << "deconvolved_filtered[0][0].peakHilbert > " << hilbPeak;
+  name << " && ";
+  name << "coherent_filtered[0][0].linearPolFrac() > " << linPolFrac;
+  
+  int numPassing = backTree->Draw("eventNumber",name.str().c_str(),"goff");
+
+  return numPassing;
+}
+  
