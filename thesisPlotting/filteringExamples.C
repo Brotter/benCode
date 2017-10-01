@@ -121,7 +121,7 @@ const FFTtools::SineSubtract* sineSubStepByStep(int eventNumber) {
   
 
   //Make a filter strategy
-  UCorrelator::SineSubtractFilter *sineSubtract = new UCorrelator::SineSubtractFilter(10,3);
+  UCorrelator::SineSubtractFilter *sineSubtract = new UCorrelator::SineSubtractFilter(0.1,3);
   sineSubtract->setInteractive(true);
   char* specAvgDir = getenv("UCORRELATOR_SPECAVG_DIR");
   const UCorrelator::SpectrumAverageLoader *specAvgLoader = new UCorrelator::SpectrumAverageLoader(specAvgDir);

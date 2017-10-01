@@ -299,7 +299,7 @@ void separateTrueCandidates() {
     summaryTree->GetEntry(entry);
     cout << entry << "/" << lenEntries << " : " << evSum->eventNumber << endl;
 
-    if (evSum->flags.maxBottomToTopRatio[0] > 3) {
+    if (evSum->flags.maxBottomToTopRatio[0] > 6) {
       cout << "nope, blast event" << endl;
       continue;
     }
@@ -312,12 +312,29 @@ void separateTrueCandidates() {
       continue;
     }
     
+    if (evSum->eventNumber >= 80299371 && evSum->eventNumber <= 80700153) {
+      cout << "these are the above horizon clustered ones" << endl;
+      continue;
+    }
+
+    if (evSum->peak[0][0].theta<5.7) {
+      cout << "too close to the horizon" << endl;
+      continue;
+    }
+
     count++;
+
+    outFile->cd();
+    cutTree->Fill();
 
     cout << "good" << endl;
   }
 
   cout << "total saved: " << count << endl;
+
+  outFile->cd();
+  cutTree->Write();
+  outFile->Close();
 
 
   return;

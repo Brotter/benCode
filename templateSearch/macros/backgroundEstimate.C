@@ -396,15 +396,16 @@ void makeMinbiasBackgroundHist() {
 }
 
 
-int numberOfEventsExceedingCandidate(int candNum) {
+
+TGraph* numberOfEventsExceedingCandidates() {
   /*
 
     Reads in the pseudoBaseCluster.root list, which includes all events from near events that pass cuts, and 
-    returns the number of events that have reduced quantities higher than the candidate selected
+    returns the number of events that have reduced quantities higher than all the events in candidates.root
 
-    The candNum is just the index it occurs in, 
-    if you pick an index higher than the total number of candidates it will yell at you
+    Doesn't use TTree::Draw because you can only do that once per thing, so scanning over everything is faster
 
+    Returns a TGraph with x=eventNumber and y=numberOfExceedingBackgroundEvs
    */
 
   TFile *candFile = TFile::Open("candidates.root");
@@ -413,22 +414,24 @@ int numberOfEventsExceedingCandidate(int candNum) {
   candTree->SetBranchAddress("eventSummary",&candEvSum);
   AnitaTemplateSummary *candTempSum = NULL;
   candTree->SetBranchAddress("template",&candTempSum);
-
-  if (candNum >= candTree->GetEntries()) {
-    cout << "selected candidate number " << candNum << " is greater than number of candidates (" << candTree->GetEntries() << ")";
-    cout << endl << "Quitting" << endl;
-    return -1;
-  }
-
-  candTree->GetEntry(candNum);
+  int numCandidates = candTree->GetEntries();
+  cout << "found " << numCandidates << " candidates" << endl;
 
 
   //Cut values:
-  double templateCorr = candTempSum->coherent[0][0].cRay[4];
-  double mapPeak = candEvSum->peak[0][0].value;
-  double hilbPeak = candEvSum->deconvolved_filtered[0][0].peakHilbert;
-  double linPolFrac = candEvSum->coherent[0][0].linearPolFrac();
-  
+  vector<double> vTemplateCorr;
+  vector<double> vMapPeak;
+  vector<double> vHilbPeak;
+  vector<double> vLinPolFrac;
+
+
+  for (int i=0; i<numCandidates; i++) {
+    candTree->GetEntry(i);
+    vTemplateCorr.push_back(candTempSum->coherent[0][0].cRay[4]);
+    vMapPeak.push_back(candEvSum->peak[0][0].value);
+    vHilbPeak.push_back(candEvSum->deconvolved_filtered[0][0].peakHilbert);
+    vLinPolFrac.push_back(candEvSum->coherent[0][0].linearPolFrac());
+  }
 
   
   TFile *backFile = TFile::Open("pseudoBaseCluster.root");
@@ -442,18 +445,76 @@ int numberOfEventsExceedingCandidate(int candNum) {
   int lenEntries = backTree->GetEntries();
   cout << "Found " << lenEntries << " background events from impulsive sources" << endl;
   
-  stringstream name;
-  name.str("");
-  name << "template.coherent[0][0].cRay[4] > " << templateCorr;
-  name << " && ";
-  name << "peak[0][0].value > " << mapPeak;
-  name << " && ";
-  name << "deconvolved_filtered[0][0].peakHilbert > " << hilbPeak;
-  name << " && ";
-  name << "coherent_filtered[0][0].linearPolFrac() > " << linPolFrac;
+  int* numPassing = new int [numCandidates];
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (entry%10000 == 0) cout << entry << "/" << lenEntries << endl;
+    backTree->GetEntry(entry);
+    
+    double templateCorr = backTempSum->coherent[0][0].cRay[4];
+    double mapPeak = backEvSum->peak[0][0].value;
+    double hilbPeak = backEvSum->deconvolved_filtered[0][0].peakHilbert;
+    double linPolFrac = backEvSum->coherent[0][0].linearPolFrac();
+    
+    for (int cand=0; cand<numCandidates; cand++) {
+      if (vTemplateCorr[cand] < templateCorr &&
+	  vMapPeak[cand] < mapPeak && 
+	  vHilbPeak[cand] < hilbPeak &&
+	  vLinPolFrac[cand] < linPolFrac) {
+	numPassing[cand]++;
+      }
+    }
+  }
   
-  int numPassing = backTree->Draw("eventNumber",name.str().c_str(),"goff");
+  TGraph *outGraph = new TGraph();
+  outGraph->SetName("gExceedingBkgdEvs");
+  outGraph->SetTitle("Events Exceeding Candidates;eventNumber;# of events exceeding candidate values");
+  for (int i=0; i<numCandidates; i++) {
+    candTree->GetEntry(i);
+    outGraph->SetPoint(i,candEvSum->eventNumber,numPassing[i]);
+  }
 
-  return numPassing;
+  delete [] numPassing;
+
+  return outGraph;
 }
   
+
+void poissonConfidenceInterval() {
+  /*
+
+    One of the candidates has zero events that exceed it, so I need to use the Poisson Confidence Limit equation
+
+    So this determines what the means of the distributions are from the pseudoBaseList I guess
+
+   */
+
+  
+  TFile *backFile = TFile::Open("pseudoBaseCluster.root");
+  TTree *backTree = (TTree*)backFile->Get("summaryTree");
+
+  TH1D *htemp;
+
+  TCanvas *c1 = new TCanvas("c1","",1000,600);
+  c1->Divide(2,2);
+  TVirtualPad *p1 = c1->cd(1);
+  backTree->Draw("template.coherent[0][0].cRay[4]");
+  htemp = (TH1D*)p1->GetPrimitive("htemp");
+  double templateCorr = htemp->GetMean();
+  cout << "templateCorr=" << templateCorr << endl;
+  
+  TVirtualPad *p2 = c1->cd(2);  backTree->Draw("peak[0][0].value");
+  htemp = (TH1D*)p2->GetPrimitive("htemp");
+  double mapPeak = htemp->GetMean();
+  cout << "mapPeak=" << mapPeak << endl;  
+
+  TVirtualPad *p3 = c1->cd(3);  backTree->Draw("deconvolved_filtered[0][0].peakHilbert");
+  htemp = (TH1D*)p3->GetPrimitive("htemp");
+  double peakHilbert = htemp->GetMean();
+  cout << "peakHilbert=" << peakHilbert << endl;
+
+  TVirtualPad *p4 = c1->cd(4);  backTree->Draw("coherent[0][0].linearPolFrac()");
+  htemp = (TH1D*)p4->GetPrimitive("htemp");
+  double linPolFrac = htemp->GetMean();
+  cout << "linPolFrac=" << linPolFrac << endl;
+
+}

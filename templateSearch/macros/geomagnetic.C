@@ -215,7 +215,107 @@ void findGeoMagnetic2() {
 */
 
 
+//  GeoMagnetic::setDebug(true);
 
+  TFile *inFile = TFile::Open("trueCandidates.root");
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+  AnitaEventSummary *evSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+
+  
+
+  TGraphErrors *gExVsMeas = new TGraphErrors();
+  gExVsMeas->SetName("gExVsMeas");
+  gExVsMeas->SetTitle("Geomagnetic Polarization, measured vs expected; Expected Polarisation Angle (degrees); Measured Polarisation Angle (degrees)");
+
+  TGraphErrors *gExVsMeasUp = new TGraphErrors();
+  gExVsMeasUp->SetName("gExVsMeasUp");
+  gExVsMeasUp->SetTitle("Geomagnetic Polarization, measured vs expected, assuming upgoing; Expected Polarisation Angle (degrees); Measured Polarisation Angle (degrees)");
+  gExVsMeasUp->SetMarkerColor(kBlue);
+  gExVsMeasUp->SetLineColor(kBlue);
+
+
+  TH1D *hMeas = new TH1D("hMeas","Measured Polarization Angle;degrees;count",46,-45,45);
+
+  TH1D *hExp = new TH1D("hExp","Expected Polarization Angle;degrees;count",46,-45,45);
+  TH1D *hDiff = new TH1D("hDiff","Difference between Measured and Expected;degrees;count",91,-45,45);
+
+  TH1D *hExpUp = new TH1D("hExpUp","Expected Polarization Angle;degrees;count",46,-45,45);
+  TH1D *hDiffUp = new TH1D("hDiffUp","Difference between Measured and Expected;degrees;count",91,-45,45);
+
+  vector<TArrow*> arrows;
+
+  for (int entry=0; entry<summaryTree->GetEntries(); entry++) {
+    summaryTree->GetEntry(entry);
+
+
+    cout << "--------------------------------------------------" << endl;
+
+    UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
+
+    double phi = TMath::DegToRad() * evSum->peak[0][0].phi;
+    double theta = TMath::DegToRad() * evSum->peak[0][0].theta;
+
+    cout << "EventNumber: " << evSum->eventNumber << endl;
+    cout << "Phi: " << evSum->peak[0][0].phi << " Theta: " << evSum->peak[0][0].theta << endl;
+
+    double exPol = -1 * TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisation(*usefulGPS,phi,theta);
+
+    double exPolUp = -9999;
+    if (evSum->peak[0][0].latitude != -9999) {
+      exPolUp = -1 * TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisationUpgoing(*usefulGPS,phi,theta,10000);
+      if (exPolUp > 90) exPolUp = 180-exPolUp;
+      if (exPolUp < -90) exPolUp = 180+exPolUp;
+
+    }
+    /*exPol = TMath::Abs(exPol);
+    if (exPol > 90) exPol = 180-exPol;
+    exPol = TMath::Abs(exPol);
+    if (exPol > 45) exPol = 90-exPol;
+    exPol = TMath::Abs(exPol);*/
+
+    double measPol = evSum->coherent_filtered[0][0].linearPolAngle();
+    
+    cout << "measPol: " << measPol << " exPol: " << exPol << " exPolUp:" << exPolUp << endl;
+
+    hMeas->Fill(measPol);
+    hExp->Fill(exPol);
+    hExpUp->Fill(exPolUp);
+    hDiff->Fill(measPol-exPol);
+    hDiffUp->Fill(measPol-exPolUp);
+    gExVsMeas->SetPoint(gExVsMeas->GetN(),exPol,measPol);
+    gExVsMeas->SetPointError(gExVsMeas->GetN()-1,0.1,4.5);
+    if (exPolUp > -9999) {
+      gExVsMeasUp->SetPoint(gExVsMeasUp->GetN(),exPolUp,measPol);
+      gExVsMeasUp->SetPointError(gExVsMeasUp->GetN()-1,0.1,4.5);
+      TArrow *currArrow = new TArrow(exPol,measPol,exPolUp,measPol,0.01,"->-");
+      arrows.push_back(currArrow);
+    }
+    delete usefulGPS;
+  }
+
+  TF1 *line = new TF1("line","x",-45,45);
+  TF1 *lineP1 = new TF1("line","x+10",-45,45);
+  TF1 *lineM1 = new TF1("line","x-10",-45,45);
+  lineP1->SetLineStyle(2);
+  lineM1->SetLineStyle(2);
+
+  TCanvas *c1 = new TCanvas("c1","c1",1000,600);
+  c1->Divide(2,2);
+  c1->cd(1);
+  gExVsMeas->Draw("ap");
+  line->Draw("lSame");
+  c1->cd(2);
+  hDiff->Draw("");
+  c1->cd(3);
+  gExVsMeasUp->Draw("ap");
+  for (int i=0; i<arrows.size(); i++) arrows[i]->Draw();
+  line->Draw("lSame");
+  c1->cd(4);
+  hDiffUp->Draw("");
+    
   return;
 }
 

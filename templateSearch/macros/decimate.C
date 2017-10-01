@@ -12,7 +12,7 @@
 
 
 
-void decimate(string date="07.28.17_17h",int downfactor=10) {
+void decimate(int downfactor=10,string date="07.28.17_17h") {
 
 
 

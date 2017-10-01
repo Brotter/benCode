@@ -1053,6 +1053,28 @@ void checkGPS(int evNum, string inFileName = "") {
 }
 
   
+void drawWAISPass() {
+  /*
+
+    I want a plot that shows how close we got to WAIS!
+
+   */
+
+  TH2DAntarctica *hWaisEvs = new TH2DAntarctica("hWaisEvs","hWaisEvs",1000,1000);
+  
+  TFile *waisFile = TFile::Open("waisEvents.root");
+  TTree *summaryTree = (TTree*)waisFile->Get("waisSummary");
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+
+  for (int i=0; i<summaryTree->GetEntries(); i++) {
+    summaryTree->GetEntry(i);
+    hWaisEvs->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+  }
+
+  hWaisEvs->Draw("colz");
+}
+
 
 
 void drawEvOnAntarctica() {
