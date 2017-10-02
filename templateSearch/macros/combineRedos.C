@@ -15,6 +15,7 @@ void combineRedos(int core) {
   char* homeDir = getenv("HOME");
   string dataDir = "/anita16/benCode/templateSearch/09.27.17_19h/";
   for (int i=0; i<12; i++) {
+    name.str("");
     name << homeDir << dataDir << core << "_" << i+1 << ".root";
     summaryTree->Add(name.str().c_str());
   }
