@@ -1,6 +1,6 @@
 
 
-TChain* loadAll(string date = "07.28.17_17h/",bool doProof = true){
+TChain* loadAll(string date = "09.27.17_19h/",bool doProof = true){
   //crab
   //kwaabz
   //crab
@@ -20,11 +20,16 @@ TChain* loadAll(string date = "07.28.17_17h/",bool doProof = true){
   stringstream name;
   for (int run=0; run<256; run++) {
 
+    //runs that are totally broken
+    if (run==220) continue;
+
     name.str("");
     name << resultsDir << "templateSearch/" << date << "/" << run << ".root";
 
-    summaryTree->Add(name.str().c_str());
 
+    cout << "core:" << run << endl;
+    summaryTree->Add(name.str().c_str());
+    cout << summaryTree->GetEntries() << endl;
   }
 
   if (doProof) summaryTree->SetProof();
