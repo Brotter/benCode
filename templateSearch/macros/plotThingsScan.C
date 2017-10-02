@@ -6,6 +6,8 @@
 
  */
 
+#include "loadAll.C"
+
 
 void makeReducedHistograms(TH1D **histograms,string subName) {
 
@@ -158,7 +160,7 @@ void fillHistograms(AnitaEventSummary *eventSummary, AnitaTemplateSummary *templ
 
 }
 
-void plotThingsScan(bool decimated=true) {
+void plotThingsScan(bool decimated=false) {
 
   /*
     Proof is stupid and keeps dropping huge amounts of events for some reason.
@@ -173,7 +175,7 @@ void plotThingsScan(bool decimated=true) {
   summaryTree = new TChain("summaryTree","summaryTree");
   summaryTree->Add("07.28.17_17h_decimated.root");
   } else {
-    summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+    summaryTree = loadAll("09.27.17_19h",false);
   }
 
   const int numHists = 31;
