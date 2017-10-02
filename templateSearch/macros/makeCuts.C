@@ -103,7 +103,7 @@ string getThermalCuts(double reduction=1e-3) {
   
 }
 
-void savePassingEvents(bool draw=true,int strength=0) {
+void printPassingEvents(bool draw=true,int strength=0) {
 
 
 
@@ -149,6 +149,15 @@ void savePassingEvents(bool draw=true,int strength=0) {
   */
 
   /*  Generated from drawThingsScan.C::getCutsFromValue() @ 10^-3 cut of WAIS(default) (weakest)*/
+
+  /*    From the newest run with some fixed things, gets you 6031 */
+  if (strength==3) {
+    cuts.push_back("template.coherent[0][0].cRay[4] > 0.67");
+    cuts.push_back(waveformString+"peakHilbert > 43.5");
+    cuts.push_back(waveformString+"linearPolFrac() > 0.3055");
+    cuts.push_back("peak[0][0].value > 0.0435");
+    cuts.push_back("peak[0][0].snr > 8.95");
+  }
   /*     Gets you 6121 total passing events */
   if (strength==0) {
     cuts.push_back("template.coherent[0][0].cRay[4] > 0.666");
@@ -174,7 +183,10 @@ void savePassingEvents(bool draw=true,int strength=0) {
     cuts.push_back("peak[0][0].value > 0.0945");
     cuts.push_back("peak[0][0].snr > 16.15");
   }
-
+  else {
+    cout << "I don't know what strength setting that is so I refuse to do anything till you get your shit together" << endl;
+    return;
+  }
 
   /* Cuts that should _always_ be made for candidates*/
   // not flagged as a pulser
@@ -217,12 +229,17 @@ void savePassingEvents(bool draw=true,int strength=0) {
     if (strength==0) outFileName = "makeCuts_weak.txt";
     if (strength==1) outFileName = "makeCuts_nominal.txt";
     if (strength==2) outFileName = "makeCuts_strong.txt";
+    if (strength==3) outFileName = "makeCuts_final.txt");
     ((TTreePlayer*)(summaryTree->GetPlayer()))->SetScanFileName(outFileName.c_str());
     summaryTree->Scan("eventNumber",allCuts.c_str());
   } 
 
   return;
 }
+
+
+
+
 
 
 void makeCuts() {
