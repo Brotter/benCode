@@ -94,8 +94,8 @@ void getCutsFromValue(double waisCutFraction = 1e-3) {
     return;
   }
 
-  const int numInteresting = 4;
-  string interestingValues[numInteresting] = {"template_Wais","wavePeakHilb_DF","mapPeak","mapSNR"};
+  const int numInteresting = 6;
+  string interestingValues[numInteresting] = {"template_Wais","wavePeakHilb_DF","mapPeak","mapSNR","linPolFrac_DF","linPolFrac"};
 
   for (int value=0; value<numInteresting; value++) {
     string name;
