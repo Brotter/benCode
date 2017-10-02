@@ -229,7 +229,7 @@ void printPassingEvents(bool draw=true,int strength=0) {
     if (strength==0) outFileName = "makeCuts_weak.txt";
     if (strength==1) outFileName = "makeCuts_nominal.txt";
     if (strength==2) outFileName = "makeCuts_strong.txt";
-    if (strength==3) outFileName = "makeCuts_final.txt");
+    if (strength==3) outFileName = "makeCuts_final.txt";
     ((TTreePlayer*)(summaryTree->GetPlayer()))->SetScanFileName(outFileName.c_str());
     summaryTree->Scan("eventNumber",allCuts.c_str());
   } 
