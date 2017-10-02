@@ -159,7 +159,7 @@ void printPassingEvents(bool draw=true,int strength=0) {
     cuts.push_back("peak[0][0].snr > 8.95");
   }
   /*     Gets you 6121 total passing events */
-  if (strength==0) {
+  else if (strength==0) {
     cuts.push_back("template.coherent[0][0].cRay[4] > 0.666");
     cuts.push_back(waveformString+"peakHilbert > 48.5");
     cuts.push_back("peak[0][0].value > 0.0435");
@@ -168,7 +168,7 @@ void printPassingEvents(bool draw=true,int strength=0) {
 
   /*  Generated from getCutsFromValue() @ 10^-2 cut of WAIS ("best" value?)*/
   /*     Gets you 3570 total passing events */
-  if (strength==1) {
+  else if (strength==1) {
     cuts.push_back("template.coherent[0][0].cRay[4] > 0.726");
     cuts.push_back(waveformString+"peakHilbert > 63.5");
     cuts.push_back("peak[0][0].value > 0.0605");
@@ -177,7 +177,7 @@ void printPassingEvents(bool draw=true,int strength=0) {
 
   /* Generated from getCutsFromValue() @ 10^-1 cut of WAIS (strongest cut) */
   /*    Gets you 313 total passing events */
-  if (strength==2) {
+  else if (strength==2) {
     cuts.push_back("template.coherent[0][0].cRay[4] > 0.794");
     cuts.push_back(waveformString+"peakHilbert > 81.5");
     cuts.push_back("peak[0][0].value > 0.0945");
