@@ -16,7 +16,7 @@ mkdir ${saveDir}"/log"
 
 #19 dead runs broken up into servers
 if [ `hostname | cut -d"." -f1` == "anitaI" ]; then
-    cores="4877 89 114 128"
+    cores="48 77 89 114 128"
 elif [ `hostname | cut -d"." -f1` == "anitaII" ]; then
     cores="139 144 157 170 189"
 elif [ `hostname | cut -d"." -f1` == "anitaIII" ]; then
