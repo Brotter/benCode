@@ -15,6 +15,7 @@
 
 */
 
+#include "loadAll.C"
 
 //I need to make this a library or something
 TH1* makeNormCumulative(TH1* inHist,Bool_t forward=true) {
@@ -118,7 +119,7 @@ void printPassingEvents(bool draw=true,int strength=0) {
 
 
   //full data set
-  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+  TChain *summaryTree = loadAll("09.27.17_19h",true);
 
   if (summaryTree == NULL) {
     cout << "Couldn't find tree, quitting" << endl;
