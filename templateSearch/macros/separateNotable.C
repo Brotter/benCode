@@ -4,6 +4,7 @@ Separates out the notable events (wais, ldb, things that have good simple cut va
 
 */
 
+#include "loadAll.C"
 
 void separateNotable_fromScratch() {
 /*
@@ -128,7 +129,7 @@ void separateNotable_fromFile(string fileName="makeCuts_weak.csv",string outFile
   TGraph *evNums = new TGraph(fileName.c_str());
   cout << "Opened " << fileName << " as input file, found " << evNums->GetN() << " events to save" << endl;
 
-  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+  TChain *summaryTree = loadAll("09.27.17_19h");
   summaryTree->BuildIndex("eventNumber");
 
   if (outFileName=="") outFileName = "cuts.root";
@@ -317,7 +318,11 @@ void separateTrueCandidates() {
       continue;
     }
 
-    if (evSum->peak[0][0].theta<5.7) {
+    if (evSum->eventNumber == 9855625) {
+      cout << "points at LDB" << endl;
+    }
+
+    if (evSum->eventNumber == 69050312 || evSum->eventNumber == 78946778) {
       cout << "too close to the horizon" << endl;
       continue;
     }
