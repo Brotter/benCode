@@ -5,6 +5,8 @@
 #include "AntarcticaGeometry.h"
 #include <Riostream.h>
 
+#include "loadAll.C"
+
 /*
 
   I want to plot the events onto the continent, probably with the base list, so that I can see how likely they are to be event
@@ -1074,6 +1076,78 @@ void drawWAISPass() {
 
   hWaisEvs->Draw("colz");
 }
+
+
+void drawPseudoBases() {
+  /*
+
+    I mapped all the events that cluster with the ~6000 that pass cuts, lets plot them
+
+   */
+
+  TGraphAntarctica *gMajorBases = new TGraphAntarctica();
+  gMajorBases->SetName("gMajorBases");
+  gMajorBases->SetMarkerStyle(29);//star
+  gMajorBases->SetMarkerSize(2);
+  gMajorBases->SetMarkerColor(kRed);
+  gMajorBases->SetPoint(0,AnitaLocations::LONGITUDE_WAIS_A3,AnitaLocations::LATITUDE_WAIS_A3);
+  gMajorBases->SetPoint(1,AnitaLocations::LONGITUDE_LDB,AnitaLocations::LATITUDE_LDB);
+
+
+  TGraphAntarctica *gPassing = new TGraphAntarctica();
+  gMajorBases->SetName("gPassing");
+  TFile* passingFile = TFile::Open("cuts_final.root");
+  TTree *passingTree = (TTree*)passingFile->Get("summaryTree");
+  AnitaEventSummary *passingSum = NULL;
+  passingTree->SetBranchAddress("eventSummary",&passingSum);
+  for (int i=0; i<passingTree->GetEntries(); i++) {
+    passingTree->GetEntry(i);
+    gPassing->SetPoint(i,passingSum->peak[0][0].longitude,passingSum->peak[0][0].latitude);
+  }
+
+
+
+  TChain *summaryTree = loadPseudoBases();
+  int lenEntries = summaryTree->GetEntries();
+
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  int evClusteredWith;
+  summaryTree->SetBranchAddress("evClusteredWith",&evClusteredWith);
+
+
+  TProfile2DAntarctica *hClustered = new TProfile2DAntarctica("hClustered","hClustered",1000,1000);
+  int doesNotMap=0;
+  for (int i=0; i<lenEntries; i++) {
+    if (i%10000 == 0) cout << i << "/" << lenEntries << " (" << doesNotMap << ")" << endl;
+    summaryTree->GetEntry(i);
+
+    //Skip if:
+    //it doesn't map to the continent
+    if (evSum->peak[0][0].latitude == -9999) {
+      doesNotMap++;
+      continue; 
+    }
+    //it is associated with WAIS or LDB
+    if (evClusteredWith < 0) continue;
+
+    hClustered->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude,evClusteredWith);
+  }
+
+
+  //  TCanvas *c1 = new TCanvas("c1","c1",4000,4000);
+  
+  hClustered->Draw("colz");
+  gMajorBases->Draw("p same");
+  gPassing->Draw("p same");
+  //  c1->SaveAs("/Users/brotter/Desktop/pseudoBases.png");
+
+}
+
+
+
+
+
 
 
 
