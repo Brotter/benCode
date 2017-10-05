@@ -14,6 +14,7 @@ sharedDir="/home/brotter/nfsShared/results/cluster/"${startTime}
 mkdir ${sharedDir}
 mkdir ${sharedDir}"/log"
 
-for localCore in `seq 0 31`; do
-    root macros/cluster.C\(32,${localCore},\"${sharedDir}\"\)  1> ${sharedDir}/log/${localCore}.log 2>&1 &
+numCores=64
+for localCore in `seq 0 $((numCores-1))`; do
+    root macros/cluster.C\(${numCores},${localCore},\"${sharedDir}\"\)  1> ${sharedDir}/log/${localCore}.log 2>&1 &
 done
