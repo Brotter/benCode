@@ -958,19 +958,23 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
     
 		
     //cluster with all the impulsive events if it doesn't match a base
+    // this should also find the base that it clusters to BEST, not just first
+    double minClusterValue = 9999;
     for (int imp=0; imp<lenImp; imp++) {
       clusterValue = calcClusterDistance(evSum,currGPS,vImpulsiveEvSum[imp],vImpulsiveUsefulGps[imp]);
-      if (clusterValue < threshold && clusterValue > 0) {
+      if (minClusterValue > clusterValue && clusterValue > 0) {
 	evClusteredWith = vImpulsiveEvSum[imp]->eventNumber;
-	outFile->cd();
-	outTree->Fill();
-	savedCount++;
-	break;
-      }
+	minClusterValue = clusterValue;
     }
-  
+
+    if (clusterValue < threshold && clusterValue > 0) {
+      outFile->cd();
+      outTree->Fill();
+      savedCount++;
+    }
 
     delete currGPS;
+
   }
 
   cout << "Done :)" << endl;
