@@ -856,14 +856,12 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
   vector<AnitaEventSummary*> vImpulsiveEvSum;
   for (int i=0; i<clusteredEvs->GetN(); i++) {
     //for all the events that got clustered, if the closest event is within the clustering threshold, save it to the vector
-    if (clusteredEvs->GetY()[i] < threshold) {
-      int entry = impulsiveTree->GetEntryNumberWithBestIndex(clusteredEvs->GetX()[i]);
-      impulsiveTree->GetEntry(entry);
-      UsefulAdu5Pat *currGPS = new UsefulAdu5Pat(gps_imp);
-      vImpulsiveUsefulGps.push_back(currGPS);
-      AnitaEventSummary *currEvSum = (AnitaEventSummary*)evSum_imp->Clone();
-      vImpulsiveEvSum.push_back(currEvSum);
-    }
+    int entry = impulsiveTree->GetEntryNumberWithBestIndex(clusteredEvs->GetX()[i]);
+    impulsiveTree->GetEntry(entry);
+    UsefulAdu5Pat *currGPS = new UsefulAdu5Pat(gps_imp);
+    vImpulsiveUsefulGps.push_back(currGPS);
+    AnitaEventSummary *currEvSum = (AnitaEventSummary*)evSum_imp->Clone();
+    vImpulsiveEvSum.push_back(currEvSum);
   }
 
   int lenImp = vImpulsiveEvSum.size();
@@ -1022,7 +1020,7 @@ void cluster(int numSplits, int split,string baseDir) {
   name << baseDir << "/pseudoBaseCluster_" << split << ".root";
 
   //set the first one to some huge number so it includes all events
-  clusterBackground(9999,numSplits,split,name.str());
+  clusterBackground(40,numSplits,split,name.str());
 
   return;
 }
