@@ -108,7 +108,7 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
 
 
 /*--- Major Code Piece!  Determines which events do not cluster! ---*/
-void clusterEvents(string inFileName="") {
+void clusterEvents(string inFileName="cuts.root") {
   /*
     Takes in a list of events and compares their source locations to determine whether they cluster
 
@@ -119,7 +119,6 @@ void clusterEvents(string inFileName="") {
     Takes forever since it is a O(N^2) process
    */
 
-  if (inFileName == "") inFileName = "cuts.root";
   cout << "Using input file: " << inFileName << endl;
   TFile *inFile = TFile::Open(inFileName.c_str());
 
@@ -202,7 +201,7 @@ void clusterEvents(string inFileName="") {
   hCluster->Draw("colz");
 
 
-  TFile* outFile = new TFile("cluster.root","recreate");
+  TFile* outFile = new TFile(outFileName.c_str,"recreate");
   hCluster->Write();
   gClosest->Write();
   hClosest->Write();
@@ -1018,7 +1017,8 @@ void cluster(int numSplits, int split,string baseDir) {
   stringstream name;
   name << baseDir << "/pseudoBaseCluster_" << split << ".root";
 
-  clusterBackground(40,numSplits,split,name.str());
+  //set the first one to some huge number so it includes all events
+  clusterBackground(9999,numSplits,split,name.str());
 
   return;
 }
