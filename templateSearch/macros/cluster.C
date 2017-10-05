@@ -814,7 +814,7 @@ void saveCandidates(double threshold) {
 }
 
 
-void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string outFileName="pseudoBaseEvents") {
+void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string outFileName="pseudoBaseEvents.root") {
   /*
     Does the opposite of saveCandidates, instead of picking out things that don't cluster, it finds all the impulsive
     events that DID cluster, then finds ALL the events (impulsive or no) that cluster with those.
@@ -837,7 +837,7 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
  
 
   //get the summaries for all the "candidates" that passed cuts
-  TFile *inFile = TFile::Open("cuts.root");
+  TFile *inFile = TFile::Open("cuts_final.root");
   if (!inFile->IsOpen()) {
     cout << "Couldn't find cuts.root, run separateNotable_fromFile() first " << endl;
     return; }
@@ -886,7 +886,6 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
   //make output tree and output file
   TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
   TTree *outTree = new TTree("summaryTree","summaryTree");
-  outTree->Branch("eventSummary",&evSum); 
   outTree->Branch("eventSummary",&evSum);
   outTree->Branch("template",&tempSum);
   outTree->Branch("noiseSummary",&noiseSum);
@@ -894,7 +893,9 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
   //also something to save the event number it clustered with just for fun
   int evClusteredWith;
   outTree->Branch("evClusteredWith",&evClusteredWith);
-
+  //also the cluster "value"
+  double clusterValue;
+  outTree->Branch("clusterValue",&clusterValue);
 
 
   TStopwatch watch;
@@ -918,7 +919,7 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
   //then loop through ALL the entries, and if it clusters with one of the things in the vector, save it
   int savedCount=0;
   for (int entry=startEntry; entry<stopEntry; entry++) {
-    if (entry%1000 == 0 && entry>0) {
+    if (entry%10000 == 0 && entry>0) {
       int printEntry = entry-startEntry;
       int timeElapsed = watch.RealTime();
       totalTimeSec += timeElapsed;
@@ -926,46 +927,50 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
       double remaining = (float(stopEntry-entry)/rate)/60.;
       watch.Start();
       cout << printEntry << "/" << stopEntry-startEntry << " (" << savedCount << ") ";
-      cout << 1000./timeElapsed << "Hz <" << rate << "> " << remaining << " minutes left, ";
+      cout << 10000./timeElapsed << "Hz <" << rate << "> " << remaining << " minutes left, ";
       cout << totalTimeSec/60. << " minutes elapsed" << endl;
 
     }
     summaryTree->GetEntry(entry);
     UsefulAdu5Pat *currGPS = new UsefulAdu5Pat(gps);
     
-    bool clustered = false;
+    evClusteredWith = -999;
+    //try clustering with the major bases first
+    //wais
+    clusterValue = calcBaseDistance(evSum,currGPS,AnitaLocations::getWaisLatitude(),AnitaLocations::getWaisLongitude(),AnitaLocations::getWaisAltitude());
+    if (clusterValue < threshold && clusterValue > 0) {
+      evClusteredWith = -1;
+      outFile->cd();
+      outTree->Fill();
+      savedCount++;
+      delete currGPS;
+      continue;
+    }
+    //ldb
+    clusterValue = calcBaseDistance(evSum,currGPS,AnitaLocations::LATITUDE_LDB,AnitaLocations::LONGITUDE_LDB,AnitaLocations::ALTITUDE_LDB);
+    if (clusterValue < threshold && clusterValue > 0) {
+      //      cout << "ldb:" << clusterValue << endl;
+      evClusteredWith = -2;
+      outFile->cd();
+      outTree->Fill();
+      savedCount++;
+      delete currGPS;
+      continue;
+    }
     
-    //cluster with all the impulsive events
-    double clusterValue = -999;
+		
+    //cluster with all the impulsive events if it doesn't match a base
     for (int imp=0; imp<lenImp; imp++) {
       clusterValue = calcClusterDistance(evSum,currGPS,vImpulsiveEvSum[imp],vImpulsiveUsefulGps[imp]);
       if (clusterValue < threshold && clusterValue > 0) {
 	evClusteredWith = vImpulsiveEvSum[imp]->eventNumber;
-	clustered = true;
+	outFile->cd();
+	outTree->Fill();
+	savedCount++;
 	break;
       }
     }
-    
-    if (clustered == false) {
-      //also lets see if it clusters with WAIS or LDB
-      clusterValue = calcBaseDistance(evSum,currGPS,AnitaLocations::getWaisLatitude(),AnitaLocations::getWaisLongitude(),AnitaLocations::getWaisAltitude());
-      if (clusterValue < threshold && clusterValue > 0) {
-	evClusteredWith = -1;
-	clustered = true;
-      }
-      clusterValue = calcBaseDistance(evSum,currGPS,AnitaLocations::LATITUDE_LDB,AnitaLocations::LONGITUDE_LDB,AnitaLocations::ALTITUDE_LDB);
-      if (clusterValue < threshold && clusterValue > 0) {
-	evClusteredWith = -2;
-	clustered = true;
-      }
-    }	
-				   
-    //save it if it clustered
-    if (clustered) {
-      outFile->cd();
-      outTree->Fill();
-      savedCount++;
-    }
+  
 
     delete currGPS;
   }
