@@ -763,7 +763,7 @@ void saveCandidates(double threshold) {
     cout << "Couldn't find cuts.root, run separateNotable_fromFile() first " << endl;
     return;
   }
-  TTree *summaryTree = (TTree*)inFile->Get("eventSummary");
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
   if (summaryTree == NULL) {
     cout << "Couldn't find summaryTree in cuts.root" << endl;
     return;
@@ -841,7 +841,7 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
   if (!inFile->IsOpen()) {
     cout << "Couldn't find cuts.root, run separateNotable_fromFile() first " << endl;
     return; }
-  TTree *impulsiveTree = (TTree*)inFile->Get("eventSummary");
+  TTree *impulsiveTree = (TTree*)inFile->Get("summaryTree");
   if (impulsiveTree == NULL) {
     cout << "Couldn't find summaryTree in cuts.root" << endl;
     return; }
