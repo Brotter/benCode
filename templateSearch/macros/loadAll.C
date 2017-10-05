@@ -61,7 +61,7 @@ TChain* loadWais(string date = "08.04.17_17h"){
 }
 
 
-TChain *loadPseudoBases(string date = "10.03.17_22h") {
+TChain *loadPseudoBases(string date = "10.03.17_22h",bool doProof=false) {
 
   /*
 
@@ -72,9 +72,11 @@ TChain *loadPseudoBases(string date = "10.03.17_22h") {
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
 
+  if (doProof) gROOT->ProcessLine(".x setupProof.C");
+
   stringstream name;
   string resultsDir = getenv("ANITA3_RESULTSDIR");
-    for (int i=0; i<32; i++) {
+    for (int i=0; i<64; i++) {
     name.str("");
     name << resultsDir << "cluster/" << date << "/pseudoBaseCluster_" << i << ".root";
     summaryTree->Add(name.str().c_str());
@@ -82,6 +84,7 @@ TChain *loadPseudoBases(string date = "10.03.17_22h") {
   int lenEntries = summaryTree->GetEntries();
   cout << "loadPseudoBases(): Found " << lenEntries << " entries" << endl;
 
+  if (doProof) summaryTree->SetProof();
 
   return summaryTree;
 }
