@@ -1078,7 +1078,7 @@ void drawWAISPass() {
 }
 
 
-void drawPseudoBases() {
+void drawPseudoBases(string date="10.04.17_17h") {
   /*
 
     I mapped all the events that cluster with the ~6000 that pass cuts, lets plot them
@@ -1107,7 +1107,7 @@ void drawPseudoBases() {
 
 
 
-  TChain *summaryTree = loadPseudoBases();
+  TChain *summaryTree = loadPseudoBases(date);
   int lenEntries = summaryTree->GetEntries();
 
   AnitaEventSummary *evSum = NULL;
