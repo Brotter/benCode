@@ -59,3 +59,29 @@ TChain* loadWais(string date = "08.04.17_17h"){
   return summaryTree;
 
 }
+
+
+TChain *loadPseudoBases(string date = "10.03.17_22h") {
+
+  /*
+
+    Generating the list of events that cluster with the impulsive events requires the cluster
+    so this imports them all (once you save them to disk!)
+
+  */
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+
+  stringstream name;
+  string resultsDir = getenv("ANITA3_RESULTSDIR");
+    for (int i=0; i<32; i++) {
+    name.str("");
+    name << resultsDir << "cluster/" << date << "/pseudoBaseCluster_" << i << ".root";
+    summaryTree->Add(name.str().c_str());
+  }
+  int lenEntries = summaryTree->GetEntries();
+  cout << "loadPseudoBases(): Found " << lenEntries << " entries" << endl;
+
+
+  return summaryTree;
+}
