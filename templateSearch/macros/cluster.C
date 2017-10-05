@@ -108,7 +108,7 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
 
 
 /*--- Major Code Piece!  Determines which events do not cluster! ---*/
-void clusterEvents(string inFileName="cuts.root") {
+void clusterEvents(string inFileName="cuts.root",string outFileName="clusterEvents.root") {
   /*
     Takes in a list of events and compares their source locations to determine whether they cluster
 
@@ -201,7 +201,7 @@ void clusterEvents(string inFileName="cuts.root") {
   hCluster->Draw("colz");
 
 
-  TFile* outFile = new TFile(outFileName.c_str,"recreate");
+  TFile* outFile = new TFile(outFileName.c_str(),"recreate");
   hCluster->Write();
   gClosest->Write();
   hClosest->Write();
@@ -814,7 +814,7 @@ void saveCandidates(double threshold) {
 }
 
 
-void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string outFileName="") {
+void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string outFileName="pseudoBaseEvents") {
   /*
     Does the opposite of saveCandidates, instead of picking out things that don't cluster, it finds all the impulsive
     events that DID cluster, then finds ALL the events (impulsive or no) that cluster with those.
@@ -884,7 +884,6 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
   
 
   //make output tree and output file
-  if (outFileName == "") outFileName = "pseudoBaseEvents.root";
   TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
   TTree *outTree = new TTree("summaryTree","summaryTree");
   outTree->Branch("eventSummary",&evSum); 
