@@ -16,5 +16,6 @@ mkdir ${sharedDir}"/log"
 
 numCores=64
 for localCore in `seq 0 $((numCores-1))`; do
-    root macros/cluster.C\(${numCores},${localCore},\"${sharedDir}\"\)  1> ${sharedDir}/log/${localCore}.log 2>&1 &
+    echo "Starting "${localCore}
+    root cluster.C\(${numCores},${localCore},\"${sharedDir}\"\)  1> ${sharedDir}/log/${localCore}.log 2>&1 &
 done
