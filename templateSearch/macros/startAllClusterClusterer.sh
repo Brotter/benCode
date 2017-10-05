@@ -9,9 +9,9 @@
 
 
 
-ssh anitai   'cd anita16/benCode/templateSearch/macros/; git pull; ./runClusterClusterer.sh' 
-ssh anitaii  'cd anita16/benCode/templateSearch/macros/; git pull; ./runClusterClusterer.sh' 
-ssh anitaiii 'cd anita16/benCode/templateSearch/macros/; git pull; ./runClusterClusterer.sh' 
-ssh anitaiv  'cd anita16/benCode/templateSearch/macros/; git pull; ./runClusterClusterer.sh' 
+ssh anitai   'cd anita16/benCode/templateSearch/macros/; git pull; ./runClusterCluster.sh' 
+ssh anitaii  'cd anita16/benCode/templateSearch/macros/; git pull; ./runClusterCluster.sh' 
+ssh anitaiii 'cd anita16/benCode/templateSearch/macros/; git pull; ./runClusterCluster.sh' 
+ssh anitaiv  'cd anita16/benCode/templateSearch/macros/; git pull; ./runClusterCluster.sh' 
 
 

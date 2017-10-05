@@ -30,5 +30,5 @@ fi
 
 for localCore in `seq ${startCore} $((startCore+63))`; do
     echo "Starting "${localCore}
-    root cluster.C\(${numCores},${localCore},\"${sharedDir}\"\)  1> ${sharedDir}/log/${localCore}.log 2>&1 &
+    root -b cluster.C\(${numCores},${localCore},\"${sharedDir}\"\)  1> ${sharedDir}/log/${localCore}.log 2>&1 &
 done
