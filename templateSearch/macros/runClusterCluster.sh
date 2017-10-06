@@ -14,15 +14,15 @@ sharedDir="/home/brotter/nfsShared/results/cluster/"${startTime}
 mkdir ${sharedDir}
 mkdir ${sharedDir}"/log"
 
-numCores=256
+numCores=192
 if [ `hostname | cut -d"." -f1` == "anitaI" ]; then
     startCore=0
 elif [ `hostname | cut -d"." -f1` == "anitaII" ]; then
     startCore=64
 elif [ `hostname | cut -d"." -f1` == "anitaIII" ]; then
-    startCore=128
+    startCore=64
 elif [ `hostname | cut -d"." -f1` == "anitaIV" ]; then
-    startCore=192
+    startCore=128
 else
     echo "The server isn't an anita cluster server, so you shouldn't use this script"	
     exit
