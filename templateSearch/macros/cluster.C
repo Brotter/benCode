@@ -911,9 +911,10 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
     cout << "Doing section: " << split << ", starting at entry " << startEntry << " and stopping at " << stopEntry << endl;
   }
 
-  //then loop through ALL the entries, and if it clusters with one of the things in the vector, save it
+  //then loop through ALL the events, and if it clusters with one of the things in the vector, save it
   int savedCount=0;
   for (int entry=startEntry; entry<stopEntry; entry++) {
+    //printing stuff
     if (entry%10000 == 0 && entry>0) {
       int printEntry = entry-startEntry;
       int timeElapsed = watch.RealTime();
@@ -926,48 +927,53 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
       cout << totalTimeSec/60. << " minutes elapsed" << endl;
 
     }
+    //get entry
     summaryTree->GetEntry(entry);
+    //get UsefulAdu5Pat
     UsefulAdu5Pat *currGPS = new UsefulAdu5Pat(gps);
     
     //default to no event, -999
     seedEventNumber = -999;
     seedIndexNumber = -999;
+    clusterValue = -999;
+
+    //and a temporary location to store the values
+    double tempClusterValue = -999;
+
     //try clustering with the major bases first
     //wais (seed == -1)
-    clusterValue = calcBaseDistance(evSum,currGPS,AnitaLocations::getWaisLatitude(),AnitaLocations::getWaisLongitude(),AnitaLocations::getWaisAltitude());
-    if (clusterValue < threshold && clusterValue > 0) {
+    tempClusterValue = calcBaseDistance(evSum,currGPS,
+				    AnitaLocations::getWaisLatitude(),
+				    AnitaLocations::getWaisLongitude(),
+				    AnitaLocations::getWaisAltitude());
+    if (tempClusterValue > 0) {
       seedEventNumber = -1;
       seedIndexNumber = -1;
-      outFile->cd();
-      outTree->Fill();
-      savedCount++;
-      delete currGPS;
-      continue;
+      clusterValue = tempClusterValue;
     }
-    //ldb
-    clusterValue = calcBaseDistance(evSum,currGPS,AnitaLocations::LATITUDE_LDB,AnitaLocations::LONGITUDE_LDB,AnitaLocations::ALTITUDE_LDB);
-    if (clusterValue < threshold && clusterValue > 0) {
+
+    //ldb (seed == -2)
+    tempClusterValue = calcBaseDistance(evSum,currGPS,
+				    AnitaLocations::LATITUDE_LDB,
+				    AnitaLocations::LONGITUDE_LDB,
+				    AnitaLocations::ALTITUDE_LDB);
+    if ((tempClusterValue > 0) && (tempClusterValue < clusterValue)) {
       //      cout << "ldb:" << clusterValue << endl;
       seedEventNumber = -2;
       seedIndexNumber = -2;
-      outFile->cd();
-      outTree->Fill();
-      savedCount++;
-      delete currGPS;
-      continue;
+      clusterValue = tempClusterValue;
     }
     
 		
     //cluster with all the impulsive events if it doesn't match a base
     // this should also find the base that it clusters to BEST, not just first
-    double minClusterValue = 9999;
     for (int imp=0; imp<lenImp; imp++) {
-      clusterValue = calcClusterDistance(evSum,currGPS,vImpulsiveEvSum[imp],vImpulsiveUsefulGps[imp]);
+      tempClusterValue = calcClusterDistance(evSum,currGPS,vImpulsiveEvSum[imp],vImpulsiveUsefulGps[imp]);
       //if: value below lowest clustered event && value not -9999
-      if (minClusterValue > clusterValue && clusterValue > 0) {
+      if ((tempClusterValue < clusterValue) && (tempClusterValue > 0)) {
 	seedEventNumber = vImpulsiveEvSum[imp]->eventNumber;
 	seedIndexNumber = imp;
-	minClusterValue = clusterValue;
+	clusterValue = tempClusterValue;
       }
     }
 
