@@ -345,3 +345,75 @@ void separateTrueCandidates() {
   return;
 
 }
+
+
+
+void saveOnlyGoodEvents(string date="09.27.17_19h") {
+  /*
+
+    lots of events seem to point either above zero degrees, or are like blasts or minbias
+
+    lets save all the ones that aren't
+
+   */
+
+  TChain *summaryTree = loadAll(date,false);
+  int lenEntries = summaryTree->GetEntries();
+
+  char* dataDir = getenv("ANITA3_RESULTSDIR");
+  stringstream name;
+  name.str("");
+  name << dataDir << "templateSearch/" << date << "/goodEvents.root";
+  TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
+  TTree *cutTree = new TTree("summaryTree","summaryTree");
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  cutTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  cutTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  cutTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  cutTree->Branch("gpsEvent",&gps);
+  
+  
+  TStopwatch watch;
+  watch.Start(kTRUE);
+  int totalTimeSec = 0;
+  int savedCount = 0;
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (entry%10000 == 0 && entry>0) {
+      int timeElapsed = watch.RealTime();
+      totalTimeSec += timeElapsed;
+      double rate = float(entry)/totalTimeSec;
+      double remaining = (float(lenEntries-entry)/rate)/60.;
+      watch.Start();
+      cout << entry << "/" << lenEntries << " (" << savedCount << ") ";
+      cout << 10000./timeElapsed << "Hz <" << rate << "> " << remaining << " minutes left, ";
+      cout << totalTimeSec/60. << " minutes elapsed" << endl;
+    }
+    summaryTree->GetEntry(entry);
+
+    if (evSum->peak[0][0].theta > 0 || !evSum->flags.isRF || evSum->flags.maxBottomToTopRatio[0] > 3) {
+      continue;
+    }
+    savedCount++;
+    outFile->cd();
+    cutTree->Fill();
+  }
+  cout << "done looping, saving..." << endl;
+
+
+  outFile->cd();
+  cutTree->Write();
+  outFile->Close();
+    
+
+  cout << "Done!" << endl;
+
+  return;
+
+}
