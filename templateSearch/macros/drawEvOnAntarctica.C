@@ -1095,7 +1095,7 @@ void drawPseudoBases(string date="10.04.17_17h") {
 
 
   TGraphAntarctica *gPassing = new TGraphAntarctica();
-  gMajorBases->SetName("gPassing");
+  gPassing->SetName("gPassing");
   TFile* passingFile = TFile::Open("cuts_final.root");
   TTree *passingTree = (TTree*)passingFile->Get("summaryTree");
   AnitaEventSummary *passingSum = NULL;
@@ -1146,9 +1146,46 @@ void drawPseudoBases(string date="10.04.17_17h") {
 
 
 
+void drawCutList() {
 
+  TGraphAntarctica *gPassing = new TGraphAntarctica();
+  gPassing->SetMarkerSize(1);
 
+ TFile* passingFile = TFile::Open("cuts_final.root");
+  TTree *passingTree = (TTree*)passingFile->Get("summaryTree");
+  AnitaEventSummary *passingSum = NULL;
+  passingTree->SetBranchAddress("eventSummary",&passingSum);
+  for (int i=0; i<passingTree->GetEntries(); i++) {
+    passingTree->GetEntry(i);
+    gPassing->SetPoint(i,passingSum->peak[0][0].longitude,passingSum->peak[0][0].latitude);
+  }
+  
+  gPassing->Draw("p");
 
+}
+  
+void drawAllEvents() {
+  
+  TH2DAntarctica *antMap = new TH2DAntarctica("antMap","antMap",1000,1000);
+
+  TChain *summaryTree = loadAll("09.27.17_19h",false);
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " entries" << endl;
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!(entry%10000)) cout << entry << "/" << lenEntries << endl;
+    summaryTree->GetEntry(entry);
+    if (evSum->peak[0][0].altitude < 0 || evSum->flags.maxBottomToTopRatio[0] > 3) continue;
+    antMap->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+  }
+
+  antMap->Draw("colz");
+
+  return;
+}
 
 
 void drawEvOnAntarctica() {
