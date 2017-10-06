@@ -408,7 +408,7 @@ TGraph* numberOfEventsExceedingCandidates() {
     Returns a TGraph with x=eventNumber and y=numberOfExceedingBackgroundEvs
    */
 
-  TFile *candFile = TFile::Open("candidates.root");
+  TFile *candFile = TFile::Open("trueCandidates.root");
   TTree *candTree = (TTree*)candFile->Get("summaryTree");
   AnitaEventSummary *candEvSum = NULL;
   candTree->SetBranchAddress("eventSummary",&candEvSum);
@@ -471,7 +471,10 @@ TGraph* numberOfEventsExceedingCandidates() {
   for (int i=0; i<numCandidates; i++) {
     candTree->GetEntry(i);
     outGraph->SetPoint(i,candEvSum->eventNumber,numPassing[i]);
+    cout << candEvSum->eventNumber << " " << numPassing[i] << endl;
   }
+
+  
 
   delete [] numPassing;
 
@@ -518,3 +521,41 @@ void poissonConfidenceInterval() {
   cout << "linPolFrac=" << linPolFrac << endl;
 
 }
+
+
+
+int ABCDMethod() {
+  
+  /*
+
+    Okay so I need to do the ABCD method:
+    A) Events that both pass cuts and cluster together into pseudobases
+    B) Events that DO NOT pass cuts, but DO cluster
+    C) Events that DO NOT pass cuts, and DO NOT cluster
+    D) Events that pass cuts, but DO NOT cluster (candidates)
+
+   */
+
+  //load all the pseudobase events
+  TChain *pseudoTree = new TChain("summaryTree","summaryTree");
+
+  stringstream name;
+  string baseDir = "/Volumes/ANITA3Data/bigAnalysisFiles/cluster/10.03.17_22h/";
+  for (int i=0; i<32; i++) {
+    name.str("");
+    name << baseDir << "pseudoBaseCluster_" << i << ".root";
+    pseudoTree->Add(name.str().c_str());
+  }
+  int pseudoN = spTree->GetEntries();
+  cout << "Found " << lenPseudo << " entries" << endl;
+
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+
+  //how many of those cluster with the pseudobases (-1==WAIS and -2==LDB)
+  //DO NOT pass, but DO cluster (B)
+  int B = summaryTree->Draw("eventNumber","baseClusteredWith > 0","goff");
+  
+
+
+  // 

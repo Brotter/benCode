@@ -2,6 +2,9 @@
 
   The redo runs are split into 12, this should combine them
 
+  example to run:
+  cores="48 77 89 114 128"; for core in ${cores}; do root combineRedos.C\(${core}\) 1> ${core}_combine.log 2>&1 & done
+
  */
 
 
@@ -27,7 +30,7 @@ void combineRedos(int core) {
   outFile->Write();
   outFile->Close();
 
-
+  cout << "done!" << endl;
   return;
 }
 
