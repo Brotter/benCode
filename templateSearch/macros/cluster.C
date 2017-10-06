@@ -57,11 +57,15 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
     
   //if event a is further than 1000km from location B, return -9999
   double distance = gpsB->getDistanceFromSource(latA,lonA,altA);
+  /*  if (eventB->eventNumber == 11116669) {
+    cout << eventB->eventNumber << endl;
+    cout << "distance: " << distance << endl;
+    cout << "A: " << lonA << "," << latA << "," << altA << endl;
+    cout << "B: " << gpsB->longitude << "," << gpsB->latitude << "," << gpsB->altitude << endl;
+    }*/
   if (distance > 1000e3) {
-    //    cout << "distance: " << distance << " ";
-    //    cout << "A: " << latA << "," << lonA << "," << altA << " ";
-    //    cout << "B: " << gpsB->latitude << "," << gpsB->longitude << "," << gpsB->altitude << endl;
-    return -9999;}
+    return -9999;
+  }
 
   //where event b was seen (b)
   double thetaB = eventB->peak[0][0].theta;
@@ -886,11 +890,11 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
   // The "seed" is the point on the ice that accumulates all the events nearby
   // seedIndexNumber is just the entry number in the staring cuts_final.root tree
   int seedEventNumber,seedIndexNumber;
-  outTree->Branch("seedEventNumber",&seedEventNumber);
-  outTree->Branch("seedIndexNumber",&seedIndexNumber);
+  outTree->Branch("seedEventNumber",&seedEventNumber,"seedEventNumber/I");
+  outTree->Branch("seedIndexNumber",&seedIndexNumber,"seedIndexNumber/I");
   //also the cluster "value"
   double clusterValue;
-  outTree->Branch("clusterValue",&clusterValue);
+  outTree->Branch("clusterValue",&clusterValue,"clusterValue/D");
 
 
   TStopwatch watch;
@@ -944,7 +948,7 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
     //default to no event, -999
     seedEventNumber = -999;
     seedIndexNumber = -999;
-    clusterValue = -999;
+    clusterValue = 999;
 
     //and a temporary location to store the values
     double tempClusterValue = -999;
@@ -966,11 +970,13 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
 				    AnitaLocations::LATITUDE_LDB,
 				    AnitaLocations::LONGITUDE_LDB,
 				    AnitaLocations::ALTITUDE_LDB);
-    if ((tempClusterValue > 0) && (tempClusterValue < clusterValue)) {
-      //      cout << "ldb:" << clusterValue << endl;
-      seedEventNumber = -2;
-      seedIndexNumber = -2;
-      clusterValue = tempClusterValue;
+    if (tempClusterValue > 0) {
+      if (tempClusterValue < clusterValue) {
+	//      cout << "ldb:" << clusterValue << endl;
+	seedEventNumber = -2;
+	seedIndexNumber = -2;
+	clusterValue = tempClusterValue;
+      }
     }
     
 		
@@ -979,10 +985,12 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
     for (int imp=0; imp<lenImp; imp++) {
       tempClusterValue = calcClusterDistance(evSum,currGPS,vImpulsiveEvSum[imp],vImpulsiveUsefulGps[imp]);
       //if: value below lowest clustered event && value not -9999
-      if ((tempClusterValue < clusterValue) && (tempClusterValue > 0)) {
-	seedEventNumber = vImpulsiveEvSum[imp]->eventNumber;
-	seedIndexNumber = imp;
-	clusterValue = tempClusterValue;
+      if (tempClusterValue > 0) {
+	if (tempClusterValue < clusterValue) {
+	  seedEventNumber = vImpulsiveEvSum[imp]->eventNumber;
+	  seedIndexNumber = imp;
+	  clusterValue = tempClusterValue;
+	}
       }
     }
 
@@ -996,7 +1004,7 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
       failedCount++;
     }
 
-    cout << "clusterValue=" << clusterValue << endl;
+    //    cout << "clusterValue=" << clusterValue << endl;
 
     delete currGPS;
 
