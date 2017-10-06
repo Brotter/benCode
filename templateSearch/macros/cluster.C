@@ -6,7 +6,7 @@
 //needed to import things
 #include "loadAll.C"
 
-string dataDateString = "07.28.17_17h";
+string dataDateString = "09.27.17_19h";
 
 
 /*
@@ -883,8 +883,11 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
   outTree->Branch("noiseSummary",&noiseSum);
   outTree->Branch("gpsEvent",&gps);
   //also something to save the event number it clustered with just for fun
-  int evClusteredWith;
-  outTree->Branch("evClusteredWith",&evClusteredWith);
+  // The "seed" is the point on the ice that accumulates all the events nearby
+  // seedIndexNumber is just the entry number in the staring cuts_final.root tree
+  int seedEventNumber,seedIndexNumber;
+  outTree->Branch("seedEventNumber",&seedEventNumber);
+  outTree->Branch("seedIndexNumber",&seedIndexNumber);
   //also the cluster "value"
   double clusterValue;
   outTree->Branch("clusterValue",&clusterValue);
@@ -926,12 +929,15 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
     summaryTree->GetEntry(entry);
     UsefulAdu5Pat *currGPS = new UsefulAdu5Pat(gps);
     
-    evClusteredWith = -999;
+    //default to no event, -999
+    seedEventNumber = -999;
+    seedIndexNumber = -999;
     //try clustering with the major bases first
-    //wais
+    //wais (seed == -1)
     clusterValue = calcBaseDistance(evSum,currGPS,AnitaLocations::getWaisLatitude(),AnitaLocations::getWaisLongitude(),AnitaLocations::getWaisAltitude());
     if (clusterValue < threshold && clusterValue > 0) {
-      evClusteredWith = -1;
+      seedEventNumber = -1;
+      seedIndexNumber = -1;
       outFile->cd();
       outTree->Fill();
       savedCount++;
@@ -942,7 +948,8 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
     clusterValue = calcBaseDistance(evSum,currGPS,AnitaLocations::LATITUDE_LDB,AnitaLocations::LONGITUDE_LDB,AnitaLocations::ALTITUDE_LDB);
     if (clusterValue < threshold && clusterValue > 0) {
       //      cout << "ldb:" << clusterValue << endl;
-      evClusteredWith = -2;
+      seedEventNumber = -2;
+      seedIndexNumber = -2;
       outFile->cd();
       outTree->Fill();
       savedCount++;
@@ -956,11 +963,14 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
     double minClusterValue = 9999;
     for (int imp=0; imp<lenImp; imp++) {
       clusterValue = calcClusterDistance(evSum,currGPS,vImpulsiveEvSum[imp],vImpulsiveUsefulGps[imp]);
+      //if: value below lowest clustered event && value not -9999
       if (minClusterValue > clusterValue && clusterValue > 0) {
-	evClusteredWith = vImpulsiveEvSum[imp]->eventNumber;
+	seedEventNumber = vImpulsiveEvSum[imp]->eventNumber;
+	seedIndexNumber = imp;
 	minClusterValue = clusterValue;
       }
     }
+
     if (clusterValue < threshold && clusterValue > 0) {
       outFile->cd();
       outTree->Fill();
