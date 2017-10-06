@@ -137,7 +137,9 @@ const FFTtools::SineSubtract* sineSubStepByStep(int eventNumber) {
 
   const FFTtools::SineSubtract *ss12 = sineSubtract->sinsub(AnitaPol::kHorizontal,13);
   
-  ss12->makePlots();
+  //  ss12->makePlots();
+  ss12->makeSlides("event56765803","slides","./","png",false);
+
 
   return ss12;
 
