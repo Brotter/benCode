@@ -1,6 +1,6 @@
 
 
-TChain* loadAll(string date = "09.27.17_19h/",bool doProof = true){
+TChain* loadAll(string date,bool doProof = true){
   //crab
   //kwaabz
   //crab
@@ -10,6 +10,10 @@ TChain* loadAll(string date = "09.27.17_19h/",bool doProof = true){
   //bert
   //kona
   //tate
+
+  cout << "loadAll(): Loading " << date;
+  if (doProof) cout << " with PROOF enabled" << endl;
+  else         cout << " without PROOF" << endl;
 
   TChain *summaryTree = new TChain("summaryTree");
   
@@ -38,30 +42,9 @@ TChain* loadAll(string date = "09.27.17_19h/",bool doProof = true){
 
 }
 
+TChain *loadAllDefault() { return loadAll("09.27.17_19h",true); }
 
-TChain* loadWais(string date = "08.04.17_17h"){
-
-  TChain *summaryTree = new TChain("summaryTree");
-  
-
-  char* resultsDir = getenv("ANITA3_RESULTSDIR");
-
-  stringstream name;
-  for (int core=162; core<182; core++) {
-
-    name.str("");
-    name << resultsDir << "templateSearch/" << date << "/" << core << ".root";
-
-    summaryTree->Add(name.str().c_str());
-
-  }
-
-  return summaryTree;
-
-}
-
-
-TChain *loadPseudoBases(string date = "10.03.17_22h",bool doProof=false) {
+TChain *loadPseudoBases(string date = "10.05.17_14h",bool doProof=false) {
 
   /*
 
@@ -69,6 +52,9 @@ TChain *loadPseudoBases(string date = "10.03.17_22h",bool doProof=false) {
     so this imports them all (once you save them to disk!)
 
   */
+  cout << "loadPseudoBases(): Loading " << date;
+  if (doProof) cout << " with PROOF enabled" << endl;
+  else         cout << " without PROOF" << endl;
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
 
@@ -87,4 +73,12 @@ TChain *loadPseudoBases(string date = "10.03.17_22h",bool doProof=false) {
   if (doProof) summaryTree->SetProof();
 
   return summaryTree;
+}
+
+
+
+/*  Default macro if called from bash command line */
+void loadAll() {
+  cout << "loaded loadAll.C" << endl;
+  return;
 }
