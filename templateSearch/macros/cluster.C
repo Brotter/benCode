@@ -859,7 +859,7 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
   }
 
   int lenImp = vImpulsiveEvSum.size();
-  cout << "Found " << lenImp << " events that cluster with each other" << endl;
+  cout << "Found " << lenImp << " events to be clustered with" << endl;
 
   //also open up ALL of the events :)
   TChain *summaryTree = loadAll(dataDateString,false);
@@ -913,22 +913,31 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
 
   //then loop through ALL the events, and if it clusters with one of the things in the vector, save it
   int savedCount=0;
+  int skippedCount=0;
+  int failedCount=0;
   for (int entry=startEntry; entry<stopEntry; entry++) {
     //printing stuff
-    if (entry%10000 == 0 && entry>0) {
-      int printEntry = entry-startEntry;
+    int printEntry = entry-startEntry;
+    if (printEntry%10000 == 0 && printEntry>0) {
       int timeElapsed = watch.RealTime();
       totalTimeSec += timeElapsed;
       double rate = float(printEntry)/totalTimeSec;
       double remaining = (float(stopEntry-entry)/rate)/60.;
       watch.Start();
-      cout << printEntry << "/" << stopEntry-startEntry << " (" << savedCount << ") ";
+      cout << printEntry << "/" << stopEntry-startEntry;
+      cout << " (" << savedCount << " | " << skippedCount << " | " << failedCount << ") ";
       cout << 10000./timeElapsed << "Hz <" << rate << "> " << remaining << " minutes left, ";
       cout << totalTimeSec/60. << " minutes elapsed" << endl;
 
     }
     //get entry
     summaryTree->GetEntry(entry);
+
+    if (evSum->peak[0][0].latitude < -999 || evSum->flags.maxBottomToTopRatio[0] > 3) {
+      skippedCount++;
+      continue;
+    }
+
     //get UsefulAdu5Pat
     UsefulAdu5Pat *currGPS = new UsefulAdu5Pat(gps);
     
@@ -977,11 +986,17 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
       }
     }
 
+
     if (clusterValue < threshold && clusterValue > 0) {
       outFile->cd();
       outTree->Fill();
       savedCount++;
     }
+    else {
+      failedCount++;
+    }
+
+    cout << "clusterValue=" << clusterValue << endl;
 
     delete currGPS;
 
