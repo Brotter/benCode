@@ -834,6 +834,19 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
 
    */
 
+  //I'll need to split this up onto the servers, because it takes forever
+  int startEntry,stopEntry;
+  if (numSplits == 1) {
+    startEntry=0;
+    stopEntry=lenEntries;
+  }
+  else {
+    lenEntries /= numSplits;
+    startEntry = split*lenEntries;
+    stopEntry = (split+1)*lenEntries;
+    cout << "Splitting into " << numSplits << " sections, which means " << lenEntries << " events per section" << endl;
+    cout << "Doing section: " << split << ", starting at entry " << startEntry << " and stopping at " << stopEntry << endl;
+  }
 
 
   //get the summaries for all the "candidates" that passed cuts
@@ -865,7 +878,7 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
   int lenImp = vImpulsiveEvSum.size();
   cout << "Found " << lenImp << " events to be clustered with" << endl;
 
-  //also open up ALL of the events :)
+  // Also open up ALL of the events!! :)
   TChain *summaryTree = loadAll(dataDateString,false);
   int lenEntries = summaryTree->GetEntries();
   cout << "Opened up all the data, found " << lenEntries << " entries" << endl;
@@ -901,19 +914,6 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
   watch.Start(kTRUE);
   int totalTimeSec = 0;
 
-  //I'll need to split this up onto the servers, because it takes forever
-  int startEntry,stopEntry;
-  if (numSplits == 1) {
-    startEntry=0;
-    stopEntry=lenEntries;
-  }
-  else {
-    lenEntries /= numSplits;
-    startEntry = split*lenEntries;
-    stopEntry = (split+1)*lenEntries;
-    cout << "Splitting into " << numSplits << " sections, which means " << lenEntries << " events per section" << endl;
-    cout << "Doing section: " << split << ", starting at entry " << startEntry << " and stopping at " << stopEntry << endl;
-  }
 
   //then loop through ALL the events, and if it clusters with one of the things in the vector, save it
   int savedCount=0;
