@@ -417,3 +417,9 @@ void saveOnlyGoodEvents(string date="09.27.17_19h") {
   return;
 
 }
+
+
+void separateNotable() {
+  cout << "loaded separateNotable.C" << endl;
+  return;
+}
