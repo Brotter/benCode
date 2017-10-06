@@ -834,20 +834,6 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
 
    */
 
-  //I'll need to split this up onto the servers, because it takes forever
-  int startEntry,stopEntry;
-  if (numSplits == 1) {
-    startEntry=0;
-    stopEntry=lenEntries;
-  }
-  else {
-    lenEntries /= numSplits;
-    startEntry = split*lenEntries;
-    stopEntry = (split+1)*lenEntries;
-    cout << "Splitting into " << numSplits << " sections, which means " << lenEntries << " events per section" << endl;
-    cout << "Doing section: " << split << ", starting at entry " << startEntry << " and stopping at " << stopEntry << endl;
-  }
-
 
   //get the summaries for all the "candidates" that passed cuts
   TFile *inFile = TFile::Open("cuts_final.root");
@@ -890,6 +876,22 @@ void clusterBackground(double threshold=40.,int numSplits=1,int split=0, string 
   summaryTree->SetBranchAddress("template",&tempSum);
   summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
   summaryTree->SetBranchAddress("gpsEvent",&gps);
+
+
+  //I'll need to split this up onto the servers, because it takes forever
+  int startEntry,stopEntry;
+  if (numSplits == 1) {
+    startEntry=0;
+    stopEntry=lenEntries;
+  }
+  else {
+    lenEntries /= numSplits;
+    startEntry = split*lenEntries;
+    stopEntry = (split+1)*lenEntries;
+    cout << "Splitting into " << numSplits << " sections, which means " << lenEntries << " events per section" << endl;
+    cout << "Doing section: " << split << ", starting at entry " << startEntry << " and stopping at " << stopEntry << endl;
+  }
+
   
 
   //make output tree and output file
