@@ -23,18 +23,11 @@ TChain* loadAll(string date,bool doProof = true){
 
   stringstream name;
   for (int run=0; run<256; run++) {
-
-    //runs that are totally broken
-    if (run==220) continue;
-
     name.str("");
     name << resultsDir << "templateSearch/" << date << "/" << run << ".root";
-
-
-    cout << "core:" << run << endl;
     summaryTree->Add(name.str().c_str());
-    cout << summaryTree->GetEntries() << endl;
   }
+  cout << "loadAll(): Found " << summaryTree->GetEntries() << " entries" << endl;
 
   if (doProof) summaryTree->SetProof();
 
@@ -62,7 +55,7 @@ TChain *loadPseudoBases(string date = "10.05.17_14h",bool doProof=false) {
 
   stringstream name;
   string resultsDir = getenv("ANITA3_RESULTSDIR");
-    for (int i=0; i<64; i++) {
+    for (int i=0; i<192; i++) {
     name.str("");
     name << resultsDir << "cluster/" << date << "/pseudoBaseCluster_" << i << ".root";
     summaryTree->Add(name.str().c_str());
