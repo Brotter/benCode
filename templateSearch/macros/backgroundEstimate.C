@@ -524,14 +524,12 @@ void poissonConfidenceInterval() {
 
 
 
-<<<<<<< HEAD
 void eventsClusteredWithCandidates(string date = "10.05.17_14h") {
 
   return;
 }
 
 
-=======
 int ABCDMethod() {
   
   /*
@@ -567,4 +565,4 @@ int ABCDMethod() {
 
 
   // 
->>>>>>> 0da1d9bb11faf608fd452a0c2d34ab5eb3ded961
+}
