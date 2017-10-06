@@ -94,10 +94,10 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
   const double sigmaTheta = 0.2193;
   const double sigmaPhi = 0.5429;
       
-  double diffTheta = TMath::Sqrt(pow(diffABtheta,2) + pow(diffBAtheta,2))/sigmaTheta;
-  double diffPhi = TMath::Sqrt(pow(diffABphi,2) + pow(diffBAphi,2))/sigmaPhi;
+  double diffTheta = (pow(diffABtheta,2) + pow(diffBAtheta,2))/pow(sigmaTheta,2);
+  double diffPhi = (pow(diffABphi,2) + pow(diffBAphi,2))/pow(sigmaPhi,2);
     
-  double diff = TMath::Sqrt(pow(diffTheta,2) + pow(diffPhi,2));
+  double diff = TMath::Sqrt(diffTheta + diffPhi);
       
   //  cout << "diff: " << diff << endl;
   
