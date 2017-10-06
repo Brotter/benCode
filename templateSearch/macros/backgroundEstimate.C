@@ -518,3 +518,12 @@ void poissonConfidenceInterval() {
   cout << "linPolFrac=" << linPolFrac << endl;
 
 }
+
+
+
+void eventsClusteredWithCandidates(string date = "10.05.17_14h") {
+
+  return;
+}
+
+
