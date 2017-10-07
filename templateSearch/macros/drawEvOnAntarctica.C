@@ -1078,7 +1078,7 @@ void drawWAISPass() {
 }
 
 
-void drawPseudoBases(string date="10.04.17_17h") {
+void drawPseudoBases(string date="10.06.17_11h") {
   /*
 
     I mapped all the events that cluster with the ~6000 that pass cuts, lets plot them
@@ -1112,11 +1112,13 @@ void drawPseudoBases(string date="10.04.17_17h") {
 
   AnitaEventSummary *evSum = NULL;
   summaryTree->SetBranchAddress("eventSummary",&evSum);
-  int evClusteredWith;
-  summaryTree->SetBranchAddress("evClusteredWith",&evClusteredWith);
+  int seedEventNumber,seedIndexNumber;
+  summaryTree->SetBranchAddress("seedEventNumber",&seedEventNumber);
+  summaryTree->SetBranchAddress("seedIndexNumber",&seedIndexNumber);
 
 
-  TProfile2DAntarctica *hClustered = new TProfile2DAntarctica("hClustered","hClustered",1000,1000);
+  TProfile2DAntarctica *hSeedIndex = new TProfile2DAntarctica("hSeedIndex","hSeedIndex",1000,1000);
+  TH2DAntarctica *hClustered = new TH2DAntarctica("hClustered","hClustered",1000,1000);
   int doesNotMap=0;
   for (int i=0; i<lenEntries; i++) {
     if (i%10000 == 0) cout << i << "/" << lenEntries << " (" << doesNotMap << ")" << endl;
@@ -1129,18 +1131,22 @@ void drawPseudoBases(string date="10.04.17_17h") {
       continue; 
     }
     //it is associated with WAIS or LDB
-    if (evClusteredWith < 0) continue;
+    if (seedEventNumber < 0) continue;
 
-    hClustered->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude,evClusteredWith);
+    hSeedIndex->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude,seedIndexNumber);
+    hClustered->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
   }
 
 
-  //  TCanvas *c1 = new TCanvas("c1","c1",4000,4000);
-  
-  hClustered->Draw("colz");
+  TCanvas *c1 = new TCanvas("c1","c1",4000,4000);
+  hSeedIndex->Draw("colz");
   gMajorBases->Draw("p same");
   gPassing->Draw("p same");
-  //  c1->SaveAs("/Users/brotter/Desktop/pseudoBases.png");
+
+  TCanvas *c2 = new TCanvas("c2","c2",4000,4000);
+  hClustered->Draw("colz");
+  gMajorBases->Draw("p same");
+  gPassing->Draw("p same");  //  c1->SaveAs("/Users/brotter/Desktop/pseudoBases.png");
 
 }
 
