@@ -104,8 +104,15 @@ string getThermalCuts(double reduction=1e-3) {
   
 }
 
-void printPassingEvents(bool draw=true,int strength=0) {
 
+
+
+void printPassingEvents(bool draw=true,int strength=0) {
+  /*
+
+    
+
+   */
 
 
 
@@ -119,7 +126,7 @@ void printPassingEvents(bool draw=true,int strength=0) {
 
 
   //full data set
-  TChain *summaryTree = loadAll("09.27.17_19h",true);
+  TChain *summaryTree = loadAllDefault();
 
   if (summaryTree == NULL) {
     cout << "Couldn't find tree, quitting" << endl;
@@ -151,8 +158,17 @@ void printPassingEvents(bool draw=true,int strength=0) {
 
   /*  Generated from drawThingsScan.C::getCutsFromValue() @ 10^-3 cut of WAIS(default) (weakest)*/
 
+  /* for the ABCD background estimate, grab the events that fall between some lower level and (3) */
+  if (strength==4) {
+    cuts.push_back("template.coherent[0][0].cRay[4] > 0.5");
+    cuts.push_back("template.coherent[0][0].cRay[4] < 0.67");
+    cuts.push_back(waveformString+"peakHilbert > 43.5");
+    cuts.push_back(waveformString+"linearPolFrac() > 0.3055");
+    cuts.push_back("peak[0][0].value > 0.0435");
+    cuts.push_back("peak[0][0].snr > 8.95");
+  }
   /*    From the newest run with some fixed things, gets you 12037 */
-  if (strength==3) {
+  else if (strength==3) {
     cuts.push_back("template.coherent[0][0].cRay[4] > 0.67");
     cuts.push_back(waveformString+"peakHilbert > 43.5");
     cuts.push_back(waveformString+"linearPolFrac() > 0.3055");
@@ -231,6 +247,7 @@ void printPassingEvents(bool draw=true,int strength=0) {
     if (strength==1) outFileName = "makeCuts_nominal.txt";
     if (strength==2) outFileName = "makeCuts_strong.txt";
     if (strength==3) outFileName = "makeCuts_final.txt";
+    if (strength==4) outFileName = "makeCuts_background.txt";
     ((TTreePlayer*)(summaryTree->GetPlayer()))->SetScanFileName(outFileName.c_str());
     summaryTree->Scan("eventNumber",allCuts.c_str());
   } 
