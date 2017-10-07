@@ -397,7 +397,7 @@ void saveOnlyGoodEvents(string date="09.27.17_19h") {
     }
     summaryTree->GetEntry(entry);
 
-    if (evSum->peak[0][0].theta > 0 || !evSum->flags.isRF || evSum->flags.maxBottomToTopRatio[0] > 3) {
+    if (evSum->peak[0][0].theta < 0 || !evSum->flags.isRF || evSum->flags.maxBottomToTopRatio[0] > 3) {
       continue;
     }
     savedCount++;
@@ -413,6 +413,164 @@ void saveOnlyGoodEvents(string date="09.27.17_19h") {
     
 
   cout << "Done!" << endl;
+
+  return;
+
+}
+
+void saveNonClusteredEvents(string inFileName="cluster.root", string outFileName="candidates.root",
+			    double threshold = 10.){
+  /*
+
+    This takes the output of cluster.root, specifically the gClosest TGraph, and saves events with
+    clustering values greater than the input threshold
+
+    I was doing 40 before, but 10 is probably more correct
+
+  */
+
+
+  TFile *inFile = TFile::Open(inFileName.c_str());
+  TGraph *gClosest = (TGraph*)inFile->Get("gClosest");
+  int lenImp = gClosest->GetN();
+  cout << "Found " << lenImp << " events in the cut list" << endl;
+
+  TChain *summaryTree = loadAllDefault_noproof();
+  cout << "building index... this might take awhile... "; fflush(stdout);
+  summaryTree->BuildIndex("eventNumber");
+  cout << "okay done!" << endl;
+
+  TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
+  TTree *cutTree = new TTree("summaryTree","summaryTree");
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  cutTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  cutTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  cutTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  cutTree->Branch("gpsEvent",&gps);
+
+  int savedEvs = 0;
+  for (int imp=0; imp<lenImp; imp++) {
+    if (gClosest->GetY()[imp] < threshold) continue;
+    int eventNumber = gClosest->GetX()[imp];
+    int entry = summaryTree->GetEntryNumberWithIndex(eventNumber);
+    if (entry==-1) {
+      cout << "I couldn't find event number " << eventNumber << " in the dataset oh no!!!" << endl;
+      continue;
+    }
+    summaryTree->GetEntry(entry);
+    outFile->cd();
+    cutTree->Fill();
+    savedEvs++;
+  }
+  
+  outFile->cd();
+  cutTree->Write();
+  outFile->Close();
+      
+  cout << "done :) saved " << savedEvs << "events" << endl;
+}
+
+
+
+void savePassingEvents(string outFileName, int strength=4, bool save=true) {
+  /*
+
+    the makeCuts -> separateNotable way of doing this is stupid
+
+    This might be better
+
+   */
+
+  cout << "Starting savePassingEvents: using strength " << strength;
+  cout << " and output file " << outFileName << endl;
+
+  TChain *summaryTree = loadAll("09.27.17_19h",false);
+  int lenEntries = summaryTree->GetEntries();
+
+  TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
+  TTree *cutTree = new TTree("summaryTree","summaryTree");
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  cutTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  cutTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  cutTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  cutTree->Branch("gpsEvent",&gps);
+
+  
+  TStopwatch watch;
+  watch.Start(kTRUE);
+  int totalTimeSec = 0;
+  int savedCount = 0;
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (entry%10000 == 0 && entry>0) {
+      int timeElapsed = watch.RealTime();
+      totalTimeSec += timeElapsed;
+      double rate = float(entry)/totalTimeSec;
+      double remaining = (float(lenEntries-entry)/rate)/60.;
+      watch.Start();
+      cout << entry << "/" << lenEntries << " (" << savedCount << ") ";
+      cout << 10000./timeElapsed << "Hz <" << rate << "> " << remaining << " minutes left, ";
+      cout << totalTimeSec/60. << " minutes elapsed" << endl;
+    }
+    summaryTree->GetEntry(entry);
+    
+    /* \/\/\/\/\/   CUTS!    \/\/\/\/\/\ */
+
+    /* Varying strength cuts go here */
+    if (strength == 4 ) {
+      if (tempSum->coherent[0][0].cRay[4] < 0.5) continue;
+      if (tempSum->coherent[0][0].cRay[4] > 0.67) continue;
+      if (evSum->coherent_filtered[0][0].peakHilbert < 25) continue;
+      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.305) continue;
+      if (evSum->peak[0][0].value < 0.0435) continue;
+      if (evSum->peak[0][0].snr < 8.95) continue;
+    }
+    /* --------------- */
+    
+    /* Cuts that should _always_ be made for candidates*/
+    // not flagged as a pulser
+    if (evSum->flags.pulser != 0) continue;
+    // needs an rf trigger
+    if (!evSum->flags.isRF) continue;
+    //not pointed at ldb when it is nearby (~700km)
+    if ((TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->ldb.phi,360,0)),2) + pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].theta - evSum->ldb.theta,360,0)),2))  < 6 
+	 && evSum->ldb.distance  < 700e3)) continue;
+    //not pointed at wais when it is nearby (~700km)
+    if ((TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->wais.phi,360,0)),2) + pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].theta - evSum->wais.theta,360,0)),2))  < 6 
+	 && evSum->wais.distance  < 700e3)) continue;
+    //not a blast event
+    if (evSum->flags.maxBottomToTopRatio[0] > 3) continue;
+    //not pointing "above" zero (- == up), since not even direct CRs will be above zero (no atmosphere!)
+    if (evSum->peak[0][0].theta < 0) continue;
+    /* ------------ */
+    /* \/\/\/\/\/\/\/\/\/\/\ */
+
+    outFile->cd();
+    cutTree->Fill();
+    savedCount++;
+  }
+  cout << "done scanning, found " << savedCount << " events" << endl;
+
+  outFile->cd();
+  cutTree->Write();
+  outFile->Close();
+
+  cout << "Bye!" << endl;
 
   return;
 
