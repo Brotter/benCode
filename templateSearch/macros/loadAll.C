@@ -36,6 +36,8 @@ TChain* loadAll(string date,bool doProof = true){
 }
 
 TChain *loadAllDefault() { return loadAll("09.27.17_19h",true); }
+TChain *loadAllDefault_noproof() { return loadAll("09.27.17_19h",false); }
+
 
 TChain *loadPseudoBases(string date = "10.05.17_14h",bool doProof=false) {
 
