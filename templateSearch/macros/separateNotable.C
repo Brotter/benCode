@@ -576,6 +576,52 @@ void savePassingEvents(string outFileName, int strength=4, bool save=true) {
 
 }
 
+void mergeTwoSummaries(string filename1, string filename2, string filenameOut) {
+  /*
+
+    In case you want to turn two files with summaryTrees into one
+
+   */
+  TFile *outFile = TFile::Open(filenameOut.c_str(),"recreate");
+  TTree *outTree = new TTree("summaryTree","summaryTree");
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(filename1.c_str());
+  summaryTree->Add(filename2.c_str());
+
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  outTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  outTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  outTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  outTree->Branch("gpsEvent",&gps);
+
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " to put into output file " << filenameOut << endl;
+
+  for (int i=0; i<lenEntries; i++) {
+    if (i%10000) cout << i << "/" << lenEntries << endl;
+    summaryTree->GetEntry(i);
+    outFile->cd();
+    outTree->Fill();
+  }
+
+  outFile->cd();
+  outTree->Write();
+  outFile->Close();
+
+  cout << "done!" << endl;
+
+  return;
+
+}
 
 void separateNotable() {
   cout << "loaded separateNotable.C" << endl;
