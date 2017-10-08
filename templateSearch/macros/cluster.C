@@ -112,7 +112,8 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
 
 
 /*--- Major Code Piece!  Determines which events do not cluster! ---*/
-void clusterEvents(string inFileName="cuts.root",string outFileName="clusterEvents.root") {
+void clusterEvents(string inFileName="cuts.root",string filenameBase="clusterEvents",
+		   int numSplits=1, int split=0) {
   /*
     Takes in a list of events and compares their source locations to determine whether they cluster
 
@@ -141,8 +142,33 @@ void clusterEvents(string inFileName="cuts.root",string outFileName="clusterEven
   summaryTree->SetBranchAddress("gpsEvent",&gps);
 
 
-  int lenEntries = summaryTree->GetEntries();
+  int totalEntries = summaryTree->GetEntries();
+  int lenEntries = totalEntries;
   cout << "found " << lenEntries << " events" << endl;
+
+
+  //I'll need to split this up onto the servers, because it takes forever
+  int startEntry,stopEntry;
+  if (numSplits == 1) {
+    startEntry=0;
+    stopEntry=lenEntries;
+  }
+  else {
+    lenEntries /= numSplits;
+    startEntry = split*lenEntries;
+    stopEntry = (split+1)*lenEntries;
+    cout << "Splitting into " << numSplits << " sections, which means " << lenEntries << " events per section" << endl;
+    cout << "Doing section: " << split << ", starting at entry " << startEntry << " and stopping at " << stopEntry << endl;
+  }
+
+  stringstream name;
+  name.str("");
+  name << filenameBase;
+  if (numSplits != 1) name << "_" << split;
+  name << ".root";
+  cout << "Using: " << name.str() << " as name" << endl;
+  TFile* outFile = new TFile(name.str().c_str(),"recreate");
+
 
   TH2D* hCluster = new TH2D("hCluster","hCluster",lenEntries,-0.5,lenEntries-0.5,1000,0,1000);
 
@@ -152,8 +178,25 @@ void clusterEvents(string inFileName="cuts.root",string outFileName="clusterEven
   TH1D *hClosest = new TH1D("hClosest","closest event in sigma",5000,0,500);
 
 
+
+  TStopwatch watch;
+  watch.Start(kTRUE);
+  int totalTimeSec = 0;
+
   int eventCountA=0;
-  for (int entryA=0; entryA<lenEntries; entryA++) {
+  for (int entryA=startEntry; entryA<stopEntry; entryA++) {
+
+    //printout
+    int printEntry = entryA-startEntry;
+    cout << printEntry << "/" << lenEntries << " | ";
+    int timeElapsed = watch.RealTime();
+    totalTimeSec += timeElapsed;
+    double rate = float(printEntry)/totalTimeSec;
+    double remaining = (float(lenEntries-printEntry)/rate)/60.;
+    cout << 1./timeElapsed << "Hz <" << rate << "> " << remaining << " minutes left, ";
+    cout << totalTimeSec/60. << " minutes elapsed" << endl;
+    watch.Start();
+
 
     double closest = 999;
 
@@ -168,7 +211,7 @@ void clusterEvents(string inFileName="cuts.root",string outFileName="clusterEven
     UsefulAdu5Pat *usefulGPSA = new UsefulAdu5Pat(gps);
     
     int eventCountB = 0;
-    for (int entryB=0; entryB<lenEntries; entryB++) {
+    for (int entryB=0; entryB<totalEntries; entryB++) {
       
       //will always be zero
       if (entryA == entryB) continue;
@@ -201,11 +244,11 @@ void clusterEvents(string inFileName="cuts.root",string outFileName="clusterEven
     cout << "eventCountA:" << eventCountA << " eventNumber " << eventNumberA << " closest:" << closest << endl;
     
   }
-  
-  hCluster->Draw("colz");
+  cout << "Okay done :)" << endl;
+  //  hCluster->Draw("colz");
 
 
-  TFile* outFile = new TFile(outFileName.c_str(),"recreate");
+  outFile->cd();
   hCluster->Write();
   gClosest->Write();
   hClosest->Write();
@@ -213,6 +256,41 @@ void clusterEvents(string inFileName="cuts.root",string outFileName="clusterEven
   
   return;
 }
+
+
+void combineEventClusters(int numSplits,string baseName="ABCDeventCluster/baseCluster") {
+  /*
+
+    Opens the output files and concatenates them into a single file
+
+   */
+
+  TGraph *gClosest = new TGraph();
+  gClosest->SetName("gClosest");
+
+  TFile *inFile;
+
+  stringstream name;
+  for (int i=0; i<numSplits; i++) {
+    name.str("");
+    name << baseName << "_" << i << ".root";
+    inFile = TFile::Open(name.str().c_str());
+    TGraph *currGraph = (TGraph*)inFile->Get("gClosest");
+    cout << "core:" << i << " n=" << currGraph->GetN() << endl;
+    for (int pt=0; pt<currGraph->GetN(); pt++) {
+      gClosest->SetPoint(gClosest->GetN(),currGraph->GetX()[pt],currGraph->GetY()[pt]);
+    }
+    inFile->Close();
+  }
+  name.str("");
+  name << baseName << ".root";
+  TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
+  gClosest->Write();
+  outFile->Close();
+}
+
+
+
 /* --------------------- */
 
 
@@ -1054,13 +1132,20 @@ void cluster() {
 }
 
 
-void cluster(int numSplits, int split,string baseDir) {
+void cluster(string codeName,int numSplits, int split,string baseDir) {
 
   stringstream name;
-  name << baseDir << "/pseudoBaseCluster_" << split << ".root";
 
-  //set the first one to some huge number so it includes all events
-  clusterBackground(40,numSplits,split,name.str());
+  if (codeName == "clusterBackground") {
+    name << baseDir << "/pseudoBaseCluster_" << split << ".root";
+    //set the first one to some huge number so it includes all events
+    clusterBackground(40,numSplits,split,name.str());
+  }
 
+  if (codeName == "clusterEventsABCD") {
+    name << baseDir << "/cluterEvents";
+    //set the first one to some huge number so it includes all events
+    clusterEvents("ABCDBackgroundToTop.root",name.str(),numSplits,split);
+  }
   return;
 }
