@@ -1194,6 +1194,86 @@ void drawAllEvents() {
 }
 
 
+  
+void drawEventsFromFile(string filename) {
+  
+  TGraphAntarctica *antMap = new TGraphAntarctica();
+
+  TFile *inFile = TFile::Open(filename.c_str());
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+    
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " entries" << endl;
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!(entry%10000)) cout << entry << "/" << lenEntries << endl;
+    summaryTree->GetEntry(entry);
+    antMap->SetPoint(antMap->GetN(),evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+  }
+
+  antMap->Draw("");
+
+  return;
+}
+
+
+
+void drawEventsFromTwoFiles(string filename1, string filename2) {
+  
+  TGraphAntarctica *antMap1 = new TGraphAntarctica();
+  TGraphAntarctica *antMap2 = new TGraphAntarctica();
+  antMap1->SetMarkerStyle(5);
+  antMap1->SetMarkerColor(kRed);
+  antMap2->SetMarkerStyle(5);
+  antMap1->SetMarkerColor(kBlack);
+
+
+  TFile *inFile = TFile::Open(filename1.c_str());
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " entries" << endl;
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!(entry%10000)) cout << entry << "/" << lenEntries << endl;
+    summaryTree->GetEntry(entry);
+    antMap1->SetPoint(antMap1->GetN(),evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+  }
+  inFile->Close();
+
+
+  inFile = TFile::Open(filename2.c_str());
+  TTree *summaryTree2 = (TTree*)inFile->Get("summaryTree");
+
+  evSum = NULL;
+  summaryTree2->SetBranchAddress("eventSummary",&evSum);
+
+  lenEntries = summaryTree2->GetEntries();
+  cout << "Found " << lenEntries << " entries" << endl;
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!(entry%10000)) cout << entry << "/" << lenEntries << endl;
+    summaryTree2->GetEntry(entry);
+    antMap2->SetPoint(antMap2->GetN(),evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+  }
+
+
+
+  antMap1->Draw("");
+  antMap2->Draw("p same");
+
+  return;
+}
+
+
+
+
 void drawEvOnAntarctica() {
   cout << "loaded drawEvOnAntarctica.C" << endl;
 }
