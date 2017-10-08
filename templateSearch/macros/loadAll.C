@@ -71,6 +71,33 @@ TChain *loadPseudoBases(string date = "10.05.17_14h",bool doProof=false) {
 }
 
 
+TChain *loadWhatever(string baseDir, string prefix, int numFiles, bool doProof=false) {
+  /*
+
+    A generalized form of the above
+
+  */
+
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+
+  if (doProof) gROOT->ProcessLine(".x setupProof.C");
+
+  stringstream name;
+    for (int i=0; i<numFiles; i++) {
+    name.str("");
+    name << baseDir << "/" << prefix << "_" << i << ".root";
+    summaryTree->Add(name.str().c_str());
+  }
+  int lenEntries = summaryTree->GetEntries();
+  cout << "loadWhatever(): Found " << lenEntries << " entries" << endl;
+
+  if (doProof) summaryTree->SetProof();
+
+  return summaryTree;
+}
+  
+
 
 /*  Default macro if called from bash command line */
 void loadAll() {
