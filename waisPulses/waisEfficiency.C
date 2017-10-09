@@ -31,9 +31,10 @@ void waisEfficiency() {
   //set up output
   TFile *outFile = TFile::Open("waisEfficiency.root","recreate");
   TTree *outTree = new TTree("waisEfficiency","waisEfficiency");
-  int count = 0;
+  int count,eventNumber;
   bool fWaisEffFilled = false;
   outTree->Branch("count",&count);
+  outTree->Branch("eventNumber",&eventNumber);
   outTree->Branch("fWaisEffFilled",&fWaisEffFilled);
 
 
@@ -80,3 +81,4 @@ void waisEfficiency() {
   
   return;
 }
+
