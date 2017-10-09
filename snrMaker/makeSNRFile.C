@@ -150,7 +150,7 @@ void makeSNRFileSplit(int numSplits,int split) {
 }
 
 
-void combileSNRFiles(int numSplits) {
+void combineSNRFiles(int numSplits) {
   
   TChain *inTree = new TChain("snrTree","snrTree");
 
