@@ -150,6 +150,28 @@ void makeSNRFileSplit(int numSplits,int split) {
 }
 
 
+void combileSNRFiles(int numSplits) {
+  
+  TChain *inTree = new TChain("snrTree","snrTree");
+
+  stringstream name;
+  for (int i=0; i<numSplits; i++) {
+    name.str("");
+    name << "data/SNRs_" << i << ".root";
+    inTree->Add(name.str().c_str());
+  }
+
+  TFile *outFile = TFile::Open("snrFile.root");
+  inTree->CloneTree(-1,"fast");
+  outFile->Write();
+  outFile->Close();
+
+  return;
+}
+  
+  
+
+
 void makeSNRFile(int numSplits, int split) {
   makeSNRFileSplit(numSplits,split);
   return;
@@ -157,6 +179,6 @@ void makeSNRFile(int numSplits, int split) {
 
 
 void makeSNRFile() {
-  makeSNRFileSplit(1,0);
+  cout << "loaded makeSNRFile.C" << endl;
   return;
 }
