@@ -123,6 +123,7 @@ void makeSNRFileSplit(int numSplits,int split) {
       }
     }
 
+    rms = noiseAvg;
     eventNumber = evSum->eventNumber;
     snr_filtered = evSum->coherent_filtered[0][0].peakVal/noiseAvg;
     snr = evSum->coherent[0][0].peakVal/noiseAvg;
