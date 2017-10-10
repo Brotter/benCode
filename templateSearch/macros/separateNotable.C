@@ -492,7 +492,9 @@ void savePassingEvents(string outFileName, int strength=4, bool save=true) {
   cout << "Starting savePassingEvents: using strength " << strength;
   cout << " and output file " << outFileName << endl;
 
-  TChain *summaryTree = loadAll("09.27.17_19h",false);
+  //  TChain *summaryTree = loadAll("09.27.17_19h",false);
+  TFile *inFile = TFile::Open("/home/brotter/nfsShared/results/templateSearch/09.27.17_19h/goodEvents.root");
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
   int lenEntries = summaryTree->GetEntries();
 
   TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
@@ -534,9 +536,9 @@ void savePassingEvents(string outFileName, int strength=4, bool save=true) {
     /* Varying strength cuts go here */
     if (strength == 4 ) {
       if (tempSum->coherent[0][0].cRay[4] < 0.5) continue;
-      if (tempSum->coherent[0][0].cRay[4] > 0.67) continue;
+      //      if (tempSum->coherent[0][0].cRay[4] > 0.67) continue;
       if (evSum->coherent_filtered[0][0].peakHilbert < 25) continue;
-      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.305) continue;
+      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.6) continue;
       if (evSum->peak[0][0].value < 0.0435) continue;
       if (evSum->peak[0][0].snr < 8.95) continue;
     }
