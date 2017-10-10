@@ -14,7 +14,7 @@ string date="09.27.17_19h";
 
 
 void makeSNRFileSplit(int numSplits,int split) {
-  bool debug=false;
+  bool debug=true;
   /*
 
     This should go through the AnitaNoiseSummaries, and in conjunction with the peak pointing direction and
@@ -80,7 +80,7 @@ void makeSNRFileSplit(int numSplits,int split) {
   TStopwatch watch;
   watch.Start(kTRUE);
   int totalTimeSec = 0;
-  for (int entry=0; entry<lenEntries; entry++) {
+  for (int entry=startEntry; entry<stopEntry; entry++) {
     if (entry%10000 == 0 && entry>0) {
       int timeElapsed = watch.RealTime();
       totalTimeSec += timeElapsed;
@@ -107,7 +107,7 @@ void makeSNRFileSplit(int numSplits,int split) {
     peakPhiSector = -1;
     if (debug) cout << "phi=" << peakPhi << " | phi sectors in use: ";
     for (int ant=0; ant<antennasInSum; ant++) {
-      if (closest[ant] < 16) { //0->16 is top
+      if (closest[ant] < 16) { //0->15 is top ring
 	phiSectors[phiSector] = geom->getPhiFromAnt(closest[ant]);
 	if (debug) cout << phiSectors[phiSector] << " ";
 	if (peakPhiSector == -1) peakPhiSector = phiSectors[phiSector];
@@ -161,7 +161,7 @@ void combineSNRFiles(int numSplits) {
     inTree->Add(name.str().c_str());
   }
 
-  TFile *outFile = TFile::Open("snrFile.root");
+  TFile *outFile = TFile::Open("snrFile.root","recreate");
   inTree->CloneTree(-1,"fast");
   outFile->Write();
   outFile->Close();
