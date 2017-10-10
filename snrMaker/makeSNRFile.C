@@ -14,7 +14,7 @@ string date="09.27.17_19h";
 
 
 void makeSNRFileSplit(int numSplits,int split) {
-  bool debug=true;
+  bool debug=false;
   /*
 
     This should go through the AnitaNoiseSummaries, and in conjunction with the peak pointing direction and
