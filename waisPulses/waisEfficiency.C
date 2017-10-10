@@ -16,7 +16,7 @@ void waisEfficiency() {
     cout << "Couldn't find file" << endl;
     return;
   }
-  TTree* summaryTree = (TTree*)inFile->Get("waisSummary");
+  TTree* summaryTree = (TTree*)inFile->Get("summaryTree");
   if (!summaryTree) {
     cout << "Couldn't find tree" << endl;
     return;
@@ -50,7 +50,7 @@ void waisEfficiency() {
   std::queue<bool> qCount(dCount);
 
   int entry = 0;
-
+  count = 0;
   for (int second=0 ;second<numSeconds; second++) {
     if (second%1000 == 0) cout << second << "/" << numSeconds << endl;
 
