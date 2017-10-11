@@ -418,8 +418,8 @@ void saveOnlyGoodEvents(string date="09.27.17_19h") {
 
 }
 
-void saveNonClusteredEvents(string inFileName="cluster.root", string outFileName="candidates.root",
-			    double threshold = 10.){
+void saveNonClusteredEvents(string clusterFileName="cluster.root", string outFileName="candidates.root",
+			    double threshold = 10.,string rootFileName=""){
   /*
 
     This takes the output of cluster.root, specifically the gClosest TGraph, and saves events with
@@ -430,12 +430,17 @@ void saveNonClusteredEvents(string inFileName="cluster.root", string outFileName
   */
 
 
-  TFile *inFile = TFile::Open(inFileName.c_str());
+  TFile *inFile = TFile::Open(clusterFileName.c_str());
   TGraph *gClosest = (TGraph*)inFile->Get("gClosest");
   int lenImp = gClosest->GetN();
   cout << "Found " << lenImp << " events in the cut list" << endl;
 
-  TChain *summaryTree = loadAllDefault_noproof();
+  TChain *summaryTree;
+  if (rootFileName=="") summaryTree = loadAllDefault_noproof();
+  else {
+    summaryTree = new TChain("summaryTree","summaryTree");
+    summaryTree->Add(rootFileName.c_str());
+  }
   cout << "building index... this might take awhile... "; fflush(stdout);
   summaryTree->BuildIndex("eventNumber");
   cout << "okay done!" << endl;
@@ -578,6 +583,60 @@ void savePassingEvents(string outFileName, int strength=4, bool save=true) {
 
 }
 
+
+
+void makeHarshCuts(string inFileName, string outFileName) {
+  /*
+
+    Takes a summaryTree and makes two really hard cuts on the events
+
+   */
+
+  //  TChain *summaryTree = loadAll("09.27.17_19h",false);
+  TFile *inFile = TFile::Open(inFileName.c_str());
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+  int lenEntries = summaryTree->GetEntries();
+
+  TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
+  TTree *cutTree = new TTree("summaryTree","summaryTree");
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  cutTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  cutTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  cutTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  cutTree->Branch("gpsEvent",&gps);
+
+  
+  for (int i=0; i<lenEntries; i++) {
+    summaryTree->GetEntry(i);
+    if (tempSum->coherent[0][0].cRay[4] < 0.78) continue;
+    if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.75) continue; //0.8 is too harsh, 0.75 looks good though (only lose one)
+
+    outFile->cd();
+    cutTree->Fill();
+
+  }
+
+  outFile->cd();
+  cutTree->Write();
+  outFile->Close();
+
+
+  cout << "Done!" << endl;
+  return;
+}
+
+
+
+
+
 void mergeTwoSummaries(string filename1, string filename2, string filenameOut) {
   /*
 
@@ -624,6 +683,8 @@ void mergeTwoSummaries(string filename1, string filename2, string filenameOut) {
   return;
 
 }
+
+
 
 
 void combineWAISTrees() {
