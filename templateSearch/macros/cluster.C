@@ -912,13 +912,13 @@ void clusterBackground(double threshold=40.,
 
 
   //get the summaries for all the "candidates" that passed cuts
-  TFile *inFile = TFile::Open("cuts_final.root");
+  TFile *inFile = TFile::Open(inFileName.c_str());
   if (!inFile->IsOpen()) {
-    cout << "Couldn't find cuts.root, run separateNotable_fromFile() first " << endl;
+    cout << "Couldn't find " << inFileName << endl;
     return; }
   TTree *impulsiveTree = (TTree*)inFile->Get("summaryTree");
   if (impulsiveTree == NULL) {
-    cout << "Couldn't find summaryTree in cuts.root" << endl;
+    cout << "Couldn't find summaryTree in " << inFileName << endl;
     return; }
   AnitaEventSummary *evSum_imp = NULL;
   Adu5Pat *gps_imp = NULL;
@@ -939,9 +939,12 @@ void clusterBackground(double threshold=40.,
 
   int lenImp = vImpulsiveEvSum.size();
   cout << "Found " << lenImp << " events to be clustered with" << endl;
-
-  // Also open up ALL of the events!! :)
-  TChain *summaryTree = loadAll(dataDateString,false);
+  // Also open up ALL of the good events!! :)
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  char* dataDir = getenv("ANITA3_RESULTSDIR");
+  stringstream name; name.str("");
+  name << dataDir << "templateSearch/" << dataDateString << "/goodEvents.root";
+  summaryTree->Add(name.str().c_str());
   int lenEntries = summaryTree->GetEntries();
   cout << "Opened up all the data, found " << lenEntries << " entries" << endl;
   AnitaEventSummary *evSum = NULL;
@@ -1137,14 +1140,14 @@ void cluster(string codeName,int numSplits, int split,string baseDir) {
 
   /* using cuts_final.root, which is only things that pass ALL the cuts */
   if (codeName == "runBackgroundCluster") {
+    name.str("");
     name << baseDir << "/backgroundCluster_" << split << ".root";
-    //set the first one to some huge number so it includes all events
-    clusterBackground(40,"cuts_final.root",name.str(),numSplits,split);
+    clusterBackground(40,"candidates.root",name.str(),numSplits,split);
     return;
   }
   if (codeName == "runEventCluster") {
+    name.str("");
     name << baseDir << "/eventCluster_" << split << ".root";
-    //set the first one to some huge number so it includes all events
     clusterEvents("cuts_final.root","eventCluster_",numSplits,split);
     return;
   }
@@ -1152,23 +1155,25 @@ void cluster(string codeName,int numSplits, int split,string baseDir) {
 
   /* using ABCDnonClusterEvents.root, which is the events that pass the reduced corr value cut */
   if (codeName == "runBackgroundClusterABCD") {
+    name.str("");
     name << baseDir << "/backgroundClusterABCD_" << split << ".root";
-    //set the first one to some huge number so it includes all events
-    clusterBackground(40,"ABCDnonClusterEvents.root",name.str(),numSplits,split);
+    clusterBackground(40,"saveABCDBackground.root",name.str(),numSplits,split);
     return;
   } 
   if (codeName == "runEventClusterABCD") {
+    name.str("");
     name << baseDir << "/eventClusterABCD_" << split << ".root";
-    //set the first one to some huge number so it includes all events
     clusterEvents("ABCDBackgroundToTop.root",name.str(),numSplits,split);
     return;
   }
 
-
-
-
+  /* otherwise assume it is a file you're supposed to try and cluster */
   else {
-    cout << "codeName string not recognized, just loading" << endl;
+    cout << "codeName string not a default, so I assume you want me to event cluster a file" << endl;
+    name.str("");
+    name << baseDir << "/eventClusterFilename_" << split << ".root";
+    clusterEvents(codeName,name.str(),numSplits,split);
+    return;
   }
 
   return;
