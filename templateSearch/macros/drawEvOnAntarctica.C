@@ -428,7 +428,7 @@ void drawCandidatesOnAntarctica(string fileName="candidates.root",bool moreCuts 
 
 
 
-void drawFlightPathOnAntarctica() {
+void drawFlightPathOnAntarctica_old() {
 
   /*
     I need a plot of the flight path in chapter two
@@ -472,6 +472,17 @@ void drawFlightPathOnAntarctica() {
   aMap->DrawTGraph("p");
 
 }
+
+void drawFlightPathOnAntarctica() {
+  /*
+    This is way easier now!
+   */
+
+  TGraphAntarctica *anitaMap = TGraphAntarctica::makeGpsGraph(125,440,30000,false);
+  anitaMap->Draw();
+  return;
+}
+
 
 
 void drawBaseListOnAntarctica() {
@@ -1194,10 +1205,66 @@ void drawAllEvents() {
 }
 
 
+void drawTH2DFromFile(string filename,int bins=1000) {
   
-void drawEventsFromFile(string filename) {
+  TH2DAntarctica *antMap = new TH2DAntarctica(bins,bins);
+
+  TFile *inFile = TFile::Open(filename.c_str());
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+    
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " entries" << endl;
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!(entry%10000)) cout << entry << "/" << lenEntries << endl;
+    summaryTree->GetEntry(entry);
+    antMap->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+  }
+
+  antMap->Draw("colz");
+
+  return;
+}
+
+TGraphAntarctica *getTGraphFromFile_withCuts(string filename,int bins=1000) {
   
   TGraphAntarctica *antMap = new TGraphAntarctica();
+
+  TFile *inFile = TFile::Open(filename.c_str());
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+    
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  AnitaTemplateSummary *tempSum = NULL;
+  summaryTree->SetBranchAddress("template",&tempSum);
+    
+
+
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " entries" << endl;
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!(entry%10000)) cout << entry << "/" << lenEntries << endl;
+    summaryTree->GetEntry(entry);
+    if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.8) continue;
+    if (tempSum->coherent[0][0].cRay[4] < 0.78) continue;
+    antMap->SetPoint(antMap->GetN(),evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+  }
+
+
+  return antMap;
+}
+
+
+  
+void drawTGraphFromFile(string filename) {
+  
+  TGraphAntarctica *eventMap = new TGraphAntarctica();
+  TGraphAntarctica *anitaMap = new TGraphAntarctica();
+  
 
   TFile *inFile = TFile::Open(filename.c_str());
   TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
@@ -1211,10 +1278,12 @@ void drawEventsFromFile(string filename) {
   for (int entry=0; entry<lenEntries; entry++) {
     if (!(entry%10000)) cout << entry << "/" << lenEntries << endl;
     summaryTree->GetEntry(entry);
-    antMap->SetPoint(antMap->GetN(),evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+    eventMap->SetPoint(eventMap->GetN(),evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+    anitaMap->SetPoint(anitaMap->GetN(),evSum->anitaLocation.longitude,evSum->anitaLocation.latitude);
   }
 
-  antMap->Draw("");
+  eventMap->Draw("");
+  anitaMap->Draw("lp same");
 
   return;
 }

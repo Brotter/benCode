@@ -66,7 +66,7 @@ void makeSNRFileSplit(int numSplits,int split) {
   int peakPhiSector;
   snrTree->Branch("snr",&snr,"snr/D");
   snrTree->Branch("snr_filtered",&snr_filtered,"snr_filtered/D");
-  snrTree->Branch("rms",&rms,"rms");
+  snrTree->Branch("rms",&rms,"rms/D");
   snrTree->Branch("peakPhiSector",&peakPhiSector);
 
   const UCorrelator::AntennaPositions * ap = UCorrelator::AntennaPositions::instance(); 
@@ -81,13 +81,14 @@ void makeSNRFileSplit(int numSplits,int split) {
   watch.Start(kTRUE);
   int totalTimeSec = 0;
   for (int entry=startEntry; entry<stopEntry; entry++) {
-    if (entry%10000 == 0 && entry>0) {
+    int printEntry = entry-startEntry;
+    if (printEntry%10000 == 0 && printEntry>0) {
       int timeElapsed = watch.RealTime();
       totalTimeSec += timeElapsed;
-      double rate = float(entry)/totalTimeSec;
-      double remaining = (float(lenEntries-entry)/rate)/60.;
+      double rate = float(printEntry)/totalTimeSec;
+      double remaining = (float(stopEntry-printEntry)/rate)/60.;
       watch.Start();
-      cout << entry << "/" << lenEntries << " | ";
+      cout << printEntry << "/" << lenEntries << " | ";
       cout << 10000./timeElapsed << "Hz <" << rate << "> " << remaining << " minutes left, ";
       cout << totalTimeSec/60. << " minutes elapsed" << endl;
     }
@@ -119,9 +120,14 @@ void makeSNRFileSplit(int numSplits,int split) {
     double noiseAvg = 0;
     for (phiSector=0; phiSector<phiSectorsInSum; phiSector++) {
       for (int ring=0; ring<3; ring++) {
-	noiseAvg += (noiseSum->avgRMSNoise[phiSectors[phiSector]][ring][0]/noiseSum->fifoLength)/antennasInSum;
+	double currNoise = noiseSum->avgRMSNoise[phiSectors[phiSector]][ring][0];
+	if (debug) cout << phiSectors[phiSector] << " " << ring << " " << currNoise << endl;
+	noiseAvg += currNoise;
       }
     }
+    if (debug) cout << "rms:" << rms << " " << noiseSum->fifoLength << endl;
+    noiseAvg /= noiseSum->fifoLength;
+    noiseAvg /= antennasInSum;
 
     rms = noiseAvg;
     eventNumber = evSum->eventNumber;

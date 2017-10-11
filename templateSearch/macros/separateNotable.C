@@ -196,8 +196,8 @@ void saveOnlyGoodEvents(string date="09.27.17_19h") {
 
 }
 
-void saveNonClusteredEvents(string inFileName="cluster.root", string outFileName="candidates.root",
-			    double threshold = 10.){
+void saveNonClusteredEvents(string clusterFileName="cluster.root", string outFileName="candidates.root",
+			    double threshold = 10.,string rootFileName=""){
   /*
 
     This takes the output of cluster.root, specifically the gClosest TGraph, and saves events with
@@ -208,12 +208,17 @@ void saveNonClusteredEvents(string inFileName="cluster.root", string outFileName
   */
 
 
-  TFile *inFile = TFile::Open(inFileName.c_str());
+  TFile *inFile = TFile::Open(clusterFileName.c_str());
   TGraph *gClosest = (TGraph*)inFile->Get("gClosest");
   int lenImp = gClosest->GetN();
   cout << "Found " << lenImp << " events in the cut list" << endl;
 
-  TChain *summaryTree = loadAllDefault_noproof();
+  TChain *summaryTree;
+  if (rootFileName=="") summaryTree = loadAllDefault_noproof();
+  else {
+    summaryTree = new TChain("summaryTree","summaryTree");
+    summaryTree->Add(rootFileName.c_str());
+  }
   cout << "building index... this might take awhile... "; fflush(stdout);
   summaryTree->BuildIndex("eventNumber");
   cout << "okay done!" << endl;
@@ -359,6 +364,60 @@ void savePassingEvents(string outFileName, int strength=4, bool save=true) {
 
 }
 
+
+
+void makeHarshCuts(string inFileName, string outFileName) {
+  /*
+
+    Takes a summaryTree and makes two really hard cuts on the events
+
+   */
+
+  //  TChain *summaryTree = loadAll("09.27.17_19h",false);
+  TFile *inFile = TFile::Open(inFileName.c_str());
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+  int lenEntries = summaryTree->GetEntries();
+
+  TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
+  TTree *cutTree = new TTree("summaryTree","summaryTree");
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  cutTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  cutTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  cutTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  cutTree->Branch("gpsEvent",&gps);
+
+  
+  for (int i=0; i<lenEntries; i++) {
+    summaryTree->GetEntry(i);
+    if (tempSum->coherent[0][0].cRay[4] < 0.78) continue;
+    if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.75) continue; //0.8 is too harsh, 0.75 looks good though (only lose one)
+
+    outFile->cd();
+    cutTree->Fill();
+
+  }
+
+  outFile->cd();
+  cutTree->Write();
+  outFile->Close();
+
+
+  cout << "Done!" << endl;
+  return;
+}
+
+
+
+
+
 void mergeTwoSummaries(string filename1, string filename2, string filenameOut) {
   /*
 
@@ -407,26 +466,22 @@ void mergeTwoSummaries(string filename1, string filename2, string filenameOut) {
 }
 
 
+
+
 void combineWAISTrees() {
   /*
 
-    Splits out WAIS events, and also couples them with the post-calculated SNR values and efficiency
+    takes in the waisEvents.root file with all the wais events, and shoves the snr and efficiency branches
+    into them too.  This is only required for the snr branch really, since it isn't the same dimensions
 
    */
 
+  TFile *waisFile = TFile::Open("waisEvents.root");
+  TTree *summaryTree = (TTree*)waisFile->Get("summaryTree");
 
-  TChain *summaryTree = new TChain("summaryTree","summaryTree");
-  char* dataDir = getenv("ANITA3_RESULTSDIR");
-  stringstream name;
-  for (int i=160; i<185; i++) { //wais runs go from ~160 to ~185
-    name.str("");
-    name << dataDir << "templateSearch/09.27.17_19h/" << i << ".root";
-    summaryTree->Add(name.str().c_str());
-  }
-  int lenEntries = summaryTree->GetEntries();
-  cout << "Found " << lenEntries << " in full set" << endl;
 
-  TFile *outFile = TFile::Open("waisEvents.root","recreate");
+
+  TFile *outFile = TFile::Open("waisEvents_comb.root","recreate");
   TTree *outTree = new TTree("summaryTree","summaryTree");
 
   AnitaEventSummary *evSum = NULL;
@@ -445,6 +500,10 @@ void combineWAISTrees() {
   //the snr tree syncs up with the full data set
   TFile *snrFile = TFile::Open("/home/brotter/nfsShared/results/templateSearch/09.27.17_19h/SNRs.root");
   TTree *snrTree = (TTree*)snrFile->Get("snrTree");
+  cout << "snrTree has " << snrTree->GetEntries() << " entries" << endl;
+  cout << "Building index..."; fflush(stdout);
+  snrTree->BuildIndex("eventNumber");
+  cout << "done!" << endl;
   double snr,snr_filtered;
   snrTree->SetBranchAddress("snr",&snr);
   outTree->Branch("snr",&snr);
@@ -454,48 +513,32 @@ void combineWAISTrees() {
   //the efficiency tree is per wais event which is sort of annoying
   TFile *effFile = TFile::Open("/home/brotter/anita16/benCode/templateSearch/macros/waisEfficiency.root");
   TTree *effTree = (TTree*)effFile->Get("waisEfficiency");
-  effTree->BuildIndex("eventNumber");
+  summaryTree->AddFriend(effTree);
   int waisCount; //waisCount is over 1000 seconds
   effTree->SetBranchAddress("count",&waisCount); 
   outTree->Branch("waisCount",&waisCount);
 
 
+  int notFound=0;
+  int found = 0;
+  for (int entry=0; entry<summaryTree->GetEntries(); entry++) {
+    if (!entry%10000) cout << entry << "/" << effTree->GetEntries() << endl;
 
-  TStopwatch watch;
-  watch.Start(kTRUE);
-  int totalTimeSec = 0;
-  int savedCount = 0;
-  for (int entry=0; entry<lenEntries; entry++) {
-    if (entry%10000 == 0 && entry>0) {
-      int timeElapsed = watch.RealTime();
-      totalTimeSec += timeElapsed;
-      double rate = float(entry)/totalTimeSec;
-      double remaining = (float(lenEntries-entry)/rate)/60.;
-      watch.Start();
-      cout << entry << "/" << lenEntries << " (" << savedCount << ") ";
-      cout << 10000./timeElapsed << "Hz <" << rate << "> " << remaining << " minutes left, ";
-      cout << totalTimeSec/60. << " minutes elapsed" << endl;
-    }
     summaryTree->GetEntry(entry);
+    
+    int eventNumber = evSum->eventNumber;
+    int snrEntry = snrTree->GetEntryNumberWithIndex(eventNumber);
+    if (snrEntry == -1) {
+      cout << "couldn't find evNum:" << eventNumber << " (" << notFound << "/" << found << ")" << endl;
+      notFound++;
+    }
+    else found++;
     snrTree->GetEntry(entry);
 
-    int eventNumber = evSum->eventNumber;
 
-    //if it isn't a wais pulser then skip it
-    if (evSum->flags.pulser != 1) continue;
-
-    //thats the only qualification on the wais efficiency file, so then incriment it
-    int waisEntry = effTree->GetEntryNumberWithIndex(eventNumber);
-    if (waisEntry < 0 ) cout << "entry number " << eventNumber << " not found in efficiency file!" << endl;
-    effTree->GetEntry(waisEntry);
-
-    //like 100 events don't point right and should be excluded from now on
-    if (TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->wais.phi,360,0)) > 6) continue;
-  
-    //otherwise you're good!  save it.
+    //okay they're all together, save em`
     outFile->cd();
     outTree->Fill();
-    savedCount++;
   }
 
   cout << "Saving..." << endl;

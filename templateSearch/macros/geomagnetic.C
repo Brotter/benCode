@@ -209,7 +209,7 @@ TGraph* findGeoMagneticAngle() {
 
 
 
-void findGeoMagnetic2() {
+void findGeoMagnetic2(string inFilename="trueCandidates.root") {
 /*
   Do both upgoing and direct, and include the direct events as well.
 */
@@ -217,7 +217,7 @@ void findGeoMagnetic2() {
 
 //  GeoMagnetic::setDebug(true);
 
-  TFile *inFile = TFile::Open("trueCandidates.root");
+  TFile *inFile = TFile::Open(inFilename.c_str());
   TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
   AnitaEventSummary *evSum = NULL;
   Adu5Pat *gps = NULL;
