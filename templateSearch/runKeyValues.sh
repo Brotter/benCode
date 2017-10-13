@@ -10,7 +10,7 @@
 #################################################
 
 
-sharedDir=${ANITA3_RESULTSDIR}"/templateSearch/09.27.17_19/reCalcKeyValues/"
+sharedDir=${ANITA3_RESULTSDIR}"/templateSearch/09.27.17_19h/reCalcKeyValues/"
 mkdir ${sharedDir}
 mkdir ${sharedDir}"/log"
 
