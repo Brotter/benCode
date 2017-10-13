@@ -485,7 +485,68 @@ void saveNonClusteredEvents(string clusterFileName="cluster.root", string outFil
 
 
 
-void savePassingEvents(string outFileName, int strength=4, bool save=true) {
+void saveHwAngleCut(string inFileName, string outFileName) {
+  /*
+
+    I need to do this hw angle cut and i am late to do it
+
+   */
+
+
+
+  //  TChain *summaryTree = loadAll("09.27.17_19h",false);
+  TFile *inFile = TFile::Open(inFileName.c_str());
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+  int lenEntries = summaryTree->GetEntries();
+  cout << "found " << lenEntries << " entries" << endl;
+
+
+  TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
+  TTree *cutTree = new TTree("summaryTree","summaryTree");
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  cutTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  cutTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  cutTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  cutTree->Branch("gpsEvent",&gps);
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!entry%1000) cout << entry << "/" << lenEntries << endl;
+    summaryTree->GetEntry(entry);
+
+    if (TMath::Abs(evSum->peak[0][0].hwAngle) > 45) continue;
+    outFile->cd();
+    cutTree->Fill();
+  }
+
+  outFile->cd();
+  cutTree->Write();
+  outFile->Close();
+
+
+  return;
+
+
+}
+
+
+
+
+
+/*************************************
+ */
+
+
+void savePassingEvents(string outFileName, 
+		       string inFileName="/home/brotter/nfsShared/results/templateSearch/09.27.17_19h/goodEvents.root",
+		       int strength=4, bool savePassing=true) {
   /*
 
     the makeCuts -> separateNotable way of doing this is stupid
@@ -498,7 +559,7 @@ void savePassingEvents(string outFileName, int strength=4, bool save=true) {
   cout << " and output file " << outFileName << endl;
 
   //  TChain *summaryTree = loadAll("09.27.17_19h",false);
-  TFile *inFile = TFile::Open("/home/brotter/nfsShared/results/templateSearch/09.27.17_19h/goodEvents.root");
+  TFile *inFile = TFile::Open(inFileName.c_str());
   TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
   int lenEntries = summaryTree->GetEntries();
 
@@ -538,38 +599,52 @@ void savePassingEvents(string outFileName, int strength=4, bool save=true) {
     
     /* \/\/\/\/\/   CUTS!    \/\/\/\/\/\ */
 
+    int fail=0; //if it is zero at the end, it passes.  1=impulse cuts; 2=quality cuts
+
     /* Varying strength cuts go here */
+
     if (strength == 4 ) {
-      if (tempSum->coherent[0][0].cRay[4] < 0.5) continue;
-      //      if (tempSum->coherent[0][0].cRay[4] > 0.67) continue;
-      if (evSum->coherent_filtered[0][0].peakHilbert < 25) continue;
-      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.6) continue;
-      if (evSum->peak[0][0].value < 0.0435) continue;
-      if (evSum->peak[0][0].snr < 8.95) continue;
+      if (tempSum->coherent[0][0].cRay[4] < 0.5) fail=1;
+      //      if (tempSum->coherent[0][0].cRay[4] > 0.67) fail=1;
+      if (evSum->coherent_filtered[0][0].peakHilbert < 25) fail=1;
+      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.6) fail=1;
+      if (evSum->peak[0][0].value < 0.0435) fail=1;
+      if (evSum->peak[0][0].snr < 8.95) fail=1;
     }
+
+    if (strength == 5 ) {
+      if (tempSum->coherent[0][0].cRay[4] < 0.78) fail=1;
+      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.75) fail=1;
+    }
+
+
     /* --------------- */
     
     /* Cuts that should _always_ be made for candidates*/
     // not flagged as a pulser
-    if (evSum->flags.pulser != 0) continue;
+    if (evSum->flags.pulser != 0) fail=2;
     // needs an rf trigger
-    if (!evSum->flags.isRF) continue;
+    if (!evSum->flags.isRF) fail=2;
     //not pointed at ldb when it is nearby (~700km)
     if ((TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->ldb.phi,360,0)),2) + pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].theta - evSum->ldb.theta,360,0)),2))  < 6 
-	 && evSum->ldb.distance  < 700e3)) continue;
+	 && evSum->ldb.distance  < 700e3)) fail=2;
     //not pointed at wais when it is nearby (~700km)
     if ((TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->wais.phi,360,0)),2) + pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].theta - evSum->wais.theta,360,0)),2))  < 6 
-	 && evSum->wais.distance  < 700e3)) continue;
+	 && evSum->wais.distance  < 700e3)) fail=2;
     //not a blast event
-    if (evSum->flags.maxBottomToTopRatio[0] > 3) continue;
+    if (evSum->flags.maxBottomToTopRatio[0] > 3) fail=2;
     //not pointing "above" zero (- == up), since not even direct CRs will be above zero (no atmosphere!)
-    if (evSum->peak[0][0].theta < 0) continue;
+    if (evSum->peak[0][0].theta < 0) fail=2;
+    //within two phi sectors of hardware trigger (ensures trigger phi is in coherent sum)
+    if (TMath::Abs(evSum->peak[0][0].hwAngle) > 45) fail=2;
     /* ------------ */
     /* \/\/\/\/\/\/\/\/\/\/\ */
 
+    
     outFile->cd();
-    cutTree->Fill();
-    savedCount++;
+    if (savePassing && fail==0) { cutTree->Fill(); savedCount++; }
+    if (!savePassing && fail!=0) { cutTree->Fill(); savedCount++; }
+
   }
   cout << "done scanning, found " << savedCount << " events" << endl;
 
@@ -583,6 +658,10 @@ void savePassingEvents(string outFileName, int strength=4, bool save=true) {
 
 }
 
+
+
+/***********************************************
+ */
 
 
 void makeHarshCuts(string inFileName, string outFileName) {
@@ -698,8 +777,6 @@ void combineWAISTrees() {
   TFile *waisFile = TFile::Open("waisEvents.root");
   TTree *summaryTree = (TTree*)waisFile->Get("summaryTree");
 
-
-
   TFile *outFile = TFile::Open("waisEvents_comb.root","recreate");
   TTree *outTree = new TTree("summaryTree","summaryTree");
 
@@ -717,17 +794,22 @@ void combineWAISTrees() {
   outTree->Branch("gpsEvent",&gps);
 
   //the snr tree syncs up with the full data set
-  TFile *snrFile = TFile::Open("/home/brotter/nfsShared/results/templateSearch/09.27.17_19h/SNRs.root");
+  TFile *snrFile = TFile::Open("/home/brotter/nfsShared/results/templateSearch/09.27.17_19h/snrFile.root");
   TTree *snrTree = (TTree*)snrFile->Get("snrTree");
   cout << "snrTree has " << snrTree->GetEntries() << " entries" << endl;
   cout << "Building index..."; fflush(stdout);
   snrTree->BuildIndex("eventNumber");
   cout << "done!" << endl;
-  double snr,snr_filtered;
+  double snr,snr_filtered,rms;
+  int peakPhiSector;
   snrTree->SetBranchAddress("snr",&snr);
   outTree->Branch("snr",&snr);
   snrTree->SetBranchAddress("snr_filtered",&snr_filtered);
   outTree->Branch("snr_filtered",&snr_filtered);
+  snrTree->SetBranchAddress("rms",&rms);
+  outTree->Branch("rms",&rms);
+  snrTree->SetBranchAddress("peakPhiSector",&peakPhiSector);
+  outTree->Branch("peakPhiSector",&peakPhiSector);
 
   //the efficiency tree is per wais event which is sort of annoying
   TFile *effFile = TFile::Open("/home/brotter/anita16/benCode/templateSearch/macros/waisEfficiency.root");
