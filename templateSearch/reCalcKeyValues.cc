@@ -370,12 +370,13 @@ int main(int argc,char **argv) {
 
 
 
-    //write over the snr with the better snr value
+    //write over the snr with the better snr value, unless I haven't filled the fifo in which case leave it?
+    //maybe I'll fix this later
     double max,min;
+    
+    if (noiseSum->rmsFifoFillFlag) {
+	double rms = calcRMS(geom,ap,evSum->peak[0][0].phi,noiseSum);
 
-    double rms = calcRMS(geom,ap,evSum->peak[0][0].phi,noiseSum);
-
-    if (rms != 0) {
       max = TMath::MaxElement(coherent->even()->GetN(),coherent->even()->GetY());
       min = TMath::MinElement(coherent->even()->GetN(),coherent->even()->GetY());
       evSum->coherent[0][0].snr = ((max-min)/2.)/rms;
@@ -392,9 +393,13 @@ int main(int argc,char **argv) {
       min = TMath::MinElement(deconvolved_filtered->even()->GetN(),deconvolved_filtered->even()->GetY());
       evSum->deconvolved_filtered[0][0].snr = ((max-min)/2.)/rms;
     }
-    else {
-      cout << "rms = 0" << endl;
-    }
+    
+    /*    else {
+      evSum->coherent[0][0].snr *= -1;
+      evSum->coherent_filtered[0][0].snr *= -1;
+      evSum->deconvolved[0][0].snr *= -1;
+      evSum->deconvolved_filtered[0][0].snr *= -1;
+      }*/
 
 
     //template stuff
