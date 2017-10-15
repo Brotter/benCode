@@ -1281,9 +1281,11 @@ void drawTGraphFromFile(string filename) {
     eventMap->SetPoint(eventMap->GetN(),evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
     anitaMap->SetPoint(anitaMap->GetN(),evSum->anitaLocation.longitude,evSum->anitaLocation.latitude);
   }
-
   eventMap->Draw("");
-  anitaMap->Draw("lp same");
+  anitaMap->Draw("p same");
+  eventMap->SetMarkerStyle(5);
+  anitaMap->SetMarkerStyle(23);
+
 
   return;
 }
