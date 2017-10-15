@@ -414,8 +414,8 @@ void drawCandidatesOnAntarctica(string fileName="candidates.root",bool moreCuts 
   aMap->DrawTGraph("psame");
   
   for (int i=0; i<highlights.size(); i++) {
-    highlights[i]->Draw("psame");
     highlightArrows[i]->Draw();
+    highlights[i]->Draw("psame");
 
   }
   
@@ -1343,6 +1343,56 @@ void drawEventsFromTwoFiles(string filename1, string filename2) {
 }
 
 
+void drawCandidatesAndBackground(string candidateFilename, string backgroundFilename) {
+
+  TChain *candidateTree = new TChain("summaryTree");
+  candidateTree->Add(candidateFilename.c_str());
+  AnitaEventSummary *candSum = NULL;
+  candidateTree->SetBranchAddress("eventSummary",&candSum);
+
+  TGraphAntarctica *candMap = new TGraphAntarctica();
+  for (int i=0; i<candidateTree->GetEntries(); i++) {
+    candidateTree->GetEntry(i);
+    candMap->SetPoint(i,candSum->peak[0][0].longitude,candSum->peak[0][0].latitude);
+  }
+  
+  TH2DAntarctica *backMap = new TH2DAntarctica(200,200);
+  TChain *backgroundTree = new TChain("summaryTree");
+  backgroundTree->Add(backgroundFilename.c_str());
+  AnitaEventSummary *backSum = NULL;
+  backgroundTree->SetBranchAddress("eventSummary",&backSum);
+  for (int i=0; i<backgroundTree->GetEntries(); i++) {
+    if (!i%1000 && i!=0) cout << i << "/" << candidateTree->GetEntries() << endl;
+    backgroundTree->GetEntry(i);
+    if (TMath::Abs(backSum->peak[0][0].hwAngle) > 45) continue; //this cut needs to be here
+    backMap->Fill(backSum->peak[0][0].longitude,backSum->peak[0][0].latitude);
+  }
+  
+  backMap->Draw("colz");
+  candMap->Draw("p same");
+
+}
+
+
+void TGraphFromFileWithCut(string fileName) {
+  
+
+  TChain *summaryTree = new TChain("summaryTree");
+  summaryTree->Add(fileName.c_str());
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  
+
+  TGraphAntarctica *gMap = new TGraphAntarctica();
+  for (int i=0; i<summaryTree->GetEntries(); i++) {
+    summaryTree->GetEntry(i);
+    if (evSum->peak[0][0].altitude < -999 && evSum->peak[0][0].theta > 10) {
+      gMap->SetPoint(gMap->GetN(),evSum->anitaLocation.longitude,evSum->anitaLocation.latitude);
+    }
+  }
+
+  gMap->Draw("p");
+}
 
 
 void drawEvOnAntarctica() {
