@@ -546,7 +546,7 @@ void saveHwAngleCut(string inFileName, string outFileName) {
 
 void savePassingEvents(string outFileName, 
 		       string inFileName="/home/brotter/nfsShared/results/templateSearch/09.27.17_19h/goodEvents.root",
-		       int strength=4, bool savePassing=true) {
+		       int strength=1, bool savePassing=true) {
   /*
 
     the makeCuts -> separateNotable way of doing this is stupid
@@ -558,9 +558,19 @@ void savePassingEvents(string outFileName,
   cout << "Starting savePassingEvents: using strength " << strength;
   cout << " and output file " << outFileName << endl;
 
-  //  TChain *summaryTree = loadAll("09.27.17_19h",false);
-  TFile *inFile = TFile::Open(inFileName.c_str());
-  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+  TChain *summaryTree;
+  if (inFileName=="loadAll") summaryTree = loadAll("09.27.17_19h",false);
+  else if (inFileName=="loadReKey") summaryTree = loadReKey(false);
+  else {
+    summaryTree = new TChain("summaryTree","summaryTree");
+    summaryTree->Add(inFileName.c_str());
+  }
+  if (!summaryTree) {
+    cout << "Woah there buddy, that wasn't a file with summaryTrees in it!  Gotta leave ya' hanging" << endl;
+    return;
+  }
+
+
   int lenEntries = summaryTree->GetEntries();
 
   TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
@@ -603,19 +613,22 @@ void savePassingEvents(string outFileName,
 
     /* Varying strength cuts go here */
 
-    if (strength == 4 ) {
+    //weak cuts
+    if (strength == 1 ) {
       if (tempSum->coherent[0][0].cRay[4] < 0.5) fail=1;
-      //      if (tempSum->coherent[0][0].cRay[4] > 0.67) fail=1;
       if (evSum->coherent_filtered[0][0].peakHilbert < 25) fail=1;
-      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.6) fail=1;
+      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.5) fail=1;
       if (evSum->peak[0][0].value < 0.0435) fail=1;
       if (evSum->peak[0][0].snr < 8.95) fail=1;
     }
 
-    if (strength == 5 ) {
-      if (tempSum->coherent[0][0].cRay[4] < 0.78) fail=1;
-      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.75) fail=1;
+    //harsh cuts
+    else if (strength == 2 ) {
+      if (tempSum->coherent[0][0].cRay[4] < 0.75) fail=1;
+      if (tempSum->deconvolved[0][0].cRay[4] < 0.75) fail=1;
+      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.63) fail=1;
     }
+
 
 
     /* --------------- */

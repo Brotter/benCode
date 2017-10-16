@@ -21,6 +21,108 @@ string dataDateString = "09.27.17_19h";
 bool debug=false;
 
 
+int printUnclustered(string filename, int threshold) {
+  /*
+    I keep typing this so lets enshrine it in code
+   */
+  
+  
+  TFile *inFile = TFile::Open(filename.c_str());
+  TGraph * gClosest = (TGraph*)inFile->Get("gClosest");
+  if (!gClosest) {
+    cout << "Input file " << filename << " didn't have a gClosest, sorry!" << endl;
+    return -1;
+  }
+
+  int count=0; 
+  for (int i=0; i<gClosest->GetN(); i++){
+    if (gClosest->GetY()[i] > 40) {
+      cout << std::setprecision(10) << gClosest->GetX()[i] << endl; count++;
+    }
+  }
+
+  cout << "Found " << count << " unclustered events (listed above)" << endl;
+
+  return count;
+}
+
+void combineEventsAndClusterInfo(string clusterFileName,string summaryFileName,string outFileName) {
+  /*
+
+    I'm stupid and the clusterEvents() code just returns a TGraph, and doesn't pair it with the data it was clustering
+
+    This links the two together.  If I have time eventually I'll integrate this to clusterEvents()
+
+   */
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(summaryFileName.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  if (lenEntries == 0) {
+    cout << "no summaryTree entries found in " << summaryFileName << "!" << endl;
+    return;
+  }
+
+  TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
+  TTree *outTree = new TTree("summaryTree","summaryTree");
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  outTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  outTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  outTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  outTree->Branch("gpsEvent",&gps);
+
+  double clusterValue;
+  outTree->Branch("clusterValue",&clusterValue);
+
+
+  TFile *clusterFile = TFile::Open(clusterFileName.c_str());
+  TGraph * gClosest = (TGraph*)clusterFile->Get("gClosest");
+  if (!gClosest) {
+    cout << "Input file " << clusterFileName << " didn't have a gClosest, sorry!" << endl;
+    return;
+  }
+
+  int grPt = 0;//for keeping track of where in the graph you're in, since it skips above horizon events
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!entry%1000) cout << entry << "/" << lenEntries;
+
+    summaryTree->GetEntry(entry);
+    bool looped=false;
+    clusterValue =-1;
+    while (gClosest->GetX()[grPt] != evSum->eventNumber) {
+      grPt++;
+      if (grPt > gClosest->GetN()) {
+	if (looped) {
+	  cout << "event number " << evSum->eventNumber << " not in this file" << endl;
+	  clusterValue = -999;
+	  break;
+	}
+	grPt=0;
+	looped=true;
+      }
+    }
+
+    if (clusterValue==-1) clusterValue = gClosest->GetY()[grPt];
+
+    outFile->cd();
+    outTree->Fill();
+
+  }
+    
+  outFile->cd();
+  outTree->Write();
+  outFile->Close();
+
+}
+
 
 bool notNotable(AnitaEventSummary *summary) {
   /*
@@ -158,6 +260,7 @@ void clusterEvents(string inFileName="cuts.root",string outFileName="clusterEven
     lenEntries /= numSplits;
     startEntry = split*lenEntries;
     stopEntry = (split+1)*lenEntries;
+    if (split==(numSplits-1)) stopEntry = totalEntries;
     cout << "Splitting into " << numSplits << " sections, which means " << lenEntries << " events per section" << endl;
     cout << "Doing section: " << split << ", starting at entry " << startEntry << " and stopping at " << stopEntry << endl;
   }

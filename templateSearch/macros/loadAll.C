@@ -1,3 +1,35 @@
+TChain *loadReKey(bool doProof = true) {
+  /*
+    
+    load the reprocessed key values for the final set
+
+  */
+
+
+  cout << "loadReKey(): Loading recalculated key values ";
+  if (doProof) cout << " with PROOF enabled" << endl;
+  else         cout << " without PROOF" << endl;
+
+  TChain *summaryTree = new TChain("summaryTree");
+  
+  if (doProof) gROOT->ProcessLine(".x setupProof.C");
+
+  char* resultsDir = getenv("ANITA3_RESULTSDIR");
+
+  stringstream name;
+  for (int run=0; run<64; run++) {
+    name.str("");
+    name << resultsDir << "templateSearch/09.27.17_19h/reCalcKeyValues/goodEvents_corr_" << run << ".root";
+    summaryTree->Add(name.str().c_str());
+  }
+  cout << "loadReKey(): Found " << summaryTree->GetEntries() << " entries" << endl;
+
+  if (doProof) summaryTree->SetProof();
+
+  return summaryTree;
+
+}
+  
 
 
 TChain* loadAll(string date,bool doProof = true){
