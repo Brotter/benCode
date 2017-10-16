@@ -1162,6 +1162,138 @@ void drawPseudoBases(string date="10.06.17_11h") {
 }
 
 
+void drawClusteringResult(string eventClusterFileName, bool focus=false,double threshold=40) {
+  /*
+
+    Okay, now that I have all the cut events with their cluster info in the same file,
+    lets write something that plots that specifically!
+
+   */
+  stringstream name;
+
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(eventClusterFileName.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " entries!" << endl;
+  if (lenEntries == 0) return;
+
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  AnitaTemplateSummary *tempSum = NULL;
+  summaryTree->SetBranchAddress("template",&tempSum);
+  double clusterValue;
+  summaryTree->SetBranchAddress("clusterValue",&clusterValue);
+
+  TH2DAntarctica *clusterMap = new TH2DAntarctica("clusterMap","clusterMap",200,200);
+  vector<TArrowAntarctica*> clusterArrows;
+  vector<TArrowAntarctica*> failingArrows;
+
+  vector<TGraphAntarctica*> singletMap;
+  vector<TArrowAntarctica*> singletArrows;
+
+  TGraphAntarctica *flightPath = new TGraphAntarctica();
+
+  int singletCount=0;
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    
+    if (clusterValue < 0) continue; //above horizon
+
+    flightPath->SetPoint(flightPath->GetN(),evSum->anitaLocation.longitude,evSum->anitaLocation.latitude);
+
+
+    if (clusterValue > threshold && 
+	tempSum->coherent[0][0].cRay[4] > 0.75 && 
+	tempSum->deconvolved[0][0].cRay[4] > 0.75 &&
+	evSum->coherent_filtered[0][0].linearPolFrac() > 0.63) {
+      name.str("");
+      name << "ev" << evSum->eventNumber;
+      cout << name.str() << endl;
+      TGraphAntarctica *currSingle = new TGraphAntarctica();
+      currSingle->SetName(name.str().c_str());
+      currSingle->SetTitle(name.str().c_str());
+      currSingle->SetPoint(0,evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+      singletMap.push_back(currSingle);
+      TArrowAntarctica *currArrow = new TArrowAntarctica(evSum->anitaLocation.longitude,evSum->anitaLocation.latitude,
+							 evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+      singletArrows.push_back(currArrow);
+    }
+    else {
+      clusterMap->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+      TArrowAntarctica *currArrow = new TArrowAntarctica(evSum->anitaLocation.longitude,evSum->anitaLocation.latitude,
+							 evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+      if (clusterValue <= threshold){
+	clusterArrows.push_back(currArrow);}
+      else {
+	failingArrows.push_back(currArrow);}
+
+    }
+
+
+  }
+  
+
+
+  TCanvas * c1 = new TCanvas("c1", "c1", 1000, 1000);
+
+  clusterMap->Draw("colz");
+
+  for (int i=0; i<singletArrows.size(); i++) {
+    singletArrows[i]->Draw();
+  }
+  for (int i=0; i<clusterArrows.size(); i++) {
+    clusterArrows[i]->Draw();
+    clusterArrows[i]->SetLineColor(kBlack);
+    clusterArrows[i]->SetFillColor(kBlack);
+    clusterArrows[i]->SetLineWidth(1);
+  }
+  for (int i=0; i<failingArrows.size(); i++) {
+    failingArrows[i]->Draw();
+    failingArrows[i]->SetLineColor(kGreen);
+    failingArrows[i]->SetFillColor(kGreen);
+    failingArrows[i]->SetLineWidth(1);
+  }
+
+  double easting,northing;
+
+  cout << "Found " << singletMap.size() << " candidates" << endl;
+  for (int i=0; i<singletMap.size(); i++) {
+    singletMap[i]->Draw("p same");
+    singletMap[i]->SetMarkerStyle(kOpenDoubleDiamond);
+    singletMap[i]->SetMarkerSize(2);
+    if (i==2) {
+      singletMap[i]->SetMarkerColor(kRed);
+      easting = singletMap[i]->GetX()[0];
+      northing = singletMap[i]->GetY()[0];
+    }
+  }
+
+  cout << "x:" << clusterMap->GetXaxis()->GetXmin() << "," << clusterMap->GetXaxis()->GetXmin() << endl;
+  cout << "y:" << clusterMap->GetYaxis()->GetXmin() << "," << clusterMap->GetYaxis()->GetXmax() << endl;
+  cout << "easting:" << easting << " northing:" << northing << endl;
+  
+
+  if (focus) {
+    double size = 1e6;
+    clusterMap->GetXaxis()->SetRangeUser(easting-size,easting+size);
+    clusterMap->GetYaxis()->SetRangeUser(northing-size,northing+size);
+  }
+
+  flightPath->Draw("p same");
+  flightPath->SetMarkerStyle(1);
+  flightPath->SetMarkerColor(kWhite);
+  
+  c1->SaveAs("test.png");
+
+  return;
+}
+  
+      
+
+
+
+
 
 void drawCutList() {
 
@@ -1382,15 +1514,16 @@ void TGraphFromFileWithCut(string fileName) {
   AnitaEventSummary *evSum = NULL;
   summaryTree->SetBranchAddress("eventSummary",&evSum);
   
-
+  int counter=0;
   TGraphAntarctica *gMap = new TGraphAntarctica();
   for (int i=0; i<summaryTree->GetEntries(); i++) {
     summaryTree->GetEntry(i);
     if (evSum->peak[0][0].altitude < -999 && evSum->peak[0][0].theta > 10) {
       gMap->SetPoint(gMap->GetN(),evSum->anitaLocation.longitude,evSum->anitaLocation.latitude);
+      counter++;
     }
   }
-
+  cout << "counter:" << counter << endl;
   gMap->Draw("p");
 }
 
