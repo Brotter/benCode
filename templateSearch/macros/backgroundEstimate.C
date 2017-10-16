@@ -82,7 +82,7 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
   TTree *baseTree = (TTree*)baseFile->Get("summaryTree");
 
   //get candidate event summaries
-  TFile *candidateFile = TFile::Open("candidates.root");
+  TFile *candidateFile = TFile::Open("trueCandidates_oct14.root");
   TTree *candidateTree = (TTree*)candidateFile->Get("summaryTree");
   candidateTree->SetLineColor(kRed);
 
@@ -189,7 +189,7 @@ void saveCandidatePValues(bool doCut=false,string fileName="") {
   TTree *baseTree = (TTree*)baseFile->Get("summaryTree");
 
   //get candidate event summaries
-  TFile *candidateFile = TFile::Open("candidates.root");
+  TFile *candidateFile = TFile::Open("trueCandidates_oct14.root");
   TTree *candidateTree = (TTree*)candidateFile->Get("summaryTree");
   AnitaEventSummary *candSum = NULL;
   candidateTree->SetBranchAddress("eventSummary",&candSum);
@@ -233,21 +233,6 @@ void saveCandidatePValues(bool doCut=false,string fileName="") {
     candidateTree->GetEntry(entry);
     
     bool skip=false;
-
-    if (TMath::Abs(candSum->peak[0][0].hwAngle) > 45) {
-      cout << candSum->eventNumber << " hw angle doesn't match peak angle" << endl;
-      continue;
-    }
-    if (candSum->flags.maxBottomToTopRatio[0] > 3 ) {
-      cout << candSum->eventNumber << " blast" << endl;
-      continue;
-    }
-   
-    if (candSum->eventNumber == 84114142 || candSum->eventNumber == 84405480) {
-      cout << candSum->eventNumber << " doesn't have right geomagnetic" << endl;
-      continue;
-    }
-
 
     int bin;
     double mapPeakVal = candSum->peak[0][0].value;
@@ -530,7 +515,7 @@ void eventsClusteredWithCandidates(string date = "10.05.17_14h") {
 }
 
 
-int ABCDMethod() {
+void ABCDMethod() {
   
   /*
 
@@ -540,10 +525,12 @@ int ABCDMethod() {
     C) Events that DO NOT pass cuts, and DO NOT cluster
     D) Events that pass cuts, but DO NOT cluster (candidates)
 
+    I end up just doing this by hand with separateNotable
+
    */
 
   //load all the pseudobase events
-  TChain *pseudoTree = new TChain("summaryTree","summaryTree");
+  /*  TChain *pseudoTree = new TChain("summaryTree","summaryTree");
 
   stringstream name;
   string baseDir = "/Volumes/ANITA3Data/bigAnalysisFiles/cluster/10.03.17_22h/";
@@ -562,7 +549,7 @@ int ABCDMethod() {
   //DO NOT pass, but DO cluster (B)
   int B = summaryTree->Draw("eventNumber","baseClusteredWith > 0","goff");
   
-
-
+  */
+  return;
   // 
 }
