@@ -20,7 +20,7 @@ void findGeoMagnetic2(string inFilename="trueCandidates.root") {
 */
   stringstream name;
 
-  GeoMagnetic::setDebug(true);
+  //  GeoMagnetic::setDebug(true);
 
   TFile *inFile = TFile::Open(inFilename.c_str());
   TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
@@ -57,12 +57,12 @@ void findGeoMagnetic2(string inFilename="trueCandidates.root") {
     name << "ev" << evSum->eventNumber;
     gExVsMeas[entry] = new TGraphErrors();
     gExVsMeas[entry]->SetName(name.str().c_str());
-    gExVsMeas[entry]->SetTitle("Geomagnetic Polarization, measured vs expected; Expected Polarisation Angle (degrees); Measured Polarisation Angle (degrees)");
+    gExVsMeas[entry]->SetTitle("Reflected: Geomagnetic Polarization; Expected Polarisation Angle (degrees); Measured Polarisation Angle (degrees)");
     
     name << "_up";
     gExVsMeasUp[entry] = new TGraphErrors();    
     gExVsMeasUp[entry]->SetName(name.str().c_str());
-    gExVsMeasUp[entry]->SetTitle("Geomagnetic Polarization, measured vs expected, assuming upgoing; Expected Polarisation Angle (degrees); Measured Polarisation Angle (degrees)");
+    gExVsMeasUp[entry]->SetTitle("Direct (Upgoing): Geomagnetic Polarization; Expected Polarisation Angle (degrees); Measured Polarisation Angle (degrees)");
     gExVsMeasUp[entry]->SetMarkerColor(kBlue);
     gExVsMeasUp[entry]->SetLineColor(kBlue);
 
@@ -104,10 +104,10 @@ void findGeoMagnetic2(string inFilename="trueCandidates.root") {
     hDiff->Fill(measPol-exPol);
     hDiffUp->Fill(measPol-exPolUp);
     gExVsMeas[entry]->SetPoint(gExVsMeas[entry]->GetN(),exPol,measPol);
-    gExVsMeas[entry]->SetPointError(gExVsMeas[entry]->GetN()-1,0.5,4.5);
+    gExVsMeas[entry]->SetPointError(gExVsMeas[entry]->GetN()-1,2,4.5);
     if (exPolUp > -9999) {
       gExVsMeasUp[entry]->SetPoint(gExVsMeasUp[entry]->GetN(),exPolUp,measPol);
-      gExVsMeasUp[entry]->SetPointError(gExVsMeasUp[entry]->GetN()-1,0.5,4.5);
+      gExVsMeasUp[entry]->SetPointError(gExVsMeasUp[entry]->GetN()-1,5,4.5);
       TArrow *currArrow = new TArrow(exPol,measPol,exPolUp,measPol,0.01,"->-");
       arrows.push_back(currArrow);
     }
@@ -115,38 +115,45 @@ void findGeoMagnetic2(string inFilename="trueCandidates.root") {
   }
 
   TF1 *line = new TF1("line","x",-45,45);
-  TF1 *lineP1 = new TF1("line","x+10",-45,45);
-  TF1 *lineM1 = new TF1("line","x-10",-45,45);
+  TF1 *lineP1 = new TF1("line","x+5",-45,45);
+  TF1 *lineM1 = new TF1("line","x-5",-45,45);
   lineP1->SetLineStyle(2);
   lineM1->SetLineStyle(2);
+  TF1 *lineP2 = new TF1("line","x+10",-45,45);
+  TF1 *lineM2 = new TF1("line","x-10",-45,45);
+  lineP2->SetLineStyle(3);
+  lineM2->SetLineStyle(3);
+  lineP2->SetLineWidth(1);
+  lineM2->SetLineWidth(1);
+  
 
   TCanvas *c1 = new TCanvas("c1","c1",1000,600);
-  c1->Divide(2,2);
+  c1->Divide(2);
   c1->cd(1);
-  for (int i=0; i<lenEntries; i++) {
-    if (i==0) {
-      gExVsMeas[i]->Draw("ap"); 
-      gExVsMeas[i]->GetXaxis()->SetLimits(-30,30);
-      gExVsMeas[i]->GetYaxis()->SetRangeUser(-30,30);
-    }
-    else { gExVsMeas[i]->Draw("psame"); }
-  }
+  gExVsMeas[0]->Draw("ap"); 
+  gExVsMeas[0]->GetXaxis()->SetLimits(-30,30);
+  gExVsMeas[0]->GetYaxis()->SetRangeUser(-30,30);
   line->Draw("lSame");
+  lineP1->Draw("lSame");
+  lineM1->Draw("lSame");
+  lineP2->Draw("lSame");
+  lineM2->Draw("lSame");
+  for (int i=0; i<lenEntries; i++) {
+    gExVsMeas[i]->Draw("psame");
+  }
   c1->cd(2);
-  hDiff->Draw("");
-  c1->cd(3);
-  for (int i=0; i<lenEntries; i++) {
-    if (i==0) {
-      gExVsMeas[i]->Draw("ap"); 
-      gExVsMeas[i]->GetXaxis()->SetLimits(-30,30);
-      gExVsMeas[i]->GetYaxis()->SetRangeUser(-30,30);
-    }
-    else { gExVsMeasUp[i]->Draw("psame"); }
-  }
-  for (int i=0; i<arrows.size(); i++) arrows[i]->Draw();
+  gExVsMeas[0]->Draw("ap"); 
+  gExVsMeas[0]->GetXaxis()->SetLimits(-30,30);
+  gExVsMeas[0]->GetYaxis()->SetRangeUser(-30,30);
   line->Draw("lSame");
-  c1->cd(4);
-  hDiffUp->Draw("");
+  lineP1->Draw("lSame");
+  lineM1->Draw("lSame");
+  lineP2->Draw("lSame");
+  lineM2->Draw("lSame");
+  for (int i=0; i<lenEntries; i++) {
+    gExVsMeasUp[i]->Draw("psame");
+  }
+  //  for (int i=0; i<arrows.size(); i++) arrows[i]->Draw();
     
   return;
 }
