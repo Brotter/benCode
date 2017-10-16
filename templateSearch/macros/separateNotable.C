@@ -273,10 +273,9 @@ void separateTrueCandidates() {
   
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
-  summaryTree->Add("candidates.root");
-  summaryTree->Add("aboveHorizon.root");
+  summaryTree->Add("passHarsh_oct14.root");
 
-  TFile *outFile = TFile::Open("trueCandidates.root","recreate");
+  TFile *outFile = TFile::Open("trueCandidates_oct14.root","recreate");
   TTree *cutTree = new TTree("summaryTree","summaryTree");
 
   AnitaEventSummary *evSum = NULL;
@@ -291,6 +290,10 @@ void separateTrueCandidates() {
   cutTree->Branch("noiseSummary",&noiseSum);
   summaryTree->SetBranchAddress("gpsEvent",&gps);
   cutTree->Branch("gpsEvent",&gps);
+  double clusterValue;
+  summaryTree->SetBranchAddress("clusterValue",&clusterValue);
+  cutTree->Branch("clusterValue",&clusterValue);
+
 
   int lenEntries = summaryTree->GetEntries();
   cout << "number of events in tree: " << lenEntries << endl;
@@ -299,33 +302,16 @@ void separateTrueCandidates() {
   for (int entry=0; entry<lenEntries; entry++) {
     summaryTree->GetEntry(entry);
     cout << entry << "/" << lenEntries << " : " << evSum->eventNumber << endl;
-
-    if (evSum->flags.maxBottomToTopRatio[0] > 6) {
-      cout << "nope, blast event" << endl;
-      continue;
-    }
-    if (TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->ldb.phi,360,0)) < 6 && evSum->ldb.distance < 650e3) {
-      cout << "nope, points at ldb" << endl;
-      continue;
-    }
-    if (TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->wais.phi,360,0)) < 6 && evSum->wais.distance < 650e3) {
-      cout << "nope, points at wais" << endl;
-      continue;
-    }
     
-    if (evSum->eventNumber >= 80299371 && evSum->eventNumber <= 80700153) {
-      cout << "these are the above horizon clustered ones" << endl;
-      continue;
-    }
+    //if it doesn't cluster, isn't above horizon, or isn't 27142546 which gets pushed down by Cosmin
+    if (clusterValue < 40 && clusterValue != -999 && evSum->eventNumber != 27142546) continue;
+    
 
-    if (evSum->eventNumber == 9855625) {
-      cout << "points at LDB" << endl;
-    }
+    if (evSum->eventNumber == 69050331) continue; //clustered above horizon event
+    if (evSum->eventNumber == 80299371) continue; //HiCal event
 
-    if (evSum->eventNumber == 69050312 || evSum->eventNumber == 78946778) {
-      cout << "too close to the horizon" << endl;
-      continue;
-    }
+    if (clusterValue == -999 && evSum->peak[0][0].theta > 10) continue; //theres some weird pathology here, but they all cluster
+
 
     count++;
 
@@ -553,10 +539,17 @@ void savePassingEvents(string outFileName,
 
     This might be better.  Its like separateNotable_fromScratch but newer
 
+    strength is either impulsive(1) or signal(2)
+    
+    savePassing=true saves things that pass the cut
+    savePassing=false save things that do not pass the cut
+
    */
 
   cout << "Starting savePassingEvents: using strength " << strength;
   cout << " and output file " << outFileName << endl;
+  if (savePassing) cout << "Saving events that pass cuts" << endl;
+  if (!savePassing) cout << "Saving events that DO NOT pass cuts" << endl;
 
   TChain *summaryTree;
   if (inFileName=="loadAll") summaryTree = loadAll("09.27.17_19h",false);
@@ -570,8 +563,8 @@ void savePassingEvents(string outFileName,
     return;
   }
 
-
   int lenEntries = summaryTree->GetEntries();
+  cout << "input tree has " << lenEntries << " events " << endl;
 
   TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
   TTree *cutTree = new TTree("summaryTree","summaryTree");
@@ -588,8 +581,10 @@ void savePassingEvents(string outFileName,
   cutTree->Branch("noiseSummary",&noiseSum);
   summaryTree->SetBranchAddress("gpsEvent",&gps);
   cutTree->Branch("gpsEvent",&gps);
+  double clusterValue;
+  summaryTree->SetBranchAddress("clusterValue",&clusterValue);
+  cutTree->Branch("clusterValue",&clusterValue);
 
-  
   TStopwatch watch;
   watch.Start(kTRUE);
   int totalTimeSec = 0;
@@ -609,7 +604,7 @@ void savePassingEvents(string outFileName,
     
     /* \/\/\/\/\/   CUTS!    \/\/\/\/\/\ */
 
-    int fail=0; //if it is zero at the end, it passes.  1=impulse cuts; 2=quality cuts
+    int fail=0; //if it is zero at the end, it passes.  1=impulse cuts; 2=harsh cuts; 9=quality cuts
 
     /* Varying strength cuts go here */
 
@@ -624,9 +619,10 @@ void savePassingEvents(string outFileName,
 
     //harsh cuts
     else if (strength == 2 ) {
-      if (tempSum->coherent[0][0].cRay[4] < 0.75) fail=1;
-      if (tempSum->deconvolved[0][0].cRay[4] < 0.75) fail=1;
-      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.63) fail=1;
+      if (tempSum->coherent[0][0].cRay[4] > 0.75 && 
+	  tempSum->deconvolved[0][0].cRay[4] > 0.75 && 
+	  evSum->coherent_filtered[0][0].linearPolFrac() > 0.63) fail=0;
+      else fail=2;
     }
 
 
@@ -635,28 +631,31 @@ void savePassingEvents(string outFileName,
     
     /* Cuts that should _always_ be made for candidates*/
     // not flagged as a pulser
-    if (evSum->flags.pulser != 0) fail=2;
+    if (evSum->flags.pulser != 0) fail=9;
     // needs an rf trigger
-    if (!evSum->flags.isRF) fail=2;
+    if (!evSum->flags.isRF) fail=9;
     //not pointed at ldb when it is nearby (~700km)
     if ((TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->ldb.phi,360,0)),2) + pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].theta - evSum->ldb.theta,360,0)),2))  < 6 
-	 && evSum->ldb.distance  < 700e3)) fail=2;
+	 && evSum->ldb.distance  < 700e3)) fail=9;
     //not pointed at wais when it is nearby (~700km)
     if ((TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->wais.phi,360,0)),2) + pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].theta - evSum->wais.theta,360,0)),2))  < 6 
-	 && evSum->wais.distance  < 700e3)) fail=2;
+	 && evSum->wais.distance  < 700e3)) fail=9;
     //not a blast event
-    if (evSum->flags.maxBottomToTopRatio[0] > 3) fail=2;
+    if (evSum->flags.maxBottomToTopRatio[0] > 3) fail=9;
     //not pointing "above" zero (- == up), since not even direct CRs will be above zero (no atmosphere!)
-    if (evSum->peak[0][0].theta < 0) fail=2;
+    if (evSum->peak[0][0].theta < 0) fail=9;
     //within two phi sectors of hardware trigger (ensures trigger phi is in coherent sum)
-    if (TMath::Abs(evSum->peak[0][0].hwAngle) > 45) fail=2;
+    if (TMath::Abs(evSum->peak[0][0].hwAngle) > 45) fail=9;
     /* ------------ */
     /* \/\/\/\/\/\/\/\/\/\/\ */
 
-    
+    if (fail==9) cout << "" << endl;
+
+  
     outFile->cd();
     if (savePassing && fail==0) { cutTree->Fill(); savedCount++; }
-    if (!savePassing && fail!=0) { cutTree->Fill(); savedCount++; }
+    if (!savePassing && fail!=0){ cutTree->Fill(); savedCount++; }
+    
 
   }
   cout << "done scanning, found " << savedCount << " events" << endl;
@@ -681,6 +680,8 @@ void makeHarshCuts(string inFileName, string outFileName) {
   /*
 
     Takes a summaryTree and makes two really hard cuts on the events
+
+    duplicate functionality to savePassingEvents(), but older and worse
 
    */
 
