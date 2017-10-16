@@ -970,7 +970,7 @@ void drawSingleEvOnAntarctica(int evNum, string inFileName = "") {
   
   TChain *summaryTree;
   if (inFileName == "") {
-    summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+    summaryTree = loadAllDefault_noproof();
   }
   else {
     summaryTree = new TChain("summaryTree","summaryTree");
@@ -989,15 +989,14 @@ void drawSingleEvOnAntarctica(int evNum, string inFileName = "") {
   
   summaryTree->GetEntry(entry);
 
-  AntarcticaBackground *aBkgd = new AntarcticaBackground();
-  
   TGraphAntarctica *gEv = new TGraphAntarctica();
+  TGraphAntarctica *gANITA = new TGraphAntarctica();
   gEv->SetPoint(0,evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+  gANITA->SetPoint(0,evSum->anitaLocation.longitude,evSum->anitaLocation.latitude);
   
   
-  
-  aBkgd->Draw();
-  gEv->Draw("psame");
+  gEv->Draw("");
+  gANITA->Draw("psame");
 
   return;
 }
@@ -1162,7 +1161,7 @@ void drawPseudoBases(string date="10.06.17_11h") {
 }
 
 
-void drawClusteringResult(string eventClusterFileName, bool focus=false,double threshold=40) {
+void drawClusteringResult(string eventClusterFileName, bool saveFocuses=false,double threshold=40) {
   /*
 
     Okay, now that I have all the cut events with their cluster info in the same file,
@@ -1192,7 +1191,8 @@ void drawClusteringResult(string eventClusterFileName, bool focus=false,double t
   vector<TGraphAntarctica*> singletMap;
   vector<TArrowAntarctica*> singletArrows;
 
-  TGraphAntarctica *flightPath = new TGraphAntarctica();
+
+  TGraphAntarctica *flightPath = TGraphAntarctica::makeGpsGraph(125,440,30000,true);
 
   int singletCount=0;
   for (int entry=0; entry<lenEntries; entry++) {
@@ -1200,7 +1200,6 @@ void drawClusteringResult(string eventClusterFileName, bool focus=false,double t
     
     if (clusterValue < 0) continue; //above horizon
 
-    flightPath->SetPoint(flightPath->GetN(),evSum->anitaLocation.longitude,evSum->anitaLocation.latitude);
 
 
     if (clusterValue > threshold && 
@@ -1234,7 +1233,6 @@ void drawClusteringResult(string eventClusterFileName, bool focus=false,double t
   }
   
 
-
   TCanvas * c1 = new TCanvas("c1", "c1", 1000, 1000);
 
   clusterMap->Draw("colz");
@@ -1250,41 +1248,42 @@ void drawClusteringResult(string eventClusterFileName, bool focus=false,double t
   }
   for (int i=0; i<failingArrows.size(); i++) {
     failingArrows[i]->Draw();
-    failingArrows[i]->SetLineColor(kGreen);
-    failingArrows[i]->SetFillColor(kGreen);
+    failingArrows[i]->SetLineColor(kBlue);
+    failingArrows[i]->SetFillColor(kBlue);
     failingArrows[i]->SetLineWidth(1);
   }
 
-  double easting,northing;
+  vector<double> easting;
+  vector<double> northing;
 
   cout << "Found " << singletMap.size() << " candidates" << endl;
   for (int i=0; i<singletMap.size(); i++) {
     singletMap[i]->Draw("p same");
-    singletMap[i]->SetMarkerStyle(kOpenDoubleDiamond);
-    singletMap[i]->SetMarkerSize(2);
+    singletMap[i]->SetMarkerStyle(41);
+    singletMap[i]->SetMarkerSize(3);
+    easting.push_back(singletMap[i]->GetX()[0]);
+    northing.push_back(singletMap[i]->GetY()[0]);
     if (i==2) {
-      singletMap[i]->SetMarkerColor(kRed);
-      easting = singletMap[i]->GetX()[0];
-      northing = singletMap[i]->GetY()[0];
+      singletMap[i]->SetMarkerColor(kGreen);
     }
   }
-
-  cout << "x:" << clusterMap->GetXaxis()->GetXmin() << "," << clusterMap->GetXaxis()->GetXmin() << endl;
-  cout << "y:" << clusterMap->GetYaxis()->GetXmin() << "," << clusterMap->GetYaxis()->GetXmax() << endl;
-  cout << "easting:" << easting << " northing:" << northing << endl;
   
-
-  if (focus) {
-    double size = 1e6;
-    clusterMap->GetXaxis()->SetRangeUser(easting-size,easting+size);
-    clusterMap->GetYaxis()->SetRangeUser(northing-size,northing+size);
-  }
-
   flightPath->Draw("p same");
   flightPath->SetMarkerStyle(1);
   flightPath->SetMarkerColor(kWhite);
   
-  c1->SaveAs("test.png");
+
+  if (saveFocuses) {
+    double size = 1e6;
+    for (int i=0; i<singletMap.size(); i++) {
+      clusterMap->GetXaxis()->SetRangeUser(easting[i]-size,easting[i]+size);
+      clusterMap->GetYaxis()->SetRangeUser(northing[i]-size,northing[i]+size);
+      name.str("");
+      name << singletMap[i]->GetTitle() << ".png";
+      c1->SaveAs(name.str().c_str());
+    }
+  }
+
 
   return;
 }
