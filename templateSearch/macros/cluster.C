@@ -197,6 +197,7 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
   if (diffABphi > 180) diffABphi = 360 - diffABphi;      
     
 
+  //this is the worst that WAIS gets
   const double sigmaTheta = 0.2193;
   const double sigmaPhi = 0.5429;
       
@@ -211,6 +212,19 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
 
 }
 
+double getDistanceFromLatLonInKm(double lat1,double lon1,double lat2,double lon2) {
+  double R = 6371; // Radius of the earth in km
+  double dLat = TMath::DegToRad()*(lat2-lat1);  // deg2rad below
+  double dLon = TMath::DegToRad()*(lon2-lon1); 
+  double a = 
+    TMath::Sin(dLat/2) * TMath::Sin(dLat/2) +
+    TMath::Cos(TMath::DegToRad()*(lat1)) * TMath::Cos(TMath::DegToRad()*(lat2)) * 
+    TMath::Sin(dLon/2) * TMath::Sin(dLon/2)
+    ; 
+  double c = 2 * TMath::ATan2(TMath::Sqrt(a), TMath::Sqrt(1-a)); 
+  double d = R * c; // Distance in km
+  return d;
+}
 
 
 /*--- Major Code Piece!  Determines which events do not cluster! ---*/
@@ -325,13 +339,18 @@ void clusterEvents(string inFileName="cuts.root",string outFileName="clusterEven
       //where event b was captured from (B)
       UsefulAdu5Pat *usefulGPSB = new UsefulAdu5Pat(gps);
 
+      double geoDistance = getDistanceFromLatLonInKm(eventSummaryA->peak[0][0].latitude,eventSummaryA->peak[0][0].longitude,
+						     summary->peak[0][0].latitude,summary->peak[0][0].longitude);
+
       double distance = calcClusterDistance(eventSummaryA,usefulGPSA,summary,usefulGPSB);
       if (distance == -9999) continue;
 
       hCluster->Fill(eventCountA,distance);
     
       if (distance < closest) closest = distance;
-  
+      if (geoDistance < 50) closest = 0;
+
+
       delete usefulGPSB;
     }
 
@@ -357,7 +376,7 @@ void clusterEvents(string inFileName="cuts.root",string outFileName="clusterEven
 }
 
 
-void combineEventClusters(int numSplits,string baseName="ABCDeventCluster/baseCluster") {
+void combineEventClusters(int numSplits,string baseName) {
   /*
 
     Opens the output files and concatenates them into a single file
@@ -1168,6 +1187,9 @@ void clusterBackground(double threshold=40.,
     // this should also find the base that it clusters to BEST, not just first
     for (int imp=0; imp<lenImp; imp++) {
       tempClusterValue = calcClusterDistance(evSum,currGPS,vImpulsiveEvSum[imp],vImpulsiveUsefulGps[imp]);
+      double geoDistance = getDistanceFromLatLonInKm(evSum->peak[0][0].latitude,evSum->peak[0][0].longitude,
+						     vImpulsiveEvSum[imp]->peak[0][0].latitude,vImpulsiveEvSum[imp]->peak[0][0].longitude);
+      if (geoDistance < 50) tempClusterValue = 0;
       //if: value below lowest clustered event && value not -9999
       if (tempClusterValue > 0) {
 	if (tempClusterValue < clusterValue) {
