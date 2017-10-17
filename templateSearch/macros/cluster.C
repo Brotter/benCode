@@ -1043,11 +1043,14 @@ void clusterBackground(double threshold=40.,
   int lenImp = vImpulsiveEvSum.size();
   cout << "Found " << lenImp << " events to be clustered with" << endl;
   // Also open up ALL of the good events!! :)
+  /*
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
   char* dataDir = getenv("ANITA3_RESULTSDIR");
   stringstream name; name.str("");
   name << dataDir << "templateSearch/" << dataDateString << "/goodEvents.root";
   summaryTree->Add(name.str().c_str());
+  */
+  TChain *summaryTree = loadReKey(false);
   int lenEntries = summaryTree->GetEntries();
   cout << "Opened up all the data, found " << lenEntries << " entries" << endl;
   AnitaEventSummary *evSum = NULL;
@@ -1257,10 +1260,11 @@ void cluster(string codeName,int numSplits, int split,string baseDir) {
 
 
   /* using ABCDnonClusterEvents.root, which is the events that pass the reduced corr value cut */
+  /* this is actually the pseudo-base distribution generator I guess */
   if (codeName == "runBackgroundClusterABCD") {
     name.str("");
     name << baseDir << "/backgroundClusterABCD_" << split << ".root";
-    clusterBackground(40,"saveABCDBackground.root",name.str(),numSplits,split);
+    clusterBackground(40,"cuts_oct14.root",name.str(),numSplits,split);
     return;
   } 
   if (codeName == "runEventClusterABCD") {
