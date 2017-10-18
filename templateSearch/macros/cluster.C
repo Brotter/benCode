@@ -228,7 +228,7 @@ double getDistanceFromLatLonInKm(double lat1,double lon1,double lat2,double lon2
 
 
 /*--- Major Code Piece!  Determines which events do not cluster! ---*/
-void clusterEvents(string inFileName="cuts.root",string outFileName="clusterEvents.root",
+void clusterEvents(string inFileName,string outFileName,
 		   int numSplits=1, int split=0) {
 		   
   /*
@@ -239,6 +239,10 @@ void clusterEvents(string inFileName="cuts.root",string outFileName="clusterEven
     gClosest: a TGraph that stores the "closest" event to each input event
 
     Takes forever since it is a O(N^2) process
+
+    
+    no more default filenames :angryface:
+    
    */
 
   cout << "Using input file: " << inFileName << endl;
@@ -1014,8 +1018,7 @@ void saveCandidates(double threshold) {
 }
 
 
-void clusterBackground(double threshold=40.,
-		       string inFileName="cuts_final.root",string outFileName="pseudoBaseEvents.root",
+void clusterBackground(double threshold,string inFileName,string outFileName,
 		       int numSplits=1,int split=0) {
   /*
     Does the opposite of saveCandidates, instead of picking out things that don't cluster, it finds all the impulsive
@@ -1029,6 +1032,8 @@ void clusterBackground(double threshold=40.,
     needs two things:
     1) inFileName : summaryTree for events that have passed all the impulsivity cuts
     2) all the data
+
+    no more defaults :angryface:
 
    */
 
@@ -1261,47 +1266,34 @@ void cluster() {
 }
 
 
-void cluster(string codeName,int numSplits, int split,string baseDir) {
+void cluster(string codeType, string fileName, int numSplits, int split,string baseSaveDir) {
 
   stringstream name;
 
+  /* 
 
-  /* using cuts_final.root, which is only things that pass ALL the cuts */
-  if (codeName == "runBackgroundCluster") {
+     I'm not splitting things out of this file, so you have to give it what you want to do as an argument
+
+     Use the cluster scripts or call it from cint, thats going to be easiest
+
+     It does the filename split labeling so just give it a directory and the first part of the filenames 
+
+  */
+
+  /* Cluster all the events in the whole dataset with the events in the input file name */
+  if (codeName == "clusterBackground") {
     name.str("");
-    name << baseDir << "/backgroundCluster_" << split << ".root";
-    clusterBackground(40,"candidates.root",name.str(),numSplits,split);
+    name << baseDir << "/clusterBackground_" << split << ".root";
+    clusterBackground(40,fileName,name.str(),numSplits,split);
     return;
   }
-  if (codeName == "runEventCluster") {
-    name.str("");
-    name << baseDir << "/eventCluster_" << split << ".root";
-    clusterEvents("cuts_final.root","eventCluster_",numSplits,split);
-    return;
-  }
 
-
-  /* using ABCDnonClusterEvents.root, which is the events that pass the reduced corr value cut */
-  /* this is actually the pseudo-base distribution generator I guess */
-  if (codeName == "runBackgroundClusterABCD") {
-    name.str("");
-    name << baseDir << "/backgroundClusterABCD_" << split << ".root";
-    clusterBackground(40,"cuts_oct14.root",name.str(),numSplits,split);
-    return;
-  } 
-  if (codeName == "runEventClusterABCD") {
-    name.str("");
-    name << baseDir << "/eventClusterABCD_" << split << ".root";
-    clusterEvents("ABCDBackgroundToTop.root",name.str(),numSplits,split);
-    return;
-  }
 
   /* otherwise assume it is a file you're supposed to try and cluster */
-  else {
-    cout << "codeName string not a default, so I assume you want me to event cluster a file" << endl;
+  if (codeName == "clusterEvents") {
     name.str("");
-    name << baseDir << "/eventClusterFilename_" << split << ".root";
-    clusterEvents(codeName,name.str(),numSplits,split);
+    name << baseDir << "/clusterEvents_" << split << ".root";
+    clusterEvents(fileName,name.str(),numSplits,split);
     return;
   }
 

@@ -17,5 +17,5 @@ mkdir ${sharedDir}"/log"
 numCores=64
 for localCore in `seq 0 63`; do
     echo "Starting "${localCore}
-    root -b cluster.C\(\"runBackgroundCluster\",${numCores},${localCore},\"${sharedDir}\"\)  1> ${sharedDir}/log/${localCore}.log 2>&1 &
+    root -b cluster.C\(\"clusterBackground\",\"${1}\",${numCores},${localCore},\"${sharedDir}\"\)  1> ${sharedDir}/log/${localCore}.log 2>&1 &
 done
