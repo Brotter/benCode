@@ -532,7 +532,7 @@ void saveHwAngleCut(string inFileName, string outFileName) {
 
 void savePassingEvents(string outFileName, 
 		       string inFileName="/home/brotter/nfsShared/results/templateSearch/09.27.17_19h/goodEvents.root",
-		       int strength=1, bool savePassing=true) {
+		       int strength=0, bool savePassing=true) {
   /*
 
     the makeCuts -> separateNotable way of doing this is stupid
@@ -617,7 +617,7 @@ void savePassingEvents(string outFileName,
       if (evSum->peak[0][0].snr < 8.95) fail=1;
     }
 
-    //harsh cuts
+    //harsh cuts.  Too harsh!  Optimized for ABCD, but that is dumb.
     else if (strength == 2 ) {
       if (tempSum->coherent[0][0].cRay[4] > 0.75 && 
 	  tempSum->deconvolved[0][0].cRay[4] > 0.75 && 
@@ -625,7 +625,16 @@ void savePassingEvents(string outFileName,
       else fail=2;
     }
 
-
+    //nominal cuts that I initially developed.  Based on WAIS pulser signals.
+    else if (strength == 0) {
+      if (evSum->peak[0][0].value < 0.0435) fail=1;
+      if (evSum->peak[0][0].snr < 8.95) fail=1;
+      if (evSum->coherent_filtered[0][0].peakHilbert < 25) fail=1;
+      //      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.60) fail=1;
+      if (tempSum->coherent[0][0].cRay[4] < 0.666) fail=1;
+      if (tempSum->deconvolved[0][0].cRay[4] < 0.666) fail=1;
+    }
+      
 
     /* --------------- */
     
