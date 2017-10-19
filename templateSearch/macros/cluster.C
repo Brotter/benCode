@@ -158,7 +158,7 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
   sigmaPhi.SetParameter(0,0.68726);
   sigmaPhi.SetParameter(1,0.338725);
    
-  TF1 sigmaTheta("sigmaTheta","[0]/(x]) + [1]",2,100);
+  TF1 sigmaTheta("sigmaTheta","[0]/(x) + [1]",2,100);
   sigmaTheta.SetParameter(0,0.132516);
   sigmaTheta.SetParameter(1,0.1557);
 
