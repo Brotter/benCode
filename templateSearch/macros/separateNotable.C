@@ -265,7 +265,7 @@ void separateNotable_singleEv(int evNum) {
 }
 
 
-void separateTrueCandidates() {
+void separateTrueCandidates(string inFile) {
   /*
     Okay I've been dealing with these dumb lists from forever ago, so lets make a new one with direct and reflected and only the non-blast things.
    */
@@ -273,7 +273,7 @@ void separateTrueCandidates() {
   
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
-  summaryTree->Add("passHarsh_oct14.root");
+  summaryTree->Add(inFile.c_str());
 
   TFile *outFile = TFile::Open("trueCandidates_oct14.root","recreate");
   TTree *cutTree = new TTree("summaryTree","summaryTree");
@@ -303,7 +303,7 @@ void separateTrueCandidates() {
     summaryTree->GetEntry(entry);
     cout << entry << "/" << lenEntries << " : " << evSum->eventNumber << endl;
     
-    //if it doesn't cluster, isn't above horizon, or isn't 27142546 which gets pushed down by Cosmin
+    //if it doesn't cluster, isn't above horizon, or isn't 27142546 which gets pushed down by Cosmin and is above the horizon
     if (clusterValue < 40 && clusterValue != -999 && evSum->eventNumber != 27142546) continue;
     
 
@@ -608,7 +608,7 @@ void savePassingEvents(string outFileName,
 
     /* Varying strength cuts go here */
 
-    //weak cuts
+    //weak cuts. These are for determining the anthropogenic base distribution
     if (strength == 1 ) {
       if (tempSum->coherent[0][0].cRay[4] < 0.5) fail=1;
       if (evSum->coherent_filtered[0][0].peakHilbert < 25) fail=1;
@@ -626,10 +626,12 @@ void savePassingEvents(string outFileName,
     }
 
     //nominal cuts that I initially developed.  Based on WAIS pulser signals.
-    else if (strength == 0) {
+    //see presentation on August 16th
+    //these are the final signal cuts, combined with the clustering results from the weak cuts
+    else if (strength == 3) {
       if (evSum->peak[0][0].value < 0.0435) fail=1;
-      if (evSum->peak[0][0].snr < 8.95) fail=1;
-      if (evSum->coherent_filtered[0][0].peakHilbert < 25) fail=1;
+      if (evSum->peak[0][0].snr < 9.05) fail=1;
+      if (evSum->coherent_filtered[0][0].peakHilbert < 47.5) fail=1;
       //      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.60) fail=1;
       if (tempSum->coherent[0][0].cRay[4] < 0.666) fail=1;
       if (tempSum->deconvolved[0][0].cRay[4] < 0.666) fail=1;
