@@ -164,11 +164,11 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
 
   double snrA = eventA->coherent_filtered[0][0].snr;
   if (snrA > 100) snrA = 100;
-  if (snrA < 100) snrA = 2;
+  if (snrA < 100) snrA = 4;
 
   double snrB = eventB->coherent_filtered[0][0].snr;
   if (snrB > 100) snrB = 100;
-  if (snrB < 2) snrB = 2;
+  if (snrB < 2) snrB = 4;
 
   //  cout << "snrA: " << snrA << " dTheta:" << sigmaTheta->Eval(snrA) << " dPhi:" << sigmaPhi->Eval(snrA) << endl;
   //  cout << "snrB: " << snrB << " dTheta:" << sigmaTheta->Eval(snrB) << " dPhi:" << sigmaPhi->Eval(snrB) << endl;
