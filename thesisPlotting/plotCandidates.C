@@ -16,6 +16,8 @@
 #include "AnitaGeomTool.h"
 #include "AntennaPositions.h"
 
+
+#include "loadAll.C"
 /*
 
 
@@ -26,7 +28,7 @@
 
 
 
-void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/templateSearch/macros/candidatesHarsh_oct13.root") {
+void plotCandidateWaveforms(string candidateFilename="/home/brotter/anita16/benCode/templateSearch/macros/trueCandidates_oct14.root") {
   /*
 
     I want to plot the single channels that went into a waveform, the coherent sum, and the map
@@ -93,6 +95,7 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
   
   UCorrelator::Correlator *corr = new UCorrelator::Correlator(360,0,360,100,-60,40);
 
+  vector<int> eventNumbers;
   
   AnitaPol::AnitaPol_t pol = AnitaPol::kHorizontal;
 
@@ -104,8 +107,8 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
     int eventNumber = evSum->eventNumber;
     data->getEvent(eventNumber);
     cout << "Candidate " << event << " - eventNumber " << eventNumber << endl;
-
-
+    
+    eventNumbers.push_back(eventNumber);
 
     FilteredAnitaEvent *filtered = new FilteredAnitaEvent(data->useful(), fNone, data->gps(), data->header());
 
@@ -113,10 +116,8 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
     corrMaps[event] = new TH2D(*corr->getHist());
 
     wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal);
-    if (eventNumber != 15717147) {
-      wfcomb_xpol_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical);}
-    else {
-      wfcomb_xpol_filtered->combine(evSum->peak[pol][0].phi-8, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical);}
+    wfcomb_xpol_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical);
+
 
     name.str("");
     name << "ev" << eventNumber;
@@ -129,10 +130,11 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
     deconvolved_xPol[event] = new TGraphAligned(*wfcomb_xpol_filtered->getDeconvolved()->even());
     deconvolved_xPol[event]->SetTitle(name.str().c_str());	
 
-    coherent_xPol[event]->SetLineStyle(3);
-    deconvolved_xPol[event]->SetLineStyle(3);
+    coherent_xPol[event]->SetLineColor(kBlue);
+    deconvolved_xPol[event]->SetLineColor(kBlue);
+    
 
-    //highlight ev15717147
+    //highlight ev15717147 (tau)
     if (eventNumber == 15717147) {
       coherent[event]->SetLineColor(kRed);
       coherent_xPol[event]->SetLineColor(kBlue);
@@ -140,6 +142,16 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
       deconvolved[event]->SetLineColor(kRed);
       deconvolved_xPol[event]->SetLineColor(kBlue);
     }
+
+    //highlight direct
+    if (eventNumber == 27142546 || eventNumber == 39599205) {
+      coherent[event]->SetLineColor(8);
+      coherent_xPol[event]->SetLineColor(kBlue);
+
+      deconvolved[event]->SetLineColor(8);
+      deconvolved_xPol[event]->SetLineColor(kBlue);
+    }
+
 
     delete filtered;
   }    
@@ -151,17 +163,17 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
   
   //Plot all of the deconvolved waveforms separately
   TCanvas *c2 = new TCanvas("c2","c2",1000,600);
-  c2->Divide(4,4);
+  c2->Divide(4,5);
   for (int i=0; i<lenCands; i++) {
     c2->cd(i+1);
-    deconvolved[i]->GetXaxis()->SetRangeUser(0,25);
+    deconvolved[i]->GetXaxis()->SetRangeUser(-5,20);
     deconvolved[i]->Draw("al");
     deconvolved_xPol[i]->Draw("lSame");
   }
   
   //Plot all of the coherent waveforms separately too
   TCanvas *c3 = new TCanvas("c3","c3",1000,600);
-  c3->Divide(4,4);
+  c3->Divide(4,5);
   for (int i=0; i<lenCands; i++) {
     c3->cd(i+1);
     //    coherent[i]->GetXaxis()->SetRangeUser(0,25);
@@ -170,25 +182,25 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
   }
 
 
-  TCanvas *cTau = new TCanvas("cTau","cTau",1000,600);
-  cTau->Divide(1,2);
-  cTau->cd(1);
-  coherent[2]->Draw("al");
-  coherent_xPol[2]->Draw("lSame");
-  cTau->cd(2);
-  deconvolved[2]->Draw("al");
-  deconvolved_xPol[2]->Draw("lSame");
-    
-
-  TCanvas *cX = new TCanvas("cX","cX",1000,600);
-  cX->Divide(1,2);
-  cX->cd(1);
-  coherent[8]->Draw("al");
-  coherent_xPol[8]->Draw("lSame");
-  cX->cd(2);
-  deconvolved[8]->Draw("al");
-  deconvolved_xPol[8]->Draw("lSame");
   
+  for (int i=0; i<eventNumbers.size(); i++) {
+    int eventNumber = eventNumbers[i];
+    TCanvas *cX = new TCanvas("cX","cX",1000,600);
+    cX->Divide(1,2);
+    cX->cd(1);
+    name.str(""); name << "Ev" << eventNumber << ";Time (ns); Voltage (mv)";
+    coherent[i]->SetTitle(name.str().c_str());
+    coherent[i]->Draw("al");
+    coherent_xPol[i]->Draw("lSame");
+    cX->cd(2);
+    name.str(""); name << ";Time (ns); Voltage (mv)";
+    deconvolved[i]->Draw("al");
+    deconvolved_xPol[i]->Draw("lSame");
+    
+    name.str(""); name << "Ev" << eventNumber << "_waveform.png";
+    cX->SaveAs(name.str().c_str());
+    delete cX;
+  }
 
 
   //I need to shift them so they align to overlay them (by correlation)
@@ -215,8 +227,8 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
   //correlate and align coherent
   for (int i=1; i<lenCands; i++) {
     TGraph *gCorr = FFTtools::getCorrelationGraph(aligned_coherent[0],aligned_coherent[i]);
-    if (i==2) for (int pt=0; pt<gCorr->GetN(); pt++) gCorr->GetY()[pt] *= -1; //tau
-    int peakBin = FFTtools::getPeakBin(gCorr);
+    if (i==2 || i==5) for (int pt=0; pt<gCorr->GetN(); pt++) gCorr->GetY()[pt] *= -1; //tau or direct
+      int peakBin = FFTtools::getPeakBin(gCorr);
     Int_t offsetPt = peakBin-(gCorr->GetN()/2);
     double offset = offsetPt*deltaT;
     delete gCorr;
@@ -227,7 +239,7 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
   //correlate and align deconvolved
   for (int i=1; i<lenCands; i++) {
     TGraph *gCorr = FFTtools::getCorrelationGraph(aligned_deconvolved[0],aligned_deconvolved[i]);
-    if (i==2) for (int pt=0; pt<gCorr->GetN(); pt++) gCorr->GetY()[pt] *= -1; //tau
+    if (i==2 || i==5) for (int pt=0; pt<gCorr->GetN(); pt++) gCorr->GetY()[pt] *= -1; //tau
     int peakBin = FFTtools::getPeakBin(gCorr);
     Int_t offsetPt = peakBin-(gCorr->GetN()/2);
     double offset = offsetPt*deltaT;
@@ -257,4 +269,111 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
   
 
 
+}
+
+
+
+void saveLocalDistributions() {
+  /*
+
+    Saves the 2d histograms for cut parameters of events near each candidate, with the candidate highlighted
+
+   */
+  stringstream name;
+
+  gStyle->SetOptStat(0);
+
+  TChain *summaryTree = loadWhatever("/home/brotter/anita16/benCode/templateSearch/macros/clusteringOutputs/10.16.17_01h/","backgroundClusterABCD",64,false);
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  summaryTree->BuildIndex("eventNumber");
+
+  //to get the event numbers
+  TFile *candTreeFile = TFile::Open("/home/brotter/anita16/benCode/templateSearch/macros/trueCandidates_oct14.root");
+  TTree *candTree = (TTree*)candTreeFile->Get("summaryTree");
+  AnitaEventSummary *candSum = NULL;
+  candTree->SetBranchAddress("eventSummary",&candSum);
+
+  TGraph *temp = new TGraph();
+  temp->SetMarkerStyle(4);
+  temp->SetMarkerSize(4);
+
+  TCanvas *c1 = new TCanvas("c1","c1",1000,1000);
+
+  int entry;
+  for (int cand=0; cand<candTree->GetEntries(); cand++) {
+    candTree->GetEntry(cand);
+    int eventNumber = candSum->eventNumber;
+
+    c1->Clear();
+    c1->cd();
+    name.str("");
+    name << "ev" << eventNumber << ";Deconvoled Template Correlation; Coherent Sum Template Correlation";
+    TH2D* hTempVsTemp = new TH2D("hTempVsTemp",name.str().c_str(),100,0,1,100,0,1);
+    name.str(""); name << "seedEventNumber == " << eventNumber;
+    summaryTree->Draw("template.coherent[0][0].cRay[4]:template.deconvolved[0][0].cRay[4] >> hTempVsTemp",name.str().c_str(),"colz");
+
+    entry = summaryTree->GetEntryNumberWithBestIndex(eventNumber);
+    if (entry>0) summaryTree->GetEntry(entry);
+    else cout << "whoops, couldn't find event number " << eventNumber << endl;
+    temp->SetPoint(0,tempSum->deconvolved[0][0].cRay[4],tempSum->coherent[0][0].cRay[4]);
+    temp->Draw("p same");
+
+    name.str(""); name << "ev" << eventNumber << "_tempVsTemp.png";
+    c1->SaveAs(name.str().c_str());
+
+    delete hTempVsTemp;
+
+    c1->Clear();
+    c1->cd();
+    name.str("");
+    name << "ev" << eventNumber << ";Map Peak; Map SNR";
+    TH2D* hMap = new TH2D("hMap",name.str().c_str(),100,0,0.3,100,0,25);
+    name.str(""); name << "seedEventNumber == " << eventNumber;
+    summaryTree->Draw("peak[0][0].snr:peak[0][0].value >> hMap",name.str().c_str(),"colz");
+
+    entry = summaryTree->GetEntryNumberWithBestIndex(eventNumber);
+    if (entry>0) summaryTree->GetEntry(entry);
+    else cout << "whoops, couldn't find event number " << eventNumber << endl;
+    temp->SetPoint(0,evSum->peak[0][0].value,evSum->peak[0][0].snr);
+    temp->Draw("p same");
+
+    name.str(""); name << "ev" << eventNumber << "_interfMap.png";
+    c1->SaveAs(name.str().c_str());
+
+    delete hMap;
+
+    c1->Clear();
+    c1->cd();
+    name.str("");
+    name << "ev" << eventNumber << ";Coherent Sum Hilbert Peak; Coherent Linear Polarization Fraction";
+    TH2D* hHilbLinFrac = new TH2D("hHilbLinFrac",name.str().c_str(),100,0,130,100,0,1);
+    name.str(""); name << "seedEventNumber == " << eventNumber;
+    summaryTree->Draw("coherent_filtered[0][0].linearPolFrac():coherent_filtered[0][0].peakHilbert >> hHilbLinFrac",name.str().c_str(),"colz");
+
+    entry = summaryTree->GetEntryNumberWithBestIndex(eventNumber);
+    if (entry>0) summaryTree->GetEntry(entry);
+    else cout << "whoops, couldn't find event number " << eventNumber << endl;
+    temp->SetPoint(0,evSum->coherent_filtered[0][0].peakHilbert,evSum->coherent_filtered[0][0].linearPolFrac());
+    temp->Draw("p same");
+
+    name.str(""); name << "ev" << eventNumber << "_hilbLinFrac.png";
+    c1->SaveAs(name.str().c_str());
+    
+    delete hHilbLinFrac;
+
+  }
+
+  return;
+}
+
+
+
+
+void plotCandidates() {
+  cout << "loaded plotCandidates.C" << endl;
+  return;
 }

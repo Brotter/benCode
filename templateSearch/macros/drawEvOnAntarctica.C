@@ -313,11 +313,12 @@ void drawCandidatesOnAntarctica(string fileName="candidates.root",bool moreCuts 
   anitaPosition->SetMarkerColor(kWhite);
 
 
+  /*
   cout << "Getting HiCal" << endl;
   aMap->addTGraph("hiCal","hiCal");
   TGraph *gHiCal = aMap->getCurrentTGraph();
   placeHiCalOnMap(aMap,gHiCal);
-
+  */
 
   vector<TArrow*> arrows;
 
@@ -396,13 +397,14 @@ void drawCandidatesOnAntarctica(string fileName="candidates.root",bool moreCuts 
   
   cout << count << " were not blasts and didn't point at bases" << endl;
 
+  /*
   aMap->addTGraph("baseList","baseList");
   TGraph *gBaseList = aMap->getCurrentTGraph();
   gBaseList->SetMarkerStyle(20); //20=filled circle
   gBaseList->SetMarkerSize(1);
   gBaseList->SetMarkerColor(kRed);
   placeBasesOnMap(aMap,gBaseList);
-
+  */
 
   aMap->setCurrentTGraph("anitaPosition");
   aMap->DrawTGraph("p");

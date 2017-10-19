@@ -8,6 +8,8 @@
 #include "Normalize.C" //makeNormCumulative
 #include "AnitaConventions.h"
 
+#include "loadAll.C"
+
 void drawQuadrent(TH1D *hBlackIn, TH1D *hRedIn) {
 
   TH1 *hRed = makeNormCumulative(hRedIn,false);
@@ -78,9 +80,9 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
 
 
   //get base pointed event summaries
-  TFile *baseFile = TFile::Open("mergeBaseClusters.root");
-  TTree *baseTree = (TTree*)baseFile->Get("summaryTree");
-
+  //  TFile *baseFile = TFile::Open("mergeBaseClusters.root");
+  //  TTree *baseTree = (TTree*)baseFile->Get("summaryTree");
+  TChain *baseTree = loadWhatever("/home/brotter/anita16/benCode/templateSearch/macros/clusteringOutputs/10.16.17_01h/","backgroundClusterABCD",64,false);
   //get candidate event summaries
   TFile *candidateFile = TFile::Open("trueCandidates_oct14.root");
   TTree *candidateTree = (TTree*)candidateFile->Get("summaryTree");
@@ -185,8 +187,9 @@ void saveCandidatePValues(bool doCut=false,string fileName="") {
    */
 
   //get base pointed event summaries
-  TFile *baseFile = TFile::Open("mergeBaseClusters.root");
-  TTree *baseTree = (TTree*)baseFile->Get("summaryTree");
+  //  TFile *baseFile = TFile::Open("mergeBaseClusters.root");
+  //  TTree *baseTree = (TTree*)baseFile->Get("summaryTree");
+  TChain *baseTree = loadWhatever("/home/brotter/anita16/benCode/templateSearch/macros/clusteringOutputs/10.16.17_01h/","backgroundClusterABCD",64,false);
 
   //get candidate event summaries
   TFile *candidateFile = TFile::Open("trueCandidates_oct14.root");
@@ -214,20 +217,35 @@ void saveCandidatePValues(bool doCut=false,string fileName="") {
   TH1D *hLinPolFrac = new TH1D("hLinPolFrac","Linear Polarization;Linear Polarization Fraction;count",250,0,1);
   baseTree->Draw("coherent_filtered[0][0].linearPolFrac() >> hLinPolFrac",allCuts);
   cout << "3" << endl;
-  TH1D *hPeakHilbertDF = new TH1D("hPeakHilbertDF","Deconvolved Hilbert Peak;Deconvolved Hilbert Peak;count",250,0,500);
-  baseTree->Draw("deconvolved_filtered[0][0].peakHilbert >> hPeakHilbertDF",allCuts);
+  TH1D *hPeakHilbert = new TH1D("hPeakHilbert","Coherent Hilbert Peak;Coherent Hilbert Peak;count",250,0,500);
+  baseTree->Draw("coherent_filtered[0][0].peakHilbert >> hPeakHilbert",allCuts);
   cout << "4" << endl;
   TH1D *hTemplate = new TH1D("hTemplate","cRay +4 Correlation;cRay +4 Correlation;count",250,0,1);
   baseTree->Draw("template.coherent[0][0].cRay[4] >> hTemplate",allCuts);
 
   TH1 *hMapPeakC   = makeNormCumulative(hMapPeak);
   TH1 *hLinPolFracC   = makeNormCumulative(hLinPolFrac);
-  TH1 *hPeakHilbertDFC   = makeNormCumulative(hPeakHilbertDF);
+  TH1 *hPeakHilbertC   = makeNormCumulative(hPeakHilbert);
   TH1 *hTemplateC   = makeNormCumulative(hTemplate);
+
+  TFile *outRoot = TFile::Open("pValues.root","recreate");
+
+  hMapPeak->Write();
+  hLinPolFrac->Write();
+  hPeakHilbert->Write();
+  hTemplate->Write();
+
+  hMapPeakC->Write();
+  hLinPolFracC->Write();
+  hPeakHilbertC->Write();
+  hTemplateC->Write();
+
+  outRoot->Close();
 
   if (fileName=="") fileName="pValues.csv";
   ofstream outFile(fileName);
-  outFile << "#eventNumber,mapPeakVal,PmapPeakVal,mapPeakSNR,PmapPeakSNR,peakHilbertDF,PpeakHilbertDF,cRayTemplate,PcRayTemplate" << endl;
+  outFile << "#eventNumber,mapPeakVal,PmapPeakVal,mapPeakSNR,PmapPeakSNR,peakHilbert,PpeakHilbert,cRayTemplate,PcRayTemplate" << endl;
+  outFile << "#calculated using " << baseTree->GetEntries() << " events" << endl;
 
   for (int entry=0; entry<candidateTree->GetEntries(); entry++) {
     candidateTree->GetEntry(entry);
@@ -243,9 +261,9 @@ void saveCandidatePValues(bool doCut=false,string fileName="") {
     bin = hLinPolFracC->GetXaxis()->FindBin(linearPolFrac);
     double PlinearPolFrac = hLinPolFracC->GetBinContent(bin);
 
-    double peakHilbert = candSum->deconvolved_filtered[0][0].peakHilbert;
-    bin = hPeakHilbertDFC->GetXaxis()->FindBin(peakHilbert);
-    double PpeakHilbert = hPeakHilbertDFC->GetBinContent(bin);
+    double peakHilbert = candSum->coherent_filtered[0][0].peakHilbert;
+    bin = hPeakHilbertC->GetXaxis()->FindBin(peakHilbert);
+    double PpeakHilbert = hPeakHilbertC->GetBinContent(bin);
 
     double cRayTemp = candTemp->coherent[0][0].cRay[4];
     bin = hTemplateC->GetXaxis()->FindBin(cRayTemp);
@@ -393,7 +411,7 @@ TGraph* numberOfEventsExceedingCandidates() {
     Returns a TGraph with x=eventNumber and y=numberOfExceedingBackgroundEvs
    */
 
-  TFile *candFile = TFile::Open("trueCandidates.root");
+  TFile *candFile = TFile::Open("trueCandidates_oct14.root");
   TTree *candTree = (TTree*)candFile->Get("summaryTree");
   AnitaEventSummary *candEvSum = NULL;
   candTree->SetBranchAddress("eventSummary",&candEvSum);
@@ -414,13 +432,14 @@ TGraph* numberOfEventsExceedingCandidates() {
     candTree->GetEntry(i);
     vTemplateCorr.push_back(candTempSum->coherent[0][0].cRay[4]);
     vMapPeak.push_back(candEvSum->peak[0][0].value);
-    vHilbPeak.push_back(candEvSum->deconvolved_filtered[0][0].peakHilbert);
-    vLinPolFrac.push_back(candEvSum->coherent[0][0].linearPolFrac());
+    vHilbPeak.push_back(candEvSum->coherent_filtered[0][0].peakHilbert);
+    vLinPolFrac.push_back(candEvSum->coherent_filtered[0][0].linearPolFrac());
   }
 
   
-  TFile *backFile = TFile::Open("pseudoBaseCluster.root");
-  TTree *backTree = (TTree*)backFile->Get("summaryTree");
+  //  TFile *backFile = TFile::Open("pseudoBaseCluster.root");
+  //  TTree *backTree = (TTree*)backFile->Get("summaryTree");
+    TChain *backTree = loadWhatever("/home/brotter/anita16/benCode/templateSearch/macros/clusteringOutputs/10.16.17_01h/","backgroundClusterABCD",64,false);
   AnitaEventSummary *backEvSum = NULL;
   backTree->SetBranchAddress("eventSummary",&backEvSum);
   AnitaTemplateSummary *backTempSum = NULL;
@@ -431,6 +450,9 @@ TGraph* numberOfEventsExceedingCandidates() {
   cout << "Found " << lenEntries << " background events from impulsive sources" << endl;
   
   int* numPassing = new int [numCandidates];
+  for (int i=0; i<numCandidates; i++) {
+    numPassing[i] = 0;
+  }
   for (int entry=0; entry<lenEntries; entry++) {
     if (entry%10000 == 0) cout << entry << "/" << lenEntries << endl;
     backTree->GetEntry(entry);
