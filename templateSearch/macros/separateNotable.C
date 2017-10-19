@@ -265,7 +265,7 @@ void separateNotable_singleEv(int evNum) {
 }
 
 
-void separateTrueCandidates(string inFile) {
+void saveTrueCandidates(string inFile) {
   /*
     Okay I've been dealing with these dumb lists from forever ago, so lets make a new one with direct and reflected and only the non-blast things.
    */
@@ -306,8 +306,10 @@ void separateTrueCandidates(string inFile) {
     //if it doesn't cluster, isn't above horizon, or isn't 27142546 which gets pushed down by Cosmin and is above the horizon
     if (clusterValue < 40 && clusterValue != -999 && evSum->eventNumber != 27142546) continue;
     
-
+    if (evSum->eventNumber == 9765645) continue; //points at McM, but above horizon
+    if (evSum->eventNumber == 51705086) continue; //clustered above horizon event
     if (evSum->eventNumber == 69050331) continue; //clustered above horizon event
+    if (evSum->eventNumber == 74950989) continue; //clustered above horizon event
     if (evSum->eventNumber == 80134362) continue; //clustered above horizon event
     if (evSum->eventNumber == 80299371) continue; //HiCal event
 
@@ -335,12 +337,12 @@ void separateTrueCandidates(string inFile) {
 
 
 
-void saveOnlyGoodEvents(string date="09.27.17_19h") {
+void saveGoodEvents(string date="09.27.17_19h") {
   /*
 
     lots of events seem to point either above zero degrees, or are like blasts or minbias
 
-    lets save all the ones that aren't
+    lets save all the ones that aren't fake.  This isn't to be confused with the "quality" cut
 
    */
 
@@ -633,7 +635,7 @@ void savePassingEvents(string outFileName,
       if (evSum->peak[0][0].value < 0.0435) fail=1;
       if (evSum->peak[0][0].snr < 9.05) fail=1;
       if (evSum->coherent_filtered[0][0].peakHilbert < 31.1) fail=1;
-      //      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.60) fail=1;
+      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.60) fail=1;
       if (tempSum->coherent[0][0].cRay[4] < 0.666) fail=1;
       if (tempSum->deconvolved[0][0].cRay[4] < 0.666) fail=1;
     }

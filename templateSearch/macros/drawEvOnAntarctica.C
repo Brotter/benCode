@@ -283,7 +283,7 @@ void drawCandidatesOnAntarctica_hardcoded(string fileName="cuts.root") {
 
 
 
-void drawCandidatesOnAntarctica(string fileName="candidates.root",bool moreCuts = true) {
+void drawCandidatesOnAntarctica_old(string fileName="candidates.root",bool moreCuts = true) {
 
   /*
 
@@ -676,8 +676,6 @@ void plotBasesWithClusteredEvents() {
   return;
 }
 
-  
-
        
 void drawDirectEvents(){
   /*
@@ -961,7 +959,7 @@ void drawHiCalOnAntarctica() {
 
     
 
-void drawSingleEvOnAntarctica(int evNum, string inFileName = "") {
+void drawSingleEvOnAntarctica(int evNum, string inFileName = "",int zoomSize=1e6) {
   /*
     Draw a single event on to the continent if you can
     if inFileName is filled, it loads that file looking for a summaryTree to get the event from.
@@ -993,13 +991,40 @@ void drawSingleEvOnAntarctica(int evNum, string inFileName = "") {
   TGraphAntarctica *gANITA = new TGraphAntarctica();
   gEv->SetPoint(0,evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
   gANITA->SetPoint(0,evSum->anitaLocation.longitude,evSum->anitaLocation.latitude);
-  
+  TArrowAntarctica *currArrow = new TArrowAntarctica(evSum->anitaLocation.longitude,evSum->anitaLocation.latitude,
+						     evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+
   
   gEv->Draw("");
+  gEv->SetMarkerStyle(41);
   gANITA->Draw("psame");
+  gANITA->SetMarkerStyle(26);
+  currArrow->Draw();
+  
+  gEv->GetXaxis()->SetRangeUser(gEv->GetX()[0]-zoomSize,gEv->GetX()[0]+zoomSize);
+  gEv->GetYaxis()->SetRangeUser(gEv->GetY()[0]-zoomSize,gEv->GetY()[0]+zoomSize);
+
 
   return;
 }
+
+
+void saveLocalCandidateEventMaps(string filename) {
+
+  TChain *summaryTree = new TChain("summaryTree");
+  summaryTree->Add(summaryFile.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  if (!lenEntries) {
+    cout << "didn't find any entries" << endl;
+    return;
+  }
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+
+  for (int i=0; i<lenEntries; i++) {
+    summaryTree->GetEntry(i);
+    
+
 
 
 void drawRampdemMap() {
@@ -1161,11 +1186,65 @@ void drawPseudoBases(string date="10.06.17_11h") {
 }
 
 
-void drawClusteringResult(string eventClusterFileName, bool saveFocuses=false,double threshold=40) {
+void drawClusterMap(string summaryFile, double threshold=40.) {
+  /*
+
+    pulls in a summary file and draws the things that clusters as a histogram onto a map
+
+
+
+   */
+
+  TChain *summaryTree = new TChain("summaryTree");
+  summaryTree->Add(summaryFile.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  if (!lenEntries) {
+    cout << "didn't find any entries" << endl;
+    return;
+  }
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  double clusterValue;
+  summaryTree->SetBranchAddress("clusterValue",&clusterValue);
+
+
+
+  TH2DAntarctica *antMap = new TH2DAntarctica("antMap","antMap",100,100);
+  TGraphAntarctica *antGraph = new TGraphAntarctica();
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    
+    if (clusterValue < 40) {
+      antMap->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+      antGraph->SetPoint(antGraph->GetN(),evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+    }
+
+  }
+
+  
+  antMap->Draw("colz");
+  antMap->GetZaxis()->SetRangeUser(0,100);
+  antGraph->Draw("psame");
+  antGraph->SetMarkerStyle(4);
+  antGraph->SetMarkerSize(0.2);
+
+  return;
+
+}
+
+
+
+
+
+
+void drawAnalysisResult(string eventClusterFileName, bool saveFocuses=false,double threshold=40) {
   /*
 
     Okay, now that I have all the cut events with their cluster info in the same file,
     lets write something that plots that specifically!
+
+    This is basically a result of the analysis.  It shows clustered bases, events
 
    */
   stringstream name;
@@ -1312,11 +1391,14 @@ void drawCutList() {
 
 }
   
-void drawAllEvents() {
-  
+TH2DAntarctica* drawQualityEvents(bool draw=true) {
+  /*
+    draws all the quality events, but doesn't exclude WAIS or McM pointed events.  Also include calibration pulsers
+  */
+
   TH2DAntarctica *antMap = new TH2DAntarctica("antMap","antMap",1000,1000);
 
-  TChain *summaryTree = loadAll("09.27.17_19h",false);
+  TChain *summaryTree = loadAllDefault_noproof();
   AnitaEventSummary *evSum = NULL;
   summaryTree->SetBranchAddress("eventSummary",&evSum);
 
@@ -1326,14 +1408,53 @@ void drawAllEvents() {
   for (int entry=0; entry<lenEntries; entry++) {
     if (!(entry%10000)) cout << entry << "/" << lenEntries << endl;
     summaryTree->GetEntry(entry);
-    if (evSum->peak[0][0].altitude < 0 || evSum->flags.maxBottomToTopRatio[0] > 3) continue;
+    if (evSum->peak[0][0].altitude < -999 || evSum->flags.maxBottomToTopRatio[0] > 3) continue;
+    if (TMath::Abs(evSum->peak[0][0].hwAngle) > 45 || !evSum->flags.isRF) continue;
     antMap->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
   }
 
+  if (draw) antMap->Draw("colz");
+
+  return antMap;
+}
+
+  
+void drawCandidatesOnQualityEvents(string filename) {
+  /*
+    draws all the quality events, but doesn't exclude WAIS or McM pointed events.  Also include calibration pulsers
+
+    Then it puts the candidates on top of that
+  */
+
+  TH2DAntarctica *antMap = new TH2DAntarctica("antMap","antMap",1000,1000);
+
+  TChain *summaryTree = new TChain("summaryTree");
+  summaryTree->Add(filename.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  cout << "found " << lenEntries << " candidates" << endl;
+  if (!lenEntries) return;
+
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+
+  TH2DAntarctica *allEvents = drawQualityEvents(false);
+
+  TGraphAntarctica *gEvs = new TGraphAntarctica();
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    if (evSum->peak[0][0].altitude < -999 || evSum->peak[0][0].theta_adjustment_needed != 0) continue;
+    gEvs->SetPoint(gEvs->GetN(),evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+  }
+
   antMap->Draw("colz");
+  gEvs->Draw("p same");
+  gEvs->SetMarkerStyle(42);
 
   return;
 }
+
+
 
 
 void drawTH2DFromFile(string filename,int bins=1000) {
@@ -1391,7 +1512,7 @@ TGraphAntarctica *getTGraphFromFile_withCuts(string filename,int bins=1000) {
 
 
   
-void drawTGraphFromFile(string filename) {
+void drawEventsFromFile(string filename) {
   
   TGraphAntarctica *eventMap = new TGraphAntarctica();
   TGraphAntarctica *anitaMap = new TGraphAntarctica();
@@ -1406,17 +1527,27 @@ void drawTGraphFromFile(string filename) {
   int lenEntries = summaryTree->GetEntries();
   cout << "Found " << lenEntries << " entries" << endl;
 
+  vector<TArrowAntarctica*> eventArrows;
+
   for (int entry=0; entry<lenEntries; entry++) {
     if (!(entry%10000)) cout << entry << "/" << lenEntries << endl;
     summaryTree->GetEntry(entry);
+    if ((evSum->peak[0][0].altitude < -999) || (evSum->peak[0][0].theta_adjustment_needed != 0)) continue; //dont draw above horizon
+
     eventMap->SetPoint(eventMap->GetN(),evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
     anitaMap->SetPoint(anitaMap->GetN(),evSum->anitaLocation.longitude,evSum->anitaLocation.latitude);
+    TArrowAntarctica *currArrow = new TArrowAntarctica(evSum->anitaLocation.longitude,evSum->anitaLocation.latitude,
+						       evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+    eventArrows.push_back(currArrow);
+
   }
   eventMap->Draw("");
   anitaMap->Draw("p same");
-  eventMap->SetMarkerStyle(5);
-  anitaMap->SetMarkerStyle(23);
-
+  for (int i=0; i<eventArrows.size(); i++) eventArrows[i]->Draw();
+  eventMap->SetMarkerStyle(42);
+  eventMap->SetMarkerSize(1);
+  anitaMap->SetMarkerStyle(26);
+  anitaMap->SetMarkerSize(1);
 
   return;
 }
@@ -1503,6 +1634,7 @@ void drawCandidatesAndBackground(string candidateFilename, string backgroundFile
   candMap->Draw("p same");
 
 }
+
 
 
 void TGraphFromFileWithCut(string fileName) {

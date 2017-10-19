@@ -553,3 +553,49 @@ void ABCDMethod() {
   return;
   // 
 }
+
+
+
+
+void localUnnormalizedLikelihood(string backgroundClusterFile) {
+  /*
+
+    The ABCD method might be stupid.
+
+    So, lets look at the distributions of events that fall near each of our candidates.
+
+    To determine the "unnormalized likelihood", we can take the ratio of product of the mode of the noise values, to
+    the product of the candidate values.  This will tell us how far "outside" the noise distributions the candidate is
+
+
+   */
+  
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(backgroundClusterFile.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  if (!lenEntries) cout << "No events found in that file, qutting." << endl; return;
+  else cout << "Found " << lenEntries << " events in " << backgroundClusterFile << endl;
+
+
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  
+
+  for (int event=0; event<
+
+
+
+    }
+  
+
+
+
+
+
+
+
+

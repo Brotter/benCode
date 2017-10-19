@@ -16,6 +16,8 @@
 */
 
 #include "loadAll.C"
+#include "AnitaEventSummary.h"
+#include "AnitaTemplates.h"
 
 //I need to make this a library or something
 TH1* makeNormCumulative(TH1* inHist,Bool_t forward=true) {
@@ -258,9 +260,210 @@ void printPassingEvents(bool draw=true,int strength=0) {
 
 
 
+void printCutStrengths(int strength=1) {
+  /*
+
+    For the table that shows how many events each cut parameter eliminates.
+    strength:
+    0 = quality
+    1 = impulsive
+    3 = signal
+
+
+   */
+
+  TChain *summaryTree;
+  if (strength==0) summaryTree = loadAllDefault_noproof();
+  if (strength==1) summaryTree = loadReKey(false);
+  if (strength==3) summaryTree = new TChain("summaryTree"); summaryTree->Add("cutsClust_oct14.root");
+  int lenEntries = summaryTree->GetEntries();
+  if (!lenEntries) {
+    cout << "didn't find any entries" << endl;
+    return;
+  }
+  else cout << "found " << lenEntries << " entries" << endl;
+  AnitaEventSummary *evSum=NULL;
+  AnitaTemplateSummary *tempSum=NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+
+
+  int evsLeft = lenEntries;
+
+  //strength cuts
+  int CmapValue = 0;
+  int CmapSNR = 0;
+  int Chilbert = 0;
+  int CtemplateCorr = 0;
+  int CtemplateDCorr = 0;
+  int ClinearPolFrac = 0;
+
+  int mapValue = 0;
+  int mapSNR = 0;
+  int hilbert = 0;
+  int templateCorr = 0;
+  int templateDCorr = 0;
+  int linearPolFrac = 0;
+
+  //quality cuts
+  int pulserLDB = 0;
+  int pulserWAIS = 0;
+  int baseLDB = 0;
+  int baseWAIS = 0;
+  int aboveHorizontal = 0;
+  int payloadBlast = 0;
+  int notRF = 0;
+
+  int CpulserLDB = 0;
+  int CpulserWAIS = 0;
+  int CbaseLDB = 0;
+  int CbaseWAIS = 0;
+  int CaboveHorizontal = 0;
+  int CpayloadBlast = 0;
+  int CnotRF = 0;
+
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    if (!(entry%10000)) {
+      cout << entry << "/" << lenEntries << " " << evsLeft << " " << baseWAIS << " " << baseLDB << " |";
+      if (strength != 0) { 
+	cout << mapValue << " " << mapSNR << " " << hilbert << " ";
+	cout << linearPolFrac << " " << templateCorr << " " << templateDCorr << endl;
+      }
+      else { 
+	cout << pulserLDB << " " << pulserWAIS << " "  << baseLDB << " " << baseWAIS << " ";
+	cout << aboveHorizontal << " " << payloadBlast << " " << notRF << endl;
+      }
+    }
+	
+    //start by removing a remaining event.  If it makes it to the end without failing, it will be added back
+    evsLeft--;
+
+
+    // the "good" events still have WAIS and LDB in them it seems, and maybe hw trigger angle
+    // so this needs to break the loop if you aren't doing the strength(0) quality cuts, so you don't count bad things
+    if (strength != 0) {
+      if ((TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->ldb.phi,360,0)),2) + 
+		       pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].theta - evSum->ldb.theta,360,0)),2))  < 6 
+	   && evSum->ldb.distance  < 700e3)) {baseLDB++; continue;}
+      //not pointed at wais when it is nearby (~700km)
+      if ((TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->wais.phi,360,0)),2) + 
+		       pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].theta - evSum->wais.theta,360,0)),2))  < 6 
+	   && evSum->wais.distance  < 700e3)) {baseWAIS++; continue;}
+      if (evSum->peak[0][0].theta < 0) continue;
+      if (evSum->flags.maxBottomToTopRatio[0] > 3) continue;
+      if (!evSum->flags.isRF) continue;
+      if (evSum->flags.pulser != 0) continue;
+    }
+
+
+
+    //Quality cuts
+    if (strength == 0) {
+
+      if (evSum->flags.pulser == 1) pulserWAIS++;
+      if (evSum->flags.pulser == 2) pulserLDB++;
+      if ((TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->ldb.phi,360,0)),2) + 
+		       pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].theta - evSum->ldb.theta,360,0)),2))  < 6 
+	   && evSum->ldb.distance  < 700e3)) {
+	baseLDB++;}
+      if ((TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->wais.phi,360,0)),2) + 
+			    pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].theta - evSum->wais.theta,360,0)),2))  < 6 
+		&& evSum->wais.distance  < 700e3)) {
+	baseWAIS++; }
+      if (evSum->peak[0][0].theta < 0) aboveHorizontal++;
+      if (evSum->flags.maxBottomToTopRatio[0] > 3) payloadBlast++;
+      if (!evSum->flags.isRF) notRF++;
+    
+
+      if (evSum->flags.pulser == 1) pulserWAIS++;
+      else if (evSum->flags.pulser == 2) pulserLDB++;
+      else if ((TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->ldb.phi,360,0)),2) + 
+			    pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].theta - evSum->ldb.theta,360,0)),2))  < 6 
+		&& evSum->ldb.distance  < 700e3)) {
+	CbaseLDB++; }
+      else if ((TMath::Sqrt(pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->wais.phi,360,0)),2) + 
+			  pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].theta - evSum->wais.theta,360,0)),2))  < 6 
+	      && evSum->wais.distance  < 700e3)) {
+	CbaseWAIS++;}
+      else if (evSum->peak[0][0].theta < 0) aboveHorizontal++;
+      else if (evSum->flags.maxBottomToTopRatio[0] > 3) payloadBlast++;
+      else if (!evSum->flags.isRF) notRF++;
+      else evsLeft++;
+    }
+
+
+    //weak cuts. These are for determining the anthropogenic base distribution
+    else if (strength == 1 ) {
+      if (evSum->peak[0][0].value < 0.0435) mapValue++;
+      if (evSum->peak[0][0].snr < 8.95) mapSNR++;
+      if (evSum->coherent_filtered[0][0].peakHilbert < 25) hilbert++;
+      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.5) linearPolFrac++;
+      if (tempSum->coherent[0][0].cRay[4] < 0.5) templateCorr++;
+      if (tempSum->deconvolved[0][0].cRay[4] < 0.5) templateDCorr++;
+
+      if (evSum->peak[0][0].value < 0.0435) CmapValue++;
+      else if (evSum->peak[0][0].snr < 8.95) CmapSNR++;
+      else if (evSum->coherent_filtered[0][0].peakHilbert < 25) Chilbert++;
+      else if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.5) ClinearPolFrac++;
+      else if (tempSum->coherent[0][0].cRay[4] < 0.5) CtemplateCorr++;
+      else if (tempSum->deconvolved[0][0].cRay[4] < 0.5) CtemplateDCorr++;
+      else evsLeft++;
+    }
+
+
+    //signal cuts
+    else if (strength==3) {
+      if (evSum->peak[0][0].value < 0.0435) mapValue++;
+      if (evSum->peak[0][0].snr < 9.05) mapSNR++;
+      if (evSum->coherent_filtered[0][0].peakHilbert < 31.1) hilbert++;
+      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.6) linearPolFrac++;
+      if (tempSum->coherent[0][0].cRay[4] < 0.666) templateCorr++;
+      if (tempSum->deconvolved[0][0].cRay[4] < 0.666) templateDCorr++;
+
+      if (evSum->peak[0][0].value < 0.0435) CmapValue++;
+      else if (evSum->peak[0][0].snr < 9.05) CmapSNR++;
+      else if (evSum->coherent_filtered[0][0].peakHilbert < 31.1) Chilbert++;
+      else if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.6) ClinearPolFrac++;
+      else if (tempSum->coherent[0][0].cRay[4] < 0.666) CtemplateCorr++;
+      else if (tempSum->deconvolved[0][0].cRay[4] < 0.666) CtemplateDCorr++;
+      else evsLeft++;
+    }
+  }
+
+
+  if (strength == 0) {
+    cout << pulserLDB << " " << CpulserLDB << endl;
+    cout << pulserWAIS << " " <<  CpulserWAIS << endl;
+    cout << baseLDB << " " << CbaseLDB << endl;
+    cout << baseWAIS << " " << CbaseWAIS << endl; 
+    cout << aboveHorizontal << " " << CaboveHorizontal << endl;
+    cout << payloadBlast << " " << CpayloadBlast << endl;
+    cout << notRF << " " << CnotRF << endl;
+  }
+
+    else{
+    cout << mapValue << " " << CmapValue << endl;
+    cout << mapSNR << " " << CmapSNR << endl;
+    cout << hilbert << " " << Chilbert << endl;
+    cout << linearPolFrac << " " << ClinearPolFrac << endl;
+    cout << templateCorr << " " << CtemplateCorr << endl;
+    cout << templateDCorr << " " << CtemplateDCorr << endl;
+    cout << evsLeft << evsLeft << endl;
+  }
+
+
+  return;
+
+}
 
 
 void makeCuts() {
   cout << "loaded makeCuts.C" << endl;
   return;
 }
+
+
+
+
