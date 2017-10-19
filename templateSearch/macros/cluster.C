@@ -149,6 +149,30 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
 
    */
 
+  //this is the worst that WAIS gets
+  //  const double sigmaTheta = 0.2193;
+  //  const double sigmaPhi = 0.5429;
+
+  // angular uncertainty as a function of SNR that works
+  TF1 sigmaPhi("sigmaPhi","[0]/(x) + [1]",2,100);
+  sigmaPhi.SetParameter(0,0.68726);
+  sigmaPhi.SetParameter(1,0.338725);
+   
+  TF1 sigmaTheta("sigmaTheta","[0]/(x]) + [1]",2,100);
+  sigmaTheta.SetParameter(0,0.132516);
+  sigmaTheta.SetParameter(1,0.1557);
+
+  double snrA = eventA->coherent_filtered[0][0].snr;
+  if (snrA > 100) snrA = 100;
+  if (snrA < 100) snrA = 2;
+
+  double snrB = eventB->coherent_filtered[0][0].snr;
+  if (snrB > 100) snrB = 100;
+  if (snrB < 2) snrB = 2;
+
+  //  cout << "snrA: " << snrA << " dTheta:" << sigmaTheta->Eval(snrA) << " dPhi:" << sigmaPhi->Eval(snrA) << endl;
+  //  cout << "snrB: " << snrB << " dTheta:" << sigmaTheta->Eval(snrB) << " dPhi:" << sigmaPhi->Eval(snrB) << endl;
+
   
   //where event a was seen (a)
   double thetaA = eventA->peak[0][0].theta;
@@ -185,7 +209,9 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
   double diffBAtheta = TMath::Abs(thetaBA - thetaA);
   double diffBAphi = TMath::Abs(FFTtools::wrap(phiBA - phiB,360,0));
   if (diffBAphi > 180) diffBAphi = 360 - diffBAphi;
-    
+  diffBAphi /= sigmaPhi.Eval(snrB);
+  diffBAtheta /= sigmaTheta.Eval(snrB);    
+
   //where event b is seen from A's location
   double thetaAB,phiAB; 
   gpsA->getThetaAndPhiWave(lonB,latB,altB,thetaAB,phiAB);
@@ -195,19 +221,18 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
   double diffABtheta = TMath::Abs(thetaAB - thetaB);
   double diffABphi = TMath::Abs(FFTtools::wrap(phiAB - phiA,360,0));
   if (diffABphi > 180) diffABphi = 360 - diffABphi;      
-    
+  diffABphi /= sigmaPhi.Eval(snrA);
+  diffABtheta /= sigmaTheta.Eval(snrA);    
 
-  //this is the worst that WAIS gets
-  const double sigmaTheta = 0.2193;
-  const double sigmaPhi = 0.5429;
-      
-  double diffTheta = (pow(diffABtheta,2) + pow(diffBAtheta,2))/pow(sigmaTheta,2);
-  double diffPhi = (pow(diffABphi,2) + pow(diffBAphi,2))/pow(sigmaPhi,2);
+
+  double diffTheta = (pow(diffABtheta,2) + pow(diffBAtheta,2));
+  double diffPhi = (pow(diffABphi,2) + pow(diffBAphi,2));
     
   double diff = TMath::Sqrt(diffTheta + diffPhi);
       
   //  cout << "diff: " << diff << endl;
   
+
   return diff;
 
 }
@@ -1281,18 +1306,18 @@ void cluster(string codeType, string fileName, int numSplits, int split,string b
   */
 
   /* Cluster all the events in the whole dataset with the events in the input file name */
-  if (codeName == "clusterBackground") {
+  if (codeType == "clusterBackground") {
     name.str("");
-    name << baseDir << "/clusterBackground_" << split << ".root";
+    name << baseSaveDir << "/clusterBackground_" << split << ".root";
     clusterBackground(40,fileName,name.str(),numSplits,split);
     return;
   }
 
 
   /* otherwise assume it is a file you're supposed to try and cluster */
-  if (codeName == "clusterEvents") {
+  if (codeType == "clusterEvents") {
     name.str("");
-    name << baseDir << "/clusterEvents_" << split << ".root";
+    name << baseSaveDir << "/clusterEvents_" << split << ".root";
     clusterEvents(fileName,name.str(),numSplits,split);
     return;
   }
