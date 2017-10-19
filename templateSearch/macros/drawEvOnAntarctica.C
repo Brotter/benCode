@@ -678,6 +678,75 @@ void plotBasesWithClusteredEvents() {
   return;
 }
 
+
+void plotEventsClusteredWithCandidate(int evNum) {
+  /*
+
+    Grabs all the hardcoded final stuff and plots it
+
+   */
+  stringstream name;
+
+
+  //file with all the events
+  TChain* summaryTree = new TChain("summaryTree");
+  for (int i=0; i<64; i++) {
+    name.str("");
+    name << "clusteringOutputs/10.18.17_15h29m/clusterBackground_" << i << ".root";
+    summaryTree->Add(name.str().c_str());
+  }
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Got summaryTree with " << lenEntries << " entries" << endl;
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  int seedEventNumber;
+  double clusterValue;
+  summaryTree->SetBranchAddress("seedEventNumber",&seedEventNumber);
+  summaryTree->SetBranchAddress("clusterValue",&clusterValue);
+
+  TChain *candTree = new TChain("summaryTree");
+  candTree->Add("trueCandidates_oct14.root");
+  cout << candTree->GetEntries() << " candidates found" << endl;
+  AnitaEventSummary *candSum = NULL;
+  candTree->SetBranchAddress("eventSummary",&candSum);
+
+  candTree->BuildIndex("eventNumber");
+  int candEntry = candTree->GetEntryNumberWithIndex(evNum);
+  if (candEntry < 0) { cout << "couldn't find entry for that event" << endl; return; }
+  candTree->GetEntry(candEntry);
+
+  TGraphAntarctica *gEv = new TGraphAntarctica();
+  gEv->SetPoint(0,candSum->peak[0][0].longitude,candSum->peak[0][0].latitude);
+
+  cout << gEv->GetX()[0]-8e5 << " " << gEv->GetX()[0]+8e5 << endl;
+  cout << gEv->GetY()[0]-4e5 << " " << gEv->GetY()[0]+4e5 << endl;
+
+
+
+  TProfile2DAntarctica *background = new TProfile2DAntarctica(1000,1000);
+
+
+  for (int i=0; i<lenEntries; i++) {
+    if (!(i%1000)) cout << i << "/" << lenEntries << endl;
+    summaryTree->GetEntry(i);
+
+
+    if (seedEventNumber == evNum) {
+      background->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude,40-clusterValue);
+    }
+
+  }
+
+  background->Draw("colz");
+  background->GetXaxis()->SetRangeUser(gEv->GetX()[0]-8e5,gEv->GetX()[0]+8e5);
+  background->GetYaxis()->SetRangeUser(gEv->GetY()[0]-4e5,gEv->GetY()[0]+4e5);
+  gEv->Draw("same");
+  gEv->SetMarkerStyle(4);
+  gEv->SetMarkerSize(3);
+
+  return;
+
+}
        
 void drawDirectEvents(){
   /*
@@ -1009,24 +1078,6 @@ void drawSingleEvOnAntarctica(int evNum, string inFileName = "",int zoomSize=1e6
 
   return;
 }
-
-
-void saveLocalCandidateEventMaps(string filename) {
-
-  TChain *summaryTree = new TChain("summaryTree");
-  summaryTree->Add(summaryFile.c_str());
-  int lenEntries = summaryTree->GetEntries();
-  if (!lenEntries) {
-    cout << "didn't find any entries" << endl;
-    return;
-  }
-  AnitaEventSummary *evSum = NULL;
-  summaryTree->SetBranchAddress("eventSummary",&evSum);
-
-  for (int i=0; i<lenEntries; i++) {
-    summaryTree->GetEntry(i);
-    
-
 
 
 void drawRampdemMap() {
