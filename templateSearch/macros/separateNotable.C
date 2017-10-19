@@ -308,6 +308,7 @@ void separateTrueCandidates(string inFile) {
     
 
     if (evSum->eventNumber == 69050331) continue; //clustered above horizon event
+    if (evSum->eventNumber == 80134362) continue; //clustered above horizon event
     if (evSum->eventNumber == 80299371) continue; //HiCal event
 
     if (clusterValue == -999 && evSum->peak[0][0].theta > 10) continue; //theres some weird pathology here, but they all cluster
@@ -631,7 +632,7 @@ void savePassingEvents(string outFileName,
     else if (strength == 3) {
       if (evSum->peak[0][0].value < 0.0435) fail=1;
       if (evSum->peak[0][0].snr < 9.05) fail=1;
-      if (evSum->coherent_filtered[0][0].peakHilbert < 47.5) fail=1;
+      if (evSum->coherent_filtered[0][0].peakHilbert < 31.1) fail=1;
       //      if (evSum->coherent_filtered[0][0].linearPolFrac() < 0.60) fail=1;
       if (tempSum->coherent[0][0].cRay[4] < 0.666) fail=1;
       if (tempSum->deconvolved[0][0].cRay[4] < 0.666) fail=1;
