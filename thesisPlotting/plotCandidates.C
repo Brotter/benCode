@@ -15,6 +15,7 @@
 #include "UCUtil.h"
 #include "AnitaGeomTool.h"
 #include "AntennaPositions.h"
+#include "AnitaTemplates.h"
 
 
 #include "loadAll.C"
@@ -28,7 +29,8 @@
 
 
 
-void plotCandidateWaveforms(string candidateFilename="/home/brotter/anita16/benCode/templateSearch/macros/trueCandidates_oct14.root") {
+void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/templateSearch/macros/trueCandidates_oct14.root",
+		    bool save = false, bool blind = false) {
   /*
 
     I want to plot the single channels that went into a waveform, the coherent sum, and the map
@@ -52,6 +54,9 @@ void plotCandidateWaveforms(string candidateFilename="/home/brotter/anita16/benC
   }
   AnitaEventSummary *evSum = NULL;
   summaryTree->SetBranchAddress("eventSummary",&evSum);
+  AnitaTemplateSummary *tempSum = NULL;
+  summaryTree->SetBranchAddress("template",&tempSum);
+
   int lenCands = summaryTree->GetEntries();
 
   
@@ -87,7 +92,8 @@ void plotCandidateWaveforms(string candidateFilename="/home/brotter/anita16/benC
   wfcomb_xpol_filtered->setGroupDelayFlag(false); 
 
 
-  TH2D** corrMaps = (TH2D**)malloc(sizeof(TH2D*)*lenCands);
+  TH2D** corrMapsH = (TH2D**)malloc(sizeof(TH2D*)*lenCands);
+  TH2D** corrMapsV = (TH2D**)malloc(sizeof(TH2D*)*lenCands);
   TGraphAligned** coherent = (TGraphAligned**)malloc(sizeof(TGraphAligned*)*lenCands);
   TGraphAligned** coherent_xPol = (TGraphAligned**)malloc(sizeof(TGraphAligned*)*lenCands);
   TGraphAligned** deconvolved = (TGraphAligned**)malloc(sizeof(TGraphAligned*)*lenCands);
@@ -99,43 +105,57 @@ void plotCandidateWaveforms(string candidateFilename="/home/brotter/anita16/benC
   
   AnitaPol::AnitaPol_t pol = AnitaPol::kHorizontal;
 
+  vector<int> eventNumbers;
+  vector<int> polarity;
+
   //  lenCands = 2;
   
   for (int event=0; event<lenCands; event++) {
     summaryTree->GetEntry(event);
 
     int eventNumber = evSum->eventNumber;
+    eventNumbers.push_back(eventNumber);
     data->getEvent(eventNumber);
     cout << "Candidate " << event << " - eventNumber " << eventNumber << endl;
     
     eventNumbers.push_back(eventNumber);
 
-    FilteredAnitaEvent *filtered = new FilteredAnitaEvent(data->useful(), fNone, data->gps(), data->header());
+    polarity.push_back(tempSum->deconvolved[0][0].cRay_pol[4]);
+
+    FilteredAnitaEvent *filtered = new FilteredAnitaEvent(data->useful(), fStrat, data->gps(), data->header());
 
     corr->compute(filtered,AnitaPol::kHorizontal);
-    corrMaps[event] = new TH2D(*corr->getHist());
+    corrMapsH[event] = new TH2D(*corr->getHist());
+
+    corr->compute(filtered,AnitaPol::kVertical);
+    corrMapsV[event] = new TH2D(*corr->getHist());
+
+
 
     wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal);
     wfcomb_xpol_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical);
 
 
     name.str("");
-    name << "ev" << eventNumber;
+    name << "ev" << eventNumber << ";Time (ns); Measured Voltage (mV)";
     coherent[event] = new TGraphAligned(*wfcomb_filtered->getCoherent()->even());
     coherent[event]->SetTitle(name.str().c_str());
+    if (tempSum->deconvolved[0][0].cRay_pol[4] && blind) {
+      for (int pt=0; pt<coherent[event]->GetN(); pt++) { coherent[event]->GetY()[pt] *= -1.; } }
     coherent_xPol[event] = new TGraphAligned(*wfcomb_xpol_filtered->getCoherent()->even());
     coherent_xPol[event]->SetTitle(name.str().c_str());
     deconvolved[event] = new TGraphAligned(*wfcomb_filtered->getDeconvolved()->even());
     deconvolved[event]->SetTitle(name.str().c_str());
+    if (tempSum->deconvolved[0][0].cRay_pol[4] && blind) {
+      for (int pt=0; pt<deconvolved[event]->GetN(); pt++) { deconvolved[event]->GetY()[pt] *= -1.; } }
     deconvolved_xPol[event] = new TGraphAligned(*wfcomb_xpol_filtered->getDeconvolved()->even());
     deconvolved_xPol[event]->SetTitle(name.str().c_str());	
 
     coherent_xPol[event]->SetLineColor(kBlue);
     deconvolved_xPol[event]->SetLineColor(kBlue);
-    
 
-    //highlight ev15717147 (tau)
-    if (eventNumber == 15717147) {
+    //highlight ev15717147
+    if (eventNumber == 15717147 && !blind) {
       coherent[event]->SetLineColor(kRed);
       coherent_xPol[event]->SetLineColor(kBlue);
 
@@ -143,15 +163,15 @@ void plotCandidateWaveforms(string candidateFilename="/home/brotter/anita16/benC
       deconvolved_xPol[event]->SetLineColor(kBlue);
     }
 
-    //highlight direct
-    if (eventNumber == 27142546 || eventNumber == 39599205) {
-      coherent[event]->SetLineColor(8);
+
+    //highlight above horizon
+    if (eventNumber == 39599205 || eventNumber == 27142546) {
+      coherent[event]->SetLineColor(kGreen+3);
       coherent_xPol[event]->SetLineColor(kBlue);
 
-      deconvolved[event]->SetLineColor(8);
+      deconvolved[event]->SetLineColor(kGreen+3);
       deconvolved_xPol[event]->SetLineColor(kBlue);
     }
-
 
     delete filtered;
   }    
@@ -227,8 +247,13 @@ void plotCandidateWaveforms(string candidateFilename="/home/brotter/anita16/benC
   //correlate and align coherent
   for (int i=1; i<lenCands; i++) {
     TGraph *gCorr = FFTtools::getCorrelationGraph(aligned_coherent[0],aligned_coherent[i]);
+<<<<<<< HEAD
     if (i==2 || i==5) for (int pt=0; pt<gCorr->GetN(); pt++) gCorr->GetY()[pt] *= -1; //tau or direct
       int peakBin = FFTtools::getPeakBin(gCorr);
+=======
+    if (polarity[i]) for (int pt=0; pt<gCorr->GetN(); pt++) gCorr->GetY()[pt] *= -1; //inverted pol
+    int peakBin = FFTtools::getPeakBin(gCorr);
+>>>>>>> 2590b3715998feb620cafd18d39bd61b21db79e4
     Int_t offsetPt = peakBin-(gCorr->GetN()/2);
     double offset = offsetPt*deltaT;
     delete gCorr;
@@ -239,7 +264,11 @@ void plotCandidateWaveforms(string candidateFilename="/home/brotter/anita16/benC
   //correlate and align deconvolved
   for (int i=1; i<lenCands; i++) {
     TGraph *gCorr = FFTtools::getCorrelationGraph(aligned_deconvolved[0],aligned_deconvolved[i]);
+<<<<<<< HEAD
     if (i==2 || i==5) for (int pt=0; pt<gCorr->GetN(); pt++) gCorr->GetY()[pt] *= -1; //tau
+=======
+    if (polarity[i]) for (int pt=0; pt<gCorr->GetN(); pt++) gCorr->GetY()[pt] *= -1; //inverted pol
+>>>>>>> 2590b3715998feb620cafd18d39bd61b21db79e4
     int peakBin = FFTtools::getPeakBin(gCorr);
     Int_t offsetPt = peakBin-(gCorr->GetN()/2);
     double offset = offsetPt*deltaT;
@@ -256,17 +285,87 @@ void plotCandidateWaveforms(string candidateFilename="/home/brotter/anita16/benC
   c1->Divide(1,2);
   // aligned_coherent on top
   c1->cd(1);
+  aligned_coherent[0]->SetTitle("Coherently Summed Waveform; Time (ns); Measured Voltage (mV)");
   for (int i=0; i<lenCands; i++) {
     if (i==0)aligned_coherent[i]->Draw("al");
     else aligned_coherent[i]->Draw("lSame");
   }
   // deconvolved on bottom
   c1->cd(2);
+  aligned_deconvolved[0]->SetTitle("De-Dispersed Waveform; Time (ns); Measured Voltage (mV)");
   for (int i=0; i<lenCands; i++) {
     if (i==0)aligned_deconvolved[i]->Draw("al");
     else aligned_deconvolved[i]->Draw("lSame");
   }
   
+  //Also the Vpol
+  TCanvas *c1_xpol = new TCanvas("c1_xpol","c1_xpol",1000,600);
+  c1_xpol->Divide(1,2);
+  // aligned_coherent on top
+  c1_xpol->cd(1);
+  aligned_coherent_xPol[0]->SetTitle("Coherently Summed Waveform, V-Pol; Time (ns); Measured Voltage (mV)");
+  for (int i=0; i<lenCands; i++) {
+    if (i==0)aligned_coherent_xPol[i]->Draw("al");
+    else aligned_coherent_xPol[i]->Draw("lSame");
+  }
+  // deconvolved on bottom
+  c1_xpol->cd(2);
+  aligned_deconvolved_xPol[0]->SetTitle("De-Dispersed Waveform, V-Pol; Time (ns); Measured Voltage (mV)");
+  for (int i=0; i<lenCands; i++) {
+    if (i==0)aligned_deconvolved_xPol[i]->Draw("al");
+    else aligned_deconvolved_xPol[i]->Draw("lSame");
+  }
+  
+  //overlay the direct events
+  TCanvas *c1_direct = new TCanvas("c1_direct","c1_direct",1000,600);
+  c1_direct->Divide(1,2);
+  // aligned_coherent on top
+  c1_direct->cd(1);
+  aligned_coherent[0]->SetTitle("Coherently Summed Waveform, H-Pol; Time (ns); Measured Voltage (mV)");
+  for (int i=0; i<lenCands; i++) {
+    if (eventNumbers[i]==15717147) {aligned_coherent[i]->Draw("al"); aligned_coherent[i]->GetYaxis()->SetRangeUser(-150,150); }
+    else if (eventNumbers[i]==27142546 || eventNumbers[i]==39599205) aligned_coherent[i]->Draw("lSame");
+  }
+  // deconvolved on bottom
+  c1_direct->cd(2);
+  aligned_deconvolved[0]->SetTitle("De-Dispersed Waveform, H-Pol; Time (ns); Measured Voltage (mV)");
+  for (int i=0; i<lenCands; i++) {
+    if (eventNumbers[i]==15717147) { aligned_deconvolved[i]->Draw("al"); aligned_deconvolved[i]->GetYaxis()->SetRangeUser(-150,150); }
+    else if (eventNumbers[i]==27142546 || eventNumbers[i]==39599205) aligned_deconvolved[i]->Draw("lSame");
+  }
+  
+
+
+
+
+  /*    Interferometric Maps     */
+  for (int i=0; i<lenCands; i++) {
+    name.str("");
+    name << "mapCan" << i;
+    TCanvas *mapCan = new TCanvas(name.str().c_str(),name.str().c_str(),1000,600);
+    mapCan->Divide(2);
+    TPaveText *title = new TPaveText(0.4,0.90, 0.6,0.95);
+    name.str(""); name << "Event " << eventNumbers[i];
+    title->AddText(name.str().c_str());
+    title->Draw();
+    
+    TVirtualPad *p1 = mapCan->cd(1);
+    p1->SetPad(0,0,0.5,0.9);
+    corrMapsH[i]->SetTitle("Horizontal Polarization; Payload Phi (degrees); Elevation (degrees)");
+    corrMapsH[i]->SetStats(0);
+    corrMapsH[i]->Draw("colz");
+    TVirtualPad *p2 = mapCan->cd(2);
+    p2->SetPad(0.5,0,1,0.9);
+    corrMapsV[i]->SetTitle("Vertical Polarization; Payload Phi (degrees); Elevation (degrees)");
+    corrMapsV[i]->SetStats(0);
+    corrMapsV[i]->Draw("colz");
+
+    name.str(""); name << "intMap_ev" << eventNumbers[i] << ".png";
+    if (save) mapCan->SaveAs(name.str().c_str());
+
+    delete mapCan;
+    
+  }
 
 
 }
