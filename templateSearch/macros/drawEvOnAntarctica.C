@@ -692,7 +692,7 @@ void plotEventsClusteredWithCandidate(int evNum) {
   TChain* summaryTree = new TChain("summaryTree");
   for (int i=0; i<64; i++) {
     name.str("");
-    name << "clusteringOutputs/10.18.17_15h29m/clusterBackground_" << i << ".root";
+    name << "/Volumes/ANITA3Data/bigAnalysisFiles/cluster/10.18.17_15h29m/clusterBackground_" << i << ".root";
     summaryTree->Add(name.str().c_str());
   }
   int lenEntries = summaryTree->GetEntries();
@@ -732,7 +732,7 @@ void plotEventsClusteredWithCandidate(int evNum) {
 
 
     if (seedEventNumber == evNum) {
-      background->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude,40-clusterValue);
+      background->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude,clusterValue);
     }
 
   }
@@ -740,8 +740,8 @@ void plotEventsClusteredWithCandidate(int evNum) {
   background->Draw("colz");
   background->GetXaxis()->SetRangeUser(gEv->GetX()[0]-8e5,gEv->GetX()[0]+8e5);
   background->GetYaxis()->SetRangeUser(gEv->GetY()[0]-4e5,gEv->GetY()[0]+4e5);
-  gEv->Draw("same");
-  gEv->SetMarkerStyle(4);
+  gEv->Draw("psame");
+  gEv->SetMarkerStyle(41);
   gEv->SetMarkerSize(3);
 
   return;
