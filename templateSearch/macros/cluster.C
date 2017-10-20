@@ -1222,7 +1222,7 @@ void clusterBackground(double threshold,string inFileName,string outFileName,
       tempClusterValue = calcClusterDistance(evSum,currGPS,vImpulsiveEvSum[imp],vImpulsiveUsefulGps[imp]);
       double geoDistance = getDistanceFromLatLonInKm(evSum->peak[0][0].latitude,evSum->peak[0][0].longitude,
 						     vImpulsiveEvSum[imp]->peak[0][0].latitude,vImpulsiveEvSum[imp]->peak[0][0].longitude);
-      if (geoDistance < 50) tempClusterValue = 0;
+      if (geoDistance < 50) tempClusterValue = 0.01;
       //if: value below lowest clustered event && value not -9999
       if (tempClusterValue > 0) {
 	if (tempClusterValue < clusterValue) {
