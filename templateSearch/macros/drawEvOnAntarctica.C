@@ -692,7 +692,7 @@ void plotEventsClusteredWithCandidate(int evNum) {
   TChain* summaryTree = new TChain("summaryTree");
   for (int i=0; i<64; i++) {
     name.str("");
-    name << "/Volumes/ANITA3Data/bigAnalysisFiles/cluster/10.18.17_15h29m/clusterBackground_" << i << ".root";
+    name << "/Volumes/ANITA3Data/bigAnalysisFiles/cluster/10.19.17_14h17m/clusterBackground_" << i << ".root";
     summaryTree->Add(name.str().c_str());
   }
   int lenEntries = summaryTree->GetEntries();
@@ -1150,19 +1150,31 @@ void drawWAISPass() {
 
    */
 
-  TH2DAntarctica *hWaisEvs = new TH2DAntarctica("hWaisEvs","hWaisEvs",1000,1000);
+  TH2DAntarctica *hWaisEvs = new TH2DAntarctica("hWaisEvs","hWaisEvs;;Number Of Events",1000,1000);
+  TGraphAntarctica *wais = new TGraphAntarctica();
+  TGraphAntarctica *anita = new TGraphAntarctica();
+  wais->SetPoint(0,AnitaLocations::getWaisLongitude(),AnitaLocations::getWaisLatitude());
+
   
   TFile *waisFile = TFile::Open("waisEvents.root");
-  TTree *summaryTree = (TTree*)waisFile->Get("waisSummary");
+  TTree *summaryTree = (TTree*)waisFile->Get("summaryTree");
   AnitaEventSummary *evSum = NULL;
   summaryTree->SetBranchAddress("eventSummary",&evSum);
 
   for (int i=0; i<summaryTree->GetEntries(); i++) {
     summaryTree->GetEntry(i);
     hWaisEvs->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+    anita->SetPoint(i,evSum->anitaLocation.longitude,evSum->anitaLocation.latitude);
   }
 
+  hWaisEvs->GetXaxis()->SetRangeUser(wais->GetX()[0]-1.2e6,wais->GetX()[0]+1.2e6);
+  hWaisEvs->GetYaxis()->SetRangeUser(wais->GetY()[0]-8e5,wais->GetY()[0]+8e5);
   hWaisEvs->Draw("colz");
+  wais->Draw("psame");
+  wais->SetMarkerStyle(41);
+  anita->Draw("psame");
+  anita->SetMarkerColor(kWhite);
+
 }
 
 
