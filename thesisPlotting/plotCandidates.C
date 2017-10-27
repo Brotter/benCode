@@ -30,7 +30,7 @@
 
 
 void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/templateSearch/macros/trueCandidates_oct14.root",
-		    bool save = false, bool blind = false) {
+		    bool save = true, bool blind = false) {
   /*
 
     I want to plot the single channels that went into a waveform, the coherent sum, and the map
@@ -101,8 +101,6 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
   
   UCorrelator::Correlator *corr = new UCorrelator::Correlator(360,0,360,100,-60,40);
 
-  vector<int> eventNumbers;
-  
   AnitaPol::AnitaPol_t pol = AnitaPol::kHorizontal;
 
   vector<int> eventNumbers;
@@ -118,8 +116,6 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
     data->getEvent(eventNumber);
     cout << "Candidate " << event << " - eventNumber " << eventNumber << endl;
     
-    eventNumbers.push_back(eventNumber);
-
     polarity.push_back(tempSum->deconvolved[0][0].cRay_pol[4]);
 
     FilteredAnitaEvent *filtered = new FilteredAnitaEvent(data->useful(), fStrat, data->gps(), data->header());
@@ -247,13 +243,8 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
   //correlate and align coherent
   for (int i=1; i<lenCands; i++) {
     TGraph *gCorr = FFTtools::getCorrelationGraph(aligned_coherent[0],aligned_coherent[i]);
-<<<<<<< HEAD
-    if (i==2 || i==5) for (int pt=0; pt<gCorr->GetN(); pt++) gCorr->GetY()[pt] *= -1; //tau or direct
-      int peakBin = FFTtools::getPeakBin(gCorr);
-=======
     if (polarity[i]) for (int pt=0; pt<gCorr->GetN(); pt++) gCorr->GetY()[pt] *= -1; //inverted pol
     int peakBin = FFTtools::getPeakBin(gCorr);
->>>>>>> 2590b3715998feb620cafd18d39bd61b21db79e4
     Int_t offsetPt = peakBin-(gCorr->GetN()/2);
     double offset = offsetPt*deltaT;
     delete gCorr;
@@ -264,11 +255,7 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
   //correlate and align deconvolved
   for (int i=1; i<lenCands; i++) {
     TGraph *gCorr = FFTtools::getCorrelationGraph(aligned_deconvolved[0],aligned_deconvolved[i]);
-<<<<<<< HEAD
-    if (i==2 || i==5) for (int pt=0; pt<gCorr->GetN(); pt++) gCorr->GetY()[pt] *= -1; //tau
-=======
     if (polarity[i]) for (int pt=0; pt<gCorr->GetN(); pt++) gCorr->GetY()[pt] *= -1; //inverted pol
->>>>>>> 2590b3715998feb620cafd18d39bd61b21db79e4
     int peakBin = FFTtools::getPeakBin(gCorr);
     Int_t offsetPt = peakBin-(gCorr->GetN()/2);
     double offset = offsetPt*deltaT;
@@ -360,19 +347,49 @@ void plotCandidates(string candidateFilename="/Users/brotter/anita16/benCode/tem
     corrMapsV[i]->SetStats(0);
     corrMapsV[i]->Draw("colz");
 
+
     name.str(""); name << "intMap_ev" << eventNumbers[i] << ".png";
     if (save) mapCan->SaveAs(name.str().c_str());
+
 
     delete mapCan;
     
   }
 
 
+  /*    Interferometric Maps  but just HPol   */
+  for (int i=0; i<lenCands; i++) {
+    name.str("");
+    name << "mapCan" << i;
+    TCanvas *mapCan = new TCanvas(name.str().c_str(),name.str().c_str(),1000,600);
+     TPaveText *title = new TPaveText(0.4,0.90, 0.6,0.95);
+    name.str(""); name << "Event " << eventNumbers[i];
+    title->AddText(name.str().c_str());
+    title->Draw();
+ 
+    name.str("");
+    name << "Event " << eventNumbers[i] << "; Payload Phi (degrees); Elevation (degrees)";
+    corrMapsH[i]->SetTitle(name.str().c_str());
+    corrMapsH[i]->SetStats(0);
+    corrMapsH[i]->Draw("colz");
+
+    name.str(""); name << "intMap_Hpol_ev" << eventNumbers[i] << ".png";
+    if (save) mapCan->SaveAs(name.str().c_str());
+
+
+    delete mapCan;
+    
+  }
+
+
+
+
+
 }
 
 
 
-void saveLocalDistributions() {
+void saveLocalDistributions(string date="10.16.17_01h") {
   /*
 
     Saves the 2d histograms for cut parameters of events near each candidate, with the candidate highlighted
@@ -382,7 +399,9 @@ void saveLocalDistributions() {
 
   gStyle->SetOptStat(0);
 
-  TChain *summaryTree = loadWhatever("/home/brotter/anita16/benCode/templateSearch/macros/clusteringOutputs/10.16.17_01h/","backgroundClusterABCD",64,false);
+  char* dataDir = getenv("ANITA3_RESULTSDIR");
+  name.str(""); name << dataDir << "/cluster/" << date << "/";
+  TChain *summaryTree = loadWhatever(name.str(),"clusterBackground",64,false);
 
   AnitaEventSummary *evSum = NULL;
   AnitaTemplateSummary *tempSum = NULL;
@@ -469,10 +488,3 @@ void saveLocalDistributions() {
   return;
 }
 
-
-
-
-void plotCandidates() {
-  cout << "loaded plotCandidates.C" << endl;
-  return;
-}
