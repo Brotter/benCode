@@ -164,11 +164,11 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
 
   double snrA = eventA->coherent_filtered[0][0].snr;
   if (snrA > 100) snrA = 100;
-  if (snrA < 100) snrA = 4;
+  if (snrA < 4) snrA = 4;
 
   double snrB = eventB->coherent_filtered[0][0].snr;
   if (snrB > 100) snrB = 100;
-  if (snrB < 2) snrB = 4;
+  if (snrB < 4) snrB = 4;
 
   //  cout << "snrA: " << snrA << " dTheta:" << sigmaTheta->Eval(snrA) << " dPhi:" << sigmaPhi->Eval(snrA) << endl;
   //  cout << "snrB: " << snrB << " dTheta:" << sigmaTheta->Eval(snrB) << " dPhi:" << sigmaPhi->Eval(snrB) << endl;
@@ -236,6 +236,52 @@ double calcClusterDistance(AnitaEventSummary *eventA, UsefulAdu5Pat *gpsA, Anita
   return diff;
 
 }
+
+
+double calcClusterDistanceFromEvNums(int evA, int evB, string inSummaryFile="") {
+  
+  TChain *summaryTree;
+  if (inSummaryFile == "") summaryTree = loadAllDefault_noproof();
+  else {
+    summaryTree = new TChain("summaryTree","summaryTree");
+    summaryTree->Add(inSummaryFile.c_str());
+  }
+  int lenEntries = summaryTree->GetEntries();
+  if (!lenEntries) {cout << "no events in file" << endl; return -1;}
+
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+
+
+  cout << "Building index..." << endl;
+  summaryTree->BuildIndex("eventNumber");
+  cout << "Done!" << endl;
+
+
+  int entryA = summaryTree->GetEntryNumberWithIndex(evA);
+  if (entryA < 0) {cout << " couldn't find " << evA << endl; return -1;}
+  int entryB = summaryTree->GetEntryNumberWithIndex(evB);
+  if (entryB < 0) {cout << " couldn't find " << evB << endl; return -1;}
+
+  summaryTree->GetEntry(entryA);
+  AnitaEventSummary *evSumA = (AnitaEventSummary*)evSum->Clone();
+  UsefulAdu5Pat *gpsA = new UsefulAdu5Pat(gps);
+
+
+  summaryTree->GetEntry(entryB);
+  AnitaEventSummary *evSumB = (AnitaEventSummary*)evSum->Clone();
+  UsefulAdu5Pat *gpsB = new UsefulAdu5Pat(gps);
+
+
+  cout << "snrA:" << evSumA->coherent_filtered[0][0].snr << " snrB:" << evSumB->coherent_filtered[0][0].snr << endl;
+
+  return calcClusterDistance(evSumA,gpsA,evSumB,gpsB);
+
+}
+  
+
 
 double getDistanceFromLatLonInKm(double lat1,double lon1,double lat2,double lon2) {
   double R = 6371; // Radius of the earth in km
