@@ -30,7 +30,7 @@ void printNotable(string fileNameBase="cutsClust_oct14",double clusterThreshold=
   name << fileNameBase << "_values.csv";
   ofstream outfile(name.str());
 
-  outfile << "candidateNum eventNumber coherTemplateCorr deconvTemplateCorr mapPeak mapSNR mapTheta cohLinPolFrac deconvLinPolFrac cohTotPolFrac deconvTotPolFrac cohHilbPeak deconvHilbPeak" << endl;
+  outfile << "candidateNum eventNumber sourceLat sourceLon sourceAlt anitaLat anitaLon anitaAlt elevation trueAz coherTemplateCorr deconvTemplateCorr mapPeak mapSNR mapTheta cohLinPolFrac deconvLinPolFrac cohTotPolFrac deconvTotPolFrac cohHilbPeak deconvHilbPeak" << endl;
   
   int candNum=0;
   for (int i=0; i<lenEntries; i++) {
@@ -41,10 +41,17 @@ void printNotable(string fileNameBase="cutsClust_oct14",double clusterThreshold=
 
       AnitaEventSummary::WaveformInfo cohrnt = evSum->coherent_filtered[0][0];
       AnitaEventSummary::WaveformInfo deconv = evSum->deconvolved_filtered[0][0];
-    
+      
+      AnitaEventSummary::PointingHypothesis peak = evSum->peak[0][0];
+      AnitaEventSummary::PayloadLocation anita = evSum->anitaLocation;
+
+
       outfile << candNum << " " << evSum->eventNumber << " ";
+      outfile << peak.latitude << " " << peak.longitude << " " << peak.altitude << " ";
+      outfile << anita.latitude << " " << anita.longitude << " " << anita.altitude << " ";
+      outfile << peak.theta << " " << FFTtools::wrap(anita.heading-peak.phi,360,0) << " ";
       outfile << tempSum->coherent[0][0].cRay[4] << " " << tempSum->deconvolved[0][0].cRay[4] << " ";
-      outfile << evSum->peak[0][0].value << " " << evSum->peak[0][0].snr << " " << evSum->peak[0][0].theta << " ";
+      outfile << peak.value << " " << peak.snr << " " << peak.theta << " ";
       outfile << cohrnt.linearPolFrac() << " " << deconv.linearPolFrac() << " ";
       outfile << cohrnt.totalPolFrac() << " " << deconv.totalPolFrac() << " ";
       outfile << cohrnt.peakHilbert << " " << deconv.peakHilbert << endl;
