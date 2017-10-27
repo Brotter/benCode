@@ -579,7 +579,7 @@ void ABCDMethod() {
 
 
 
-void localUnnormalizedLikelihood(string backgroundClusterFile) {
+void localUnnormalizedLikelihood(bool draw=false) {
   /*
 
     The ABCD method might be stupid.
@@ -591,33 +591,205 @@ void localUnnormalizedLikelihood(string backgroundClusterFile) {
 
 
    */
-  
+  stringstream name;
 
-  TChain *summaryTree = new TChain("summaryTree","summaryTree");
-  summaryTree->Add(backgroundClusterFile.c_str());
+
+  TChain *summaryTree = loadWhatever("/Volumes/ANITA3Data/bigAnalysisFiles/cluster/10.19.17_14h17m/","clusterBackground",64);
   int lenEntries = summaryTree->GetEntries();
-  if (!lenEntries) cout << "No events found in that file, qutting." << endl; return;
-  else cout << "Found " << lenEntries << " events in " << backgroundClusterFile << endl;
+  if (!lenEntries) { cout << "No events found in that file, qutting." << endl; return; }
+  else cout << "Found " << lenEntries << " events" << endl;
+
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  AnitaTemplateSummary *tempSum = NULL;
+  summaryTree->SetBranchAddress("template",&tempSum);
+  int seedEventNumber;
+  summaryTree->SetBranchAddress("seedEventNumber",&seedEventNumber);
 
 
+  //a vector to find all the candidates you find
+  vector<int> seedCandidates;
+  std::vector<int>::iterator seedIt;  
+
+  vector<TH1D*> productDists;
+  TH1D* currHist;
+
+  vector<TH1D*> candDists;
+
+  int seedEntry;
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!(entry%10000)) cout << entry << "/" << lenEntries << endl;
+    summaryTree->GetEntry(entry);
+
+    if (TMath::Abs(evSum->peak[0][0].hwAngle) > 45) continue;
+    if (evSum->flags.maxBottomToTopRatio[0] > 3) continue;
+    if (!evSum->flags.isRF) continue;
+
+
+
+    seedIt = find(seedCandidates.begin(), seedCandidates.end(), seedEventNumber);
+    if (seedIt == seedCandidates.end()) {
+      cout << "New eventNumber:" << seedEventNumber << endl;
+      seedCandidates.push_back(seedEventNumber);
+
+      name.str("");
+      if (seedEventNumber > 0)        name << "ev" << seedEventNumber;
+      else if (seedEventNumber == -1) name << "WAIS";
+      else if (seedEventNumber == -2) name << "LDB";
+      else                            name << "ev_negative" << seedEventNumber;
+      currHist = new TH1D(name.str().c_str(),name.str().c_str(),1000,-5,5);
+      productDists.push_back(currHist);
+    }
+    else {
+      currHist = productDists[seedIt - seedCandidates.begin()];
+    }
+    
+    double product = 1.0;
+    product *= evSum->peak[0][0].value;
+    product *= evSum->peak[0][0].snr;
+    product *= tempSum->coherent[0][0].cRay[4];
+    product *= tempSum->deconvolved[0][0].cRay[4];
+    product *= evSum->coherent_filtered[0][0].peakHilbert;
+    product *= evSum->coherent_filtered[0][0].peakVal;
+    product *= evSum->coherent_filtered[0][0].linearPolFrac();
+
+    currHist->Fill(TMath::Log10(product));
+
+    if (seedEventNumber == evSum->eventNumber) {
+      cout << "Found ev" << evSum->eventNumber << " with product: " << product << endl;
+      name.str("");
+      if (seedEventNumber > 0) name << "cand" << seedEventNumber;
+      TH1D *candHist = new TH1D(name.str().c_str(),name.str().c_str(),1000,-5,5);
+      candHist->Fill(TMath::Log10(product));
+      candHist->SetLineColor(kRed);
+      candDists.push_back(candHist);
+    }
+
+  }
+  
+  TFile *outFile = TFile::Open("localBackgroundProducts.root","recreate");
+  for (int i=0;i<productDists.size();i++) {
+    cout << "eventNumber:" << seedCandidates[i] << endl;
+    productDists[i]->Write();
+  }
+  for (int i=0;i<candDists.size();i++) {
+    candDists[i]->Write();
+  }
+
+
+  outFile->Close();
+
+  if (draw) {
+    for (int i=0;i<productDists.size();i++) {
+      name.str(""); name << "c" << i;
+      TCanvas *c1 = new TCanvas(name.str().c_str(),"",500,500);
+      c1->SetLogy();
+      cout << "eventNumber:" << seedCandidates[i] << endl;
+      productDists[i]->Draw();
+      
+    }
+  }
+
+
+}
+
+
+
+void saveLocalDistributions(string date="10.16.17_01h") {
+  /*
+
+    Saves the 2d histograms for cut parameters of events near each candidate, with the candidate highlighted
+
+   */
+  stringstream name;
+
+  gStyle->SetOptStat(0);
+
+  char* dataDir = getenv("ANITA3_RESULTSDIR");
+  name.str(""); name << dataDir << "/cluster/" << date << "/";
+  TChain *summaryTree = loadWhatever(name.str(),"clusterBackground",64,false);
 
   AnitaEventSummary *evSum = NULL;
   AnitaTemplateSummary *tempSum = NULL;
   summaryTree->SetBranchAddress("eventSummary",&evSum);
   summaryTree->SetBranchAddress("template",&tempSum);
-  
+  summaryTree->BuildIndex("eventNumber");
 
-  for (int event=0; event<
+  //to get the event numbers
+  TFile *candTreeFile = TFile::Open("/home/brotter/anita16/benCode/templateSearch/macros/trueCandidates_oct14.root");
+  TTree *candTree = (TTree*)candTreeFile->Get("summaryTree");
+  AnitaEventSummary *candSum = NULL;
+  candTree->SetBranchAddress("eventSummary",&candSum);
 
+  TGraph *temp = new TGraph();
+  temp->SetMarkerStyle(4);
+  temp->SetMarkerSize(4);
 
+  TCanvas *c1 = new TCanvas("c1","c1",1000,1000);
 
-    }
-  
+  int entry;
+  for (int cand=0; cand<candTree->GetEntries(); cand++) {
+    candTree->GetEntry(cand);
+    int eventNumber = candSum->eventNumber;
 
+    c1->Clear();
+    c1->cd();
+    name.str("");
+    name << "ev" << eventNumber << ";Deconvoled Template Correlation; Coherent Sum Template Correlation";
+    TH2D* hTempVsTemp = new TH2D("hTempVsTemp",name.str().c_str(),100,0,1,100,0,1);
+    name.str(""); name << "seedEventNumber == " << eventNumber;
+    summaryTree->Draw("template.coherent[0][0].cRay[4]:template.deconvolved[0][0].cRay[4] >> hTempVsTemp",name.str().c_str(),"colz");
 
+    entry = summaryTree->GetEntryNumberWithBestIndex(eventNumber);
+    if (entry>0) summaryTree->GetEntry(entry);
+    else cout << "whoops, couldn't find event number " << eventNumber << endl;
+    temp->SetPoint(0,tempSum->deconvolved[0][0].cRay[4],tempSum->coherent[0][0].cRay[4]);
+    temp->Draw("p same");
 
+    name.str(""); name << "ev" << eventNumber << "_tempVsTemp.png";
+    c1->SaveAs(name.str().c_str());
 
+    delete hTempVsTemp;
 
+    c1->Clear();
+    c1->cd();
+    name.str("");
+    name << "ev" << eventNumber << ";Map Peak; Map SNR";
+    TH2D* hMap = new TH2D("hMap",name.str().c_str(),100,0,0.3,100,0,25);
+    name.str(""); name << "seedEventNumber == " << eventNumber;
+    summaryTree->Draw("peak[0][0].snr:peak[0][0].value >> hMap",name.str().c_str(),"colz");
 
+    entry = summaryTree->GetEntryNumberWithBestIndex(eventNumber);
+    if (entry>0) summaryTree->GetEntry(entry);
+    else cout << "whoops, couldn't find event number " << eventNumber << endl;
+    temp->SetPoint(0,evSum->peak[0][0].value,evSum->peak[0][0].snr);
+    temp->Draw("p same");
 
+    name.str(""); name << "ev" << eventNumber << "_interfMap.png";
+    c1->SaveAs(name.str().c_str());
 
+    delete hMap;
+
+    c1->Clear();
+    c1->cd();
+    name.str("");
+    name << "ev" << eventNumber << ";Coherent Sum Hilbert Peak; Coherent Linear Polarization Fraction";
+    TH2D* hHilbLinFrac = new TH2D("hHilbLinFrac",name.str().c_str(),100,0,130,100,0,1);
+    name.str(""); name << "seedEventNumber == " << eventNumber;
+    summaryTree->Draw("coherent_filtered[0][0].linearPolFrac():coherent_filtered[0][0].peakHilbert >> hHilbLinFrac",name.str().c_str(),"colz");
+
+    entry = summaryTree->GetEntryNumberWithBestIndex(eventNumber);
+    if (entry>0) summaryTree->GetEntry(entry);
+    else cout << "whoops, couldn't find event number " << eventNumber << endl;
+    temp->SetPoint(0,evSum->coherent_filtered[0][0].peakHilbert,evSum->coherent_filtered[0][0].linearPolFrac());
+    temp->Draw("p same");
+
+    name.str(""); name << "ev" << eventNumber << "_hilbLinFrac.png";
+    c1->SaveAs(name.str().c_str());
+    
+    delete hHilbLinFrac;
+
+  }
+
+  return;
+}
