@@ -1,3 +1,32 @@
+
+TChain *loadWhatever(string basePrefix, int numFiles, bool doProof=false) {
+  /*
+
+    A generalized form of loading things
+
+  */
+
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+
+  if (doProof) gROOT->ProcessLine(".x setupProof.C");
+
+  stringstream name;
+    for (int i=0; i<numFiles; i++) {
+    name.str("");
+    name << basePrefix << "_" << i << ".root";
+    summaryTree->Add(name.str().c_str());
+  }
+  int lenEntries = summaryTree->GetEntries();
+  cout << "loadWhatever(): Found " << lenEntries << " entries" << endl;
+
+  if (doProof) summaryTree->SetProof();
+
+  return summaryTree;
+}
+
+
+
 TChain *loadReKey(bool doProof = true) {
   /*
     
@@ -103,31 +132,21 @@ TChain *loadPseudoBases(string date = "10.05.17_14h",bool doProof=false) {
 }
 
 
-TChain *loadWhatever(string baseDir, string prefix, int numFiles, bool doProof=false) {
+
+TChain *loadBkgdCluster(string date="10.31.17_11h59m", int numFiles=64, bool doProof=false) {
   /*
-
-    A generalized form of the above
-
-  */
-
-
-  TChain *summaryTree = new TChain("summaryTree","summaryTree");
-
-  if (doProof) gROOT->ProcessLine(".x setupProof.C");
+    Just a quick thing I call all the time
+   */
 
   stringstream name;
-    for (int i=0; i<numFiles; i++) {
-    name.str("");
-    name << baseDir << "/" << prefix << "_" << i << ".root";
-    summaryTree->Add(name.str().c_str());
-  }
-  int lenEntries = summaryTree->GetEntries();
-  cout << "loadWhatever(): Found " << lenEntries << " entries" << endl;
-
-  if (doProof) summaryTree->SetProof();
-
-  return summaryTree;
+  char* dataDir = getenv("ANITA3_RESULTSDIR");
+  name.str("");
+  name << dataDir << "/cluster/" << date << "clusterBackground";
+  return loadWhatever(name.str(),numFiles,doProof);
 }
+
+
+
   
 
 
