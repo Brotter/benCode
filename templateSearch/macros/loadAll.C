@@ -141,7 +141,7 @@ TChain *loadBkgdCluster(string date="10.31.17_11h59m", int numFiles=64, bool doP
   stringstream name;
   char* dataDir = getenv("ANITA3_RESULTSDIR");
   name.str("");
-  name << dataDir << "/cluster/" << date << "clusterBackground";
+  name << dataDir << "/cluster/" << date << "/clusterBackground";
   return loadWhatever(name.str(),numFiles,doProof);
 }
 
