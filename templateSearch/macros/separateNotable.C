@@ -6,12 +6,72 @@ Separates out the notable events (wais, ldb, things that have good simple cut va
 
 #include "loadAll.C"
 
+
+void separateSingleEvent(int eventNumber, string inFileName="") {
+  /*
+    inputs a single event number and saves it as summaryTree######.root
+
+    if inFileName is given, it looks through that file instead of the full dataset
+
+   */
+
+
+
+  TChain *summaryTree;
+  if (inFileName=="") {
+    summaryTree = loadAllDefault_noproof();
+  }
+  else {
+      summaryTree = new TChain("summaryTree","summaryTree");
+      summaryTree->Add(inFileName.c_str());
+  }
+
+  cout << "building index..."; fflush(stdout);
+  summaryTree->BuildIndex("eventNumber");
+  cout << " done!" << endl;
+
+  int entry = summaryTree->GetEntryNumberWithIndex(eventNumber);
+  if (entry<0) {
+    cout << "couldn't find that eventNumber " << eventNumber << " in that file, quitting" << endl;
+    return;
+  }
+
+  string outName = "summaryTree"+to_string(eventNumber)+".root";
+  TFile *outFile = TFile::Open(outName.c_str(),"recreate");
+  TTree *outTree = new TTree("summaryTree","summaryTree");
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  outTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  outTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  outTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  outTree->Branch("gpsEvent",&gps);
+  
+  
+  summaryTree->GetEntry(entry);
+
+  outTree->Fill();
+  outFile->Close();
+
+  cout << "cool got it" << endl;
+  return;
+}
+
+
+
+
 void separateNotable_fromScratch() {
 /*
   This one goes through the full dataset and grabs the ones that are important
 */
 
-  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
+  TChain *summaryTree = loadAllDefault_noproof();
 
   int lenEntries = summaryTree->GetEntries();
   cout << lenEntries << " total entries found" << endl;
