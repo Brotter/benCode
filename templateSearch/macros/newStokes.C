@@ -1,4 +1,20 @@
-#include "Analyzer.h"
+#include "UsefulAdu5Pat.h"
+#include "UsefulAnitaEvent.h"
+#include "FFTtools.h"
+#include "AnitaConventions.h"
+#include "AnitaEventSummary.h"
+#include "AnalysisConfig.h" 
+#include "UCFilters.h" 
+#include "PeakFinder.h" 
+#include "FilterStrategy.h" 
+#include "Correlator.h" 
+#include "Analyzer.h" 
+#include "WaveformCombiner.h"
+#include "AnitaDataset.h"
+#include "SystemResponse.h"
+#include "UCUtil.h"
+#include "AnitaGeomTool.h"
+#include "AntennaPositions.h"
 
 /*
 
@@ -10,42 +26,47 @@
  */
 
 
-void allocateStokes(int N, double* Iavg,double *Qavg,double* Uavg,double* Vavg, double* Iins,double *Qins,double* Uins,double* Vins) {
+void allocateStokes(int N,
+		    double** Iavg,double** Qavg,double** Uavg,double** Vavg,
+		    double** Iins,double** Qins,double** Uins,double** Vins) {
   /*
 
     Allocate a bunch of huge buckets of memory
 
   */
 
-  Iavg = new double[N];
-  Qavg = new double[N];
-  Uavg = new double[N];
-  Vavg = new double[N];
+  *Iavg = (double*)calloc(N,sizeof(double));
+  *Qavg = (double*)calloc(N,sizeof(double));
+  *Uavg = (double*)calloc(N,sizeof(double));
+  *Vavg = (double*)calloc(N,sizeof(double));
+  		  
+  *Iins = (double*)calloc(N,sizeof(double));
+  *Qins = (double*)calloc(N,sizeof(double));
+  *Uins = (double*)calloc(N,sizeof(double));
+  *Vins = (double*)calloc(N,sizeof(double));
 
-  Iins = new double[N];
-  Qins = new double[N];
-  Uins = new double[N];
-  Vins = new double[N];
 
+  cout << "stokes allocated to N=" << N << endl;
   return;
 }
 
-void deleteStokes(double* Iavg,double *Qavg,double* Uavg,double* Vavg, double* Iins,double *Qins,double* Uins,double* Vins) {
+void deleteStokes(double** Iavg,double** Qavg,double** Uavg,double** Vavg,
+		  double** Iins,double** Qins,double** Uins,double** Vins) {
   /*
     
     deletes all these things
 
    */
 
-  if (Iavg) delete [] Iavg;
-  if (Qavg) delete [] Qavg;
-  if (Uavg) delete [] Uavg;
-  if (Vavg) delete [] Vavg;
-
-  if (Iins) delete [] Iins;
-  if (Qins) delete [] Qins;
-  if (Uins) delete [] Uins;
-  if (Vins) delete [] Vins;
+  free(*Iavg);
+  free(*Qavg);
+  free(*Uavg);
+  free(*Vavg);
+            
+  free(*Iins);
+  free(*Qins);
+  free(*Uins);
+  free(*Vins);
 }
 
 
@@ -61,7 +82,8 @@ void debugDrawStokes(string name, int N,
   TGraph *gIavg = new TGraph();
   gName = "g"+name+"_Iavg";
   gIavg->SetName(gName.c_str());
-  gIavg->SetTitle("Average");
+  gName = "Average "+name;
+  gIavg->SetTitle(gName.c_str());
   TGraph *gQavg = new TGraph();
   gName = "g"+name+"_Qavg";
   gQavg->SetName(gName.c_str());
@@ -75,7 +97,8 @@ void debugDrawStokes(string name, int N,
   TGraph *gIins = new TGraph();
   gName = "g"+name+"_Iins";
   gIins->SetName(gName.c_str());
-  gIins->SetTitle("Instantaneous");
+  gName = "Instantaneous "+name;
+  gIins->SetTitle(gName.c_str());
   TGraph *gQins = new TGraph();
   gName = "g"+name+"_Qins";
   gQins->SetName(gName.c_str());
@@ -87,13 +110,13 @@ void debugDrawStokes(string name, int N,
   gVins->SetName(gName.c_str());
 
 
-  gQavg->SetMarkerColor(kBlue);
-  gUavg->SetMarkerColor(kRed);
-  gVavg->SetMarkerColor(kGreen);
+  gQavg->SetLineColor(kBlue);
+  gUavg->SetLineColor(kRed);
+  gVavg->SetLineColor(kGreen);
   
-  gQins->SetMarkerColor(kBlue);
-  gUins->SetMarkerColor(kRed);
-  gVins->SetMarkerColor(kGreen);
+  gQins->SetLineColor(kBlue);
+  gUins->SetLineColor(kRed);
+  gVins->SetLineColor(kGreen);
 
 
   
@@ -111,14 +134,14 @@ void debugDrawStokes(string name, int N,
 
   string cName = "c"+name;
   TCanvas *c1 = new TCanvas(cName.c_str(),cName.c_str(),1000,500);
-  c1->Divide(1,2);
+  c1->Divide(2);
 
   c1->cd(1);
   gIavg->Draw("al");
   gQavg->Draw("lsame");
   gUavg->Draw("lsame");
   gVavg->Draw("lsame");
-  TLegend *leg1 = new TLegend(0.2,0.7,0.4,0.8);
+  TLegend *leg1 = new TLegend(0.1,0.7,0.3,0.9);
   leg1->AddEntry(gIavg,"I","l");
   leg1->AddEntry(gQavg,"Q","l");
   leg1->AddEntry(gUavg,"U","l");
@@ -130,7 +153,7 @@ void debugDrawStokes(string name, int N,
   gQins->Draw("lsame");
   gUins->Draw("lsame");
   gVins->Draw("lsame");
-  TLegend *leg2 = new TLegend(0.5,0.7,0.7,0.8);
+  TLegend *leg2 = new TLegend(0.1,0.7,0.3,0.9);
   leg2->AddEntry(gIins,"I","l");
   leg2->AddEntry(gQins,"Q","l");
   leg2->AddEntry(gUins,"U","l");
@@ -222,8 +245,6 @@ void redoStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
     int entryCheck = data->getEvent(eventNumber);
     if (entryCheck < 0) {
       cout << "Whoops I couldn't find eventNumber " << eventNumber << ".  Gotta fix me! Saving and Quitting..." << endl;
-      outTree->Write();
-      outFile->Close();
       return -1;
     }
 
@@ -237,21 +258,21 @@ void redoStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
     AnalysisWaveform *coherent = new AnalysisWaveform(*wfcomb->getCoherent()); 
     AnalysisWaveform *deconvolved = new AnalysisWaveform(*wfcomb->getDeconvolved()); 
     wfcomb->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical);
-    AnalysisWaveform *coherent_xpol = new AnalysisWaveform(*wfcomb_xpol->getCoherent()); 
-    AnalysisWaveform *deconvolved_xpol = new AnalysisWaveform(*wfcomb_xpol->getDeconvolved());
+    AnalysisWaveform *coherent_xpol = new AnalysisWaveform(*wfcomb->getCoherent()); 
+    AnalysisWaveform *deconvolved_xpol = new AnalysisWaveform(*wfcomb->getDeconvolved());
 
     wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal);
     AnalysisWaveform *coherent_filtered = new AnalysisWaveform(*wfcomb_filtered->getCoherent()); 
     AnalysisWaveform *deconvolved_filtered = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved()); 
     wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical);
-    AnalysisWaveform *coherent_filtered_xpol = new AnalysisWaveform(*wfcomb_xpol_filtered->getCoherent()); 
-    AnalysisWaveform *deconvolved_filtered_xpol = new AnalysisWaveform(*wfcomb_xpol_filtered->getDeconvolved());     
+    AnalysisWaveform *coherent_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getCoherent()); 
+    AnalysisWaveform *deconvolved_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved());     
 
 
 
     //redo stokes
     //  This is where things change a lot.  The FFTtools::stokesParameters() function has a TON of functionality I want to test
-
+    cout << "redoing stokes" << endl;
 
     //define stuff
     AnalysisWaveform *wf;
@@ -261,70 +282,75 @@ void redoStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
     int N;
 
     //coherent
+    cout << "coherent" << endl;
     wf = coherent;
     wf_xpol = coherent_xpol;
-    N = wf->even->GetN();
-    allocateStokes(N, Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
+    N = wf->even()->GetN();
+    allocateStokes(N, &Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
 
     FFTtools::stokesParameters(N,
 			       wf->even()->GetY(), wf->hilbertTransform()->even()->GetY(),
 			       wf_xpol->even()->GetY(),wf_xpol->hilbertTransform()->even()->GetY(), 
                                Iavg,Qavg,Uavg,Vavg,
-                               Iins,Qins,Uins,Vins);
+                               Iins,Qins,Uins,Vins, false);
 			       
+    cout << "computed stokes" << endl;
     if (debugDraw) debugDrawStokes("coherent", N, Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
 
-    deleteStokes(Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
+    deleteStokes(&Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
 
     //deconvolved
+    cout << "deconvolved" << endl;
     wf = deconvolved;
     wf_xpol = deconvolved_xpol;
-    N = wf->even->GetN();
-    allocateStokes(N, Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
+    N = wf->even()->GetN();
+    allocateStokes(N, &Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
 
     FFTtools::stokesParameters(N,
 			       wf->even()->GetY(), wf->hilbertTransform()->even()->GetY(),
 			       wf_xpol->even()->GetY(),wf_xpol->hilbertTransform()->even()->GetY(), 
                                Iavg,Qavg,Uavg,Vavg,
-                               Iins,Qins,Uins,Vins);
+                               Iins,Qins,Uins,Vins, false);
 			       
     if (debugDraw) debugDrawStokes("deconvolved", N, Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
 
-    deleteStokes(Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
+    deleteStokes(&Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
 
 
     //coherent_filtered
+    cout << "coherent_filtered" << endl;
     wf = coherent_filtered;
     wf_xpol = coherent_filtered_xpol;
-    N = wf->even->GetN();
-    allocateStokes(N, Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
+    N = wf->even()->GetN();
+    allocateStokes(N, &Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
 
     FFTtools::stokesParameters(N,
 			       wf->even()->GetY(), wf->hilbertTransform()->even()->GetY(),
 			       wf_xpol->even()->GetY(),wf_xpol->hilbertTransform()->even()->GetY(), 
                                Iavg,Qavg,Uavg,Vavg,
-                               Iins,Qins,Uins,Vins);
+                               Iins,Qins,Uins,Vins, false);
 			       
     if (debugDraw) debugDrawStokes("coherent_filtered", N, Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
 
-    deleteStokes(Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
+    deleteStokes(&Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
 
 
     //deconvolved_filtered
+    cout << "deconvolved_filtered" << endl;
     wf = deconvolved_filtered;
     wf_xpol = deconvolved_filtered_xpol;
-    N = wf->even->GetN();
-    allocateStokes(N, Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
+    N = wf->even()->GetN();
+    allocateStokes(N, &Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
 
     FFTtools::stokesParameters(N,
 			       wf->even()->GetY(), wf->hilbertTransform()->even()->GetY(),
 			       wf_xpol->even()->GetY(),wf_xpol->hilbertTransform()->even()->GetY(), 
                                Iavg,Qavg,Uavg,Vavg,
-                               Iins,Qins,Uins,Vins);
+                               Iins,Qins,Uins,Vins, false);
 			       
     if (debugDraw) debugDrawStokes("deconvolved_filtered", N, Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
 
-    deleteStokes(Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
+    deleteStokes(&Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
 
 
 
