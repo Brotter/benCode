@@ -15,6 +15,7 @@
 #include "UCUtil.h"
 #include "AnitaGeomTool.h"
 #include "AntennaPositions.h"
+#include "Polarimetry.h"
 
 /*
 
@@ -26,19 +27,301 @@
  */
 
 
-void allocateStokes(int N,
-		    double** Iavg,double** Qavg,double** Uavg,double** Vavg,
-		    double** Iins,double** Qins,double** Uins,double** Vins) {
+
+void reCalcStokes(polarimetry::StokesAnalysis *stokesAnalysis, double &Iout, double &Qout, double &Uout, double &Vout) {
+  /*
+
+    Get the integral of the peak of the instantaneous stokes parameters
+
+   */
+
+    //cool, lets take the integral of the useful region as well
+    TGraph instI = stokesAnalysis->instI();
+    TGraph instQ = stokesAnalysis->instQ();
+    TGraph instU = stokesAnalysis->instU();
+    TGraph instV = stokesAnalysis->instV();
+    int N = instI.GetN();
+
+    Long64_t locMaxI = TMath::LocMax(N,instI.GetY());
+    double maxI = TMath::MaxElement(N,instI.GetY());
+    
+    int i = locMaxI;
+    while ( instI.GetY()[i]/maxI > 0.2) {
+      Iout += instI.GetY()[i];
+      Qout += instQ.GetY()[i];
+      Uout += instU.GetY()[i];
+      Vout += instV.GetY()[i];
+      i++;
+    }
+    i = locMaxI;
+    while ( instI.GetY()[i]/maxI > 0.2) {
+      Iout += instI.GetY()[i];
+      Qout += instQ.GetY()[i];
+      Uout += instU.GetY()[i];
+      Vout += instV.GetY()[i];
+      i--;
+    }
+
+
+  return;
+}
+
+
+void reCalcStokesFromSummaryTree(string inFileName,int numSplits=1, int splitNum=0, string outDirName="") {
+  /*
+
+    Input: Give it a summary tree file name
+    Output: It will output a new one with a "_newStokes" at the end that has recalculated values
+
+    opt:
+    numSplits: number of splits to divide the data up into in case you want to cluster run it
+    splitNum: number of the split this specific instance will run (starting at zero)
+    outDirName: gives a directory (that exists already!) to dump the files in, otherwise it will dump it in the local directory
+   */
+
+  stringstream name;
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(inFileName.c_str());
+  int totEntries = summaryTree->GetEntries();
+  if (!totEntries) {
+    cout << "No entries in that tree!" << endl;
+    return;
+  }
+  cout << "found " << totEntries << " events to redo" << endl;
+
+
+
+  //I'll need to split this up onto the servers, because it takes forever
+  int startEntry,stopEntry,lenEntries;
+  if (numSplits == 1) {
+    startEntry=0;
+    stopEntry=totEntries;
+    lenEntries=totEntries;
+  }
+  else {
+    lenEntries = totEntries/numSplits;
+    startEntry = splitNum*lenEntries;
+    stopEntry = (splitNum+1)*lenEntries;
+    if (splitNum==numSplits-1) {
+      stopEntry = totEntries;
+      lenEntries = totEntries-startEntry;
+    }
+    cout << "Splitting into " << numSplits << " sections, which means " << lenEntries << " events for this section" << endl;
+    cout << "Doing section: " << splitNum << ", starting at entry " << startEntry << " and stopping at " << stopEntry << endl;
+  }
+
+
+  
+  //open an output file
+  name.str("");
+  size_t pos = inFileName.find(".root");
+  string baseName = inFileName.substr(0,pos);
+  name << outDirName << "/" << baseName << "_newStokes";
+  if (numSplits > 1) name << "_" << splitNum;
+  name << ".root";
+  cout << "Using output file " << name.str() << endl;
+  TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
+  if (!outFile->IsOpen()) {
+    cout << "Didn't open output file!  Quitting." << endl;
+    return -1;
+  }
+  TTree *outTree = new TTree("summaryTree","summaryTree");  
+
+  //link it all together
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *templateSummary = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  outTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&templateSummary);
+  outTree->Branch("template",&templateSummary);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  outTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  outTree->Branch("gpsEvent",&gps);
+
+
+  //new stuff
+  AnitaEventSummary::WaveformInfo *newTop = new AnitaEventSummary::WaveformInfo();
+  AnitaEventSummary::WaveformInfo *newMid = new AnitaEventSummary::WaveformInfo();
+  AnitaEventSummary::WaveformInfo *newBot = new AnitaEventSummary::WaveformInfo();
+  AnitaEventSummary::WaveformInfo *newAll = new AnitaEventSummary::WaveformInfo();
+  outTree->Branch("newStokesTop",&newTop);
+  outTree->Branch("newStokesMid",&newMid);
+  outTree->Branch("newStokesBot",&newBot);
+  outTree->Branch("newStokesAll",&newAll);
+  
+
+  
+  //  need all the full root data too.  Start at 130, no decimation, and no blinding strat
+  AnitaDataset *data = new AnitaDataset(130,false);
+
+  //  some config stuff
+  UCorrelator::AnalysisConfig *config = new UCorrelator::AnalysisConfig();
+  //set the response to my "individual" response, since that appropriately handles all the channels
+  config->response_option = UCorrelator::AnalysisConfig::ResponseOption_t::ResponseIndividualBRotter;
+  //all pass deconvolution
+  AnitaResponse::AllPassDeconvolution *apd = new AnitaResponse::AllPassDeconvolution();
+  config->deconvolution_method = apd;
+  //and to make the previous one obsolete, make it calculate the offsets compared to some central point
+  config->delay_to_center = true;
+  //set it to 15 antennas
+  const int combine_nantennas = 15;
+  config->combine_nantennas = combine_nantennas;
+  //get the responses
+  AnitaResponse::ResponseManager *responses = new AnitaResponse::ResponseManager(UCorrelator::AnalysisConfig::getResponseString(config->response_option),config->response_npad, config->deconvolution_method);
+
+
+  //  filtering strat
+  FilterStrategy *fStrat = UCorrelator::getStrategyWithKey("sinsub_10_3_ad_2");
+
+
+  //lets save each ring's polarimetry separately, so make some masks
+  UInt_t allowedTop = 0ul;
+  for (int i=0; i<16; i++) {
+    allowedTop |= (1ul << i);
+  }
+
+  UInt_t allowedMid = 0ul;
+  for (int i=0; i<16; i++) {
+    allowedMid |= (1ul << (i+16));
+  }
+
+  UInt_t allowedBot = 0ul;
+  for (int i=0; i<16; i++) {
+    allowedBot |= (1ul << (i+32));
+  }
+
+
+  //waveform combiner.  (15 ants, npad=3 is default, filtered, deconvolved,responses)
+  UCorrelator::WaveformCombiner *wfcomb = new UCorrelator::WaveformCombiner(combine_nantennas,config->combine_npad,
+									    true,true,responses);
+  UCorrelator::WaveformCombiner *wfcomb_filtered = new UCorrelator::WaveformCombiner(combine_nantennas,config->combine_npad,
+										     false,true,responses);
+  wfcomb->setDelayToCenter(config->delay_to_center);
+  wfcomb_filtered->setDelayToCenter(config->delay_to_center);
+
+  wfcomb->setGroupDelayFlag(config->enable_group_delay); 
+  wfcomb_filtered->setGroupDelayFlag(config->enable_group_delay); 
+
+
+
+
+
+  /*  LOOP START LOOP START LOOP START LOOP START LOOP START LOOP START LOOP START LOOP START LOOP START */
+
+  /*  LOOP START LOOP START LOOP START LOOP START LOOP START LOOP START LOOP START LOOP START LOOP START */
+
+  /*  LOOP START LOOP START LOOP START LOOP START LOOP START LOOP START LOOP START LOOP START LOOP START */
+  //Loop through all the data!
+  TStopwatch watch;
+  watch.Start(kTRUE);
+  int totalTimeSec = 0;
+  int skipped = 0;
+  for (int entry=startEntry; entry<stopEntry; entry++) {
+    //printout
+    int printEntry = entry-startEntry;
+    if (printEntry%100==0 && printEntry!=0) {
+      cout << printEntry << "/" << lenEntries << " | ";
+      int timeElapsed = watch.RealTime();
+      totalTimeSec += timeElapsed;
+      double rate = float(printEntry)/totalTimeSec;
+      double processedFrac = 1.-float(skipped)/printEntry;
+      double remaining = ((float(lenEntries-printEntry)*processedFrac)/rate)/60.;
+      cout << std::setprecision(4) << 1./timeElapsed << "Hz <" << rate << ">";
+      cout << "(skipped: " << skipped << " - " << processedFrac*100 << "%) ";
+      cout << remaining << " minutes left, " << totalTimeSec/60. << " minutes elapsed" << endl;
+      watch.Start();
+    }
+
+    summaryTree->GetEntry(entry);
+
+    //filter that waveform
+    FilteredAnitaEvent *filtered = new FilteredAnitaEvent(data->useful(), fStrat, data->gps(), data->header());
+
+    //just define this because I use it a lot
+    AnitaPol::AnitaPol_t pol = AnitaPol::kHorizontal;
+
+
+    AnalysisWaveform *deconvolved_filtered, *deconvolved_filtered_xpol;
+    polarimetry::StokesAnalysis *stokesAnalysis;
+
+    //all antennas
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal);
+    deconvolved_filtered = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved()); 
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical);
+    deconvolved_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved());     
+    stokesAnalysis = new polarimetry::StokesAnalysis(deconvolved_filtered,deconvolved_filtered_xpol);
+    reCalcStokes(stokesAnalysis,newAll->I,newAll->Q,newAll->U,newAll->V);
+
+    delete deconvolved_filtered;
+    delete deconvolved_filtered_xpol;
+    delete stokesAnalysis;
+
+    //top antennas
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,allowedTop);
+    deconvolved_filtered = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved()); 
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical,allowedTop);
+    deconvolved_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved());     
+    stokesAnalysis = new polarimetry::StokesAnalysis(deconvolved_filtered,deconvolved_filtered_xpol);
+    reCalcStokes(stokesAnalysis,newTop->I,newTop->Q,newTop->U,newTop->V);
+
+    delete deconvolved_filtered;
+    delete deconvolved_filtered_xpol;
+    delete stokesAnalysis;
+
+    //mid antennas
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,allowedMid);
+    deconvolved_filtered = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved()); 
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical,allowedMid);
+    deconvolved_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved());     
+    stokesAnalysis = new polarimetry::StokesAnalysis(deconvolved_filtered,deconvolved_filtered_xpol);
+    reCalcStokes(stokesAnalysis,newMid->I,newMid->Q,newMid->U,newMid->V);
+
+    delete deconvolved_filtered;
+    delete deconvolved_filtered_xpol;
+    delete stokesAnalysis;
+
+    //bot antennas
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,allowedBot);
+    deconvolved_filtered = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved()); 
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical,allowedBot);
+    deconvolved_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved());     
+    stokesAnalysis = new polarimetry::StokesAnalysis(deconvolved_filtered,deconvolved_filtered_xpol);
+    reCalcStokes(stokesAnalysis,newBot->I,newBot->Q,newBot->U,newBot->V);
+
+    delete deconvolved_filtered;
+    delete deconvolved_filtered_xpol;
+    delete stokesAnalysis;
+
+    outFile->cd();
+    outTree->Fill();
+    
+    delete filtered;
+  
+  }
+
+  outFile->cd();
+  outTree->Write();
+  outFile->Close();
+
+
+  return;
+}
+
+
+
+
+/*testing stuff */
+
+void allocateStokes(int N,double** Iins,double** Qins,double** Uins,double** Vins) {
   /*
 
     Allocate a bunch of huge buckets of memory
 
   */
-
-  *Iavg = (double*)calloc(N,sizeof(double));
-  *Qavg = (double*)calloc(N,sizeof(double));
-  *Uavg = (double*)calloc(N,sizeof(double));
-  *Vavg = (double*)calloc(N,sizeof(double));
   		  
   *Iins = (double*)calloc(N,sizeof(double));
   *Qins = (double*)calloc(N,sizeof(double));
@@ -50,18 +333,13 @@ void allocateStokes(int N,
   return;
 }
 
-void deleteStokes(double** Iavg,double** Qavg,double** Uavg,double** Vavg,
-		  double** Iins,double** Qins,double** Uins,double** Vins) {
+void deleteStokes(double** Iins,double** Qins,double** Uins,double** Vins) {
+		  
   /*
     
     deletes all these things
 
    */
-
-  free(*Iavg);
-  free(*Qavg);
-  free(*Uavg);
-  free(*Vavg);
             
   free(*Iins);
   free(*Qins);
@@ -70,29 +348,14 @@ void deleteStokes(double** Iavg,double** Qavg,double** Uavg,double** Vavg,
 }
 
 
-void debugDrawStokes(string name, int N, 
-		     double* Iavg,double *Qavg,double* Uavg,double* Vavg, double* Iins,double *Qins,double* Uins,double* Vins) {
+void debugDrawStokes(string name, int N, double* Iins,double *Qins,double* Uins,double* Vins) {
+		     
   /*
 
     Creates a new canvas and draws it with all these parameters
 
    */
   string gName;
-
-  TGraph *gIavg = new TGraph();
-  gName = "g"+name+"_Iavg";
-  gIavg->SetName(gName.c_str());
-  gName = "Average "+name;
-  gIavg->SetTitle(gName.c_str());
-  TGraph *gQavg = new TGraph();
-  gName = "g"+name+"_Qavg";
-  gQavg->SetName(gName.c_str());
-  TGraph *gUavg = new TGraph();
-  gName = "g"+name+"_Uavg";
-  gUavg->SetName(gName.c_str());
-  TGraph *gVavg = new TGraph();
-  gName = "g"+name+"_Vavg";
-  gVavg->SetName(gName.c_str());
 
   TGraph *gIins = new TGraph();
   gName = "g"+name+"_Iins";
@@ -108,11 +371,6 @@ void debugDrawStokes(string name, int N,
   TGraph *gVins = new TGraph();
   gName = "g"+name+"_Vins";
   gVins->SetName(gName.c_str());
-
-
-  gQavg->SetLineColor(kBlue);
-  gUavg->SetLineColor(kRed);
-  gVavg->SetLineColor(kGreen);
   
   gQins->SetLineColor(kBlue);
   gUins->SetLineColor(kRed);
@@ -121,10 +379,6 @@ void debugDrawStokes(string name, int N,
 
   
   for (int pt=0; pt<N; pt++) {
-    gIavg->SetPoint(pt,pt,Iavg[pt]);
-    gQavg->SetPoint(pt,pt,Qavg[pt]);
-    gUavg->SetPoint(pt,pt,Uavg[pt]);
-    gVavg->SetPoint(pt,pt,Vavg[pt]);
 
     gIins->SetPoint(pt,pt,Iins[pt]);
     gQins->SetPoint(pt,pt,Qins[pt]);
@@ -134,21 +388,6 @@ void debugDrawStokes(string name, int N,
 
   string cName = "c"+name;
   TCanvas *c1 = new TCanvas(cName.c_str(),cName.c_str(),1000,500);
-  c1->Divide(2);
-
-  c1->cd(1);
-  gIavg->Draw("al");
-  gQavg->Draw("lsame");
-  gUavg->Draw("lsame");
-  gVavg->Draw("lsame");
-  TLegend *leg1 = new TLegend(0.1,0.7,0.3,0.9);
-  leg1->AddEntry(gIavg,"I","l");
-  leg1->AddEntry(gQavg,"Q","l");
-  leg1->AddEntry(gUavg,"U","l");
-  leg1->AddEntry(gVavg,"V","l");
-  leg1->Draw();
-
-  c1->cd(2);
   gIins->Draw("al");
   gQins->Draw("lsame");
   gUins->Draw("lsame");
@@ -164,16 +403,12 @@ void debugDrawStokes(string name, int N,
 }
 
 
-void redoStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
+void testStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
   /*
 
-    Input: Give it a summary tree file name
-    Output: It will output a new one with a "_newStokes" at the end that has recalculated values
+    Messing around with calculating it by hand or using Cosmin's new polarimetry routine
 
-    opt: 
-    debugDraw - will draw a stokes picture for each plot
    */
-
 
   TChain *summaryTree = new TChain("summaryTree","summaryTree");
   summaryTree->Add(inFileName.c_str());
@@ -211,6 +446,14 @@ void redoStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
   FilterStrategy *fStrat = UCorrelator::getStrategyWithKey("sinsub_10_3_ad_2");
 
 
+  //maybe mask out the top since it is flipped and has weird stokes?
+  UInt_t allowed = 0ul;
+  for (int i=0; i<16; i++) {
+    allowed |= (1ul << i);
+  }
+  ULong64_t disallowed = ~allowed;
+  //disallowed is the last argument to WaveformCombiner::combine();
+
 
   //waveform combiner.  (15 ants, npad=3 is default, filtered, deconvolved,responses)
   UCorrelator::WaveformCombiner *wfcomb = new UCorrelator::WaveformCombiner(combine_nantennas,config->combine_npad,
@@ -226,6 +469,9 @@ void redoStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
   wfcomb_filtered->setGroupDelayFlag(config->enable_group_delay); 
 
 
+
+  //for wais pulses specifically
+  TH2D *h2Wais = new TH2D("h2Wais","wais plane of polarization",1000,0,120000,100,-20,20);
 
 
 
@@ -254,17 +500,17 @@ void redoStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
     //combine the channels and grab the waveforms
     AnitaPol::AnitaPol_t pol = AnitaPol::kHorizontal;//whatever just define it
 
-    wfcomb->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal);
+    wfcomb->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,disallowed);
     AnalysisWaveform *coherent = new AnalysisWaveform(*wfcomb->getCoherent()); 
     AnalysisWaveform *deconvolved = new AnalysisWaveform(*wfcomb->getDeconvolved()); 
-    wfcomb->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical);
+    wfcomb->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical,disallowed);
     AnalysisWaveform *coherent_xpol = new AnalysisWaveform(*wfcomb->getCoherent()); 
     AnalysisWaveform *deconvolved_xpol = new AnalysisWaveform(*wfcomb->getDeconvolved());
 
-    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal);
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,disallowed);
     AnalysisWaveform *coherent_filtered = new AnalysisWaveform(*wfcomb_filtered->getCoherent()); 
     AnalysisWaveform *deconvolved_filtered = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved()); 
-    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical);
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical,disallowed);
     AnalysisWaveform *coherent_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getCoherent()); 
     AnalysisWaveform *deconvolved_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved());     
 
@@ -272,12 +518,12 @@ void redoStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
 
     //redo stokes
     //  This is where things change a lot.  The FFTtools::stokesParameters() function has a TON of functionality I want to test
-    cout << "redoing stokes" << endl;
-
+    //    cout << "redoing stokes" << endl;
+    
     //define stuff
     AnalysisWaveform *wf;
     AnalysisWaveform *wf_xpol;
-    double *Iavg, *Qavg, *Uavg, *Vavg;
+    double Iavg,Qavg,Uavg,Vavg;
     double *Iins, *Qins, *Uins, *Vins;
     int N;
 
@@ -286,35 +532,35 @@ void redoStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
     wf = coherent;
     wf_xpol = coherent_xpol;
     N = wf->even()->GetN();
-    allocateStokes(N, &Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
+    allocateStokes(N, &Iins,&Qins,&Uins,&Vins);
 
     FFTtools::stokesParameters(N,
 			       wf->even()->GetY(), wf->hilbertTransform()->even()->GetY(),
 			       wf_xpol->even()->GetY(),wf_xpol->hilbertTransform()->even()->GetY(), 
-                               Iavg,Qavg,Uavg,Vavg,
+                               &Iavg,&Qavg,&Uavg,&Vavg,
                                Iins,Qins,Uins,Vins, false);
 			       
     cout << "computed stokes" << endl;
-    if (debugDraw) debugDrawStokes("coherent", N, Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
+    if (debugDraw) debugDrawStokes("coherent", N, Iins,Qins,Uins,Vins);
 
-    deleteStokes(&Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
+    deleteStokes(&Iins,&Qins,&Uins,&Vins);
 
     //deconvolved
     cout << "deconvolved" << endl;
     wf = deconvolved;
     wf_xpol = deconvolved_xpol;
     N = wf->even()->GetN();
-    allocateStokes(N, &Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
+    allocateStokes(N, &Iins,&Qins,&Uins,&Vins);
 
     FFTtools::stokesParameters(N,
 			       wf->even()->GetY(), wf->hilbertTransform()->even()->GetY(),
 			       wf_xpol->even()->GetY(),wf_xpol->hilbertTransform()->even()->GetY(), 
-                               Iavg,Qavg,Uavg,Vavg,
+                               &Iavg,&Qavg,&Uavg,&Vavg,
                                Iins,Qins,Uins,Vins, false);
 			       
-    if (debugDraw) debugDrawStokes("deconvolved", N, Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
+    if (debugDraw) debugDrawStokes("deconvolved", N, Iins,Qins,Uins,Vins);
 
-    deleteStokes(&Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
+    deleteStokes(&Iins,&Qins,&Uins,&Vins);
 
 
     //coherent_filtered
@@ -322,17 +568,17 @@ void redoStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
     wf = coherent_filtered;
     wf_xpol = coherent_filtered_xpol;
     N = wf->even()->GetN();
-    allocateStokes(N, &Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
+    allocateStokes(N, &Iins,&Qins,&Uins,&Vins);
 
     FFTtools::stokesParameters(N,
 			       wf->even()->GetY(), wf->hilbertTransform()->even()->GetY(),
 			       wf_xpol->even()->GetY(),wf_xpol->hilbertTransform()->even()->GetY(), 
-                               Iavg,Qavg,Uavg,Vavg,
+                               &Iavg,&Qavg,&Uavg,&Vavg,
                                Iins,Qins,Uins,Vins, false);
 			       
-    if (debugDraw) debugDrawStokes("coherent_filtered", N, Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
+    if (debugDraw) debugDrawStokes("coherent_filtered", N, Iins,Qins,Uins,Vins);
 
-    deleteStokes(&Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
+    deleteStokes(&Iins,&Qins,&Uins,&Vins);
 
 
     //deconvolved_filtered
@@ -340,20 +586,72 @@ void redoStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
     wf = deconvolved_filtered;
     wf_xpol = deconvolved_filtered_xpol;
     N = wf->even()->GetN();
-    allocateStokes(N, &Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
+    allocateStokes(N, &Iins,&Qins,&Uins,&Vins);
 
     FFTtools::stokesParameters(N,
 			       wf->even()->GetY(), wf->hilbertTransform()->even()->GetY(),
 			       wf_xpol->even()->GetY(),wf_xpol->hilbertTransform()->even()->GetY(), 
-                               Iavg,Qavg,Uavg,Vavg,
+                               &Iavg,&Qavg,&Uavg,&Vavg,
                                Iins,Qins,Uins,Vins, false);
 			       
-    if (debugDraw) debugDrawStokes("deconvolved_filtered", N, Iavg,Qavg,Uavg,Vavg, Iins,Qins,Uins,Vins);
+    if (debugDraw) debugDrawStokes("deconvolved_filtered", N, Iins,Qins,Uins,Vins);
 
-    deleteStokes(&Iavg,&Qavg,&Uavg,&Vavg, &Iins,&Qins,&Uins,&Vins);
+    deleteStokes(&Iins,&Qins,&Uins,&Vins);
+
+    
 
 
 
+    //lets try it with Cosmin's new Polarimetry.h thing too
+
+    polarimetry::StokesAnalysis *stokesAnalysis = new polarimetry::StokesAnalysis(deconvolved_filtered,deconvolved_filtered_xpol);
+
+    if (debugDraw) {
+      TCanvas *cInstStokes = new TCanvas("cInstStokes","cInstStokes",1000,500);
+      stokesAnalysis->instGraphs().Draw("a pmc plc") ;
+      cInstStokes->BuildLegend(0.7,0.7,0.9,0.9,"","l");
+      
+      
+      TCanvas *cCumuStokes = new TCanvas("cCumuStokes","cCumuStokes",1000,500);
+      stokesAnalysis->cumuGraphs().Draw("a pmc plc") ;
+      cCumuStokes->BuildLegend(0.7,0.7,0.9,0.9,"","l");
+    }
+
+
+    //cool, lets take the integral of the useful region as well
+    TGraph *instI = new TGraph(stokesAnalysis->instI());
+    TGraph *instQ = new TGraph(stokesAnalysis->instQ());
+    TGraph *instU = new TGraph(stokesAnalysis->instU());
+    TGraph *instV = new TGraph(stokesAnalysis->instV());
+    N = instI->GetN();
+
+    Long64_t locMaxI = TMath::LocMax(N,instI->GetY());
+    double maxI = TMath::MaxElement(N,instI->GetY());
+
+    double integralI=0;
+    double integralQ=0;
+    double integralU=0;
+    double integralV=0;
+    
+    for (int i=0; i<N; i++) {
+      if ( instI->GetY()[i]/maxI > 0.2) {
+	integralI += instI->GetY()[i];
+	integralQ += instQ->GetY()[i];
+	integralU += instU->GetY()[i];
+	integralV += instV->GetY()[i];
+      }
+    }
+
+    double polAngle = (TMath::ATan(integralU/integralQ)/2.)*TMath::RadToDeg();
+    double polFrac =  TMath::Sqrt(pow(integralQ/integralI,2) + pow(integralU/integralI,2));
+
+    //    cout << integralI << " " << integralQ << " " << integralU << " " << integralV << endl;
+    cout << polAngle << " " << polFrac << endl;;
+
+    
+    h2Wais->Fill(entry,polAngle);
+		 
+		 
     //delete stuff
     delete filtered;
     delete coherent;
@@ -369,7 +667,8 @@ void redoStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
 
   }
 
-
+  h2Wais->Draw("colz");
+      
   cout << "cool whatever" << endl;
   return;
 
