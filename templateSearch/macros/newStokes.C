@@ -67,7 +67,7 @@ void reCalcStokes(polarimetry::StokesAnalysis *stokesAnalysis, double &Iout, dou
 }
 
 
-void reCalcStokesFromSummaryTree(string inFileName,int numSplits=1, int splitNum=0, string outDirName="") {
+void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirName="") {
   /*
 
     Input: Give it a summary tree file name
@@ -674,8 +674,10 @@ void testStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
 
 }
 
-void newStokes() {
 
+
+
+void newStokes() {
   cout << "loaded newStokes.C" << endl;
   return;
 
