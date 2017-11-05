@@ -609,12 +609,12 @@ void testStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
     if (debugDraw) {
       TCanvas *cInstStokes = new TCanvas("cInstStokes","cInstStokes",1000,500);
       stokesAnalysis->instGraphs().Draw("a pmc plc") ;
-      cInstStokes->BuildLegend(0.7,0.7,0.9,0.9,"","l");
+      //      cInstStokes->BuildLegend(0.7,0.7,0.9,0.9,"","l");
       
       
       TCanvas *cCumuStokes = new TCanvas("cCumuStokes","cCumuStokes",1000,500);
       stokesAnalysis->cumuGraphs().Draw("a pmc plc") ;
-      cCumuStokes->BuildLegend(0.7,0.7,0.9,0.9,"","l");
+      //      cCumuStokes->BuildLegend(0.7,0.7,0.9,0.9,"","l");
     }
 
 
