@@ -188,28 +188,31 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirN
 
 
   //lets save each ring's polarimetry separately, so make some masks
-  UInt_t allowedTop = 0ul;
+  ULong64_t allowedTop = 0ul;
   for (int i=0; i<16; i++) {
     allowedTop |= (1ul << i);
   }
-  UInt_t disallowedTop = ~allowedTop;
+  ULong64_t disallowedTop = ~allowedTop;
 
-  UInt_t allowedMid = 0ul;
+  ULong64_t allowedMid = 0ul;
   for (int i=0; i<16; i++) {
     allowedMid |= (1ul << (i+16));
   }
-  UInt_t disallowedMid = ~allowedMid;
+  ULong64_t disallowedMid = ~allowedMid;
 
-  UInt_t allowedBot = 0ul;
+  ULong64_t allowedBot = 0ul;
   for (int i=0; i<16; i++) {
     allowedBot |= (1ul << (i+32));
   }
-  UInt_t disallowedBot = ~allowedBot;
+  ULong64_t disallowedBot = ~allowedBot;
 
   cout << "bitMasks:" << endl;
   cout << std::bitset<64>(disallowedTop) << endl;
+  cout << std::bitset<64>(allowedTop) << endl;
   cout << std::bitset<64>(disallowedMid) << endl;
+  cout << std::bitset<64>(allowedMid) << endl;
   cout << std::bitset<64>(disallowedBot) << endl;
+  cout << std::bitset<64>(allowedBot) << endl;
 
   //waveform combiner.  (15 ants, npad=3 is default, filtered, deconvolved,responses)
   UCorrelator::WaveformCombiner *wfcomb = new UCorrelator::WaveformCombiner(combine_nantennas,config->combine_npad,
@@ -465,7 +468,7 @@ void testStokesFromSummaryTree(string inFileName,bool debugDraw=false) {
 
 
   //maybe mask out the top since it is flipped and has weird stokes?
-  UInt_t allowed = 0ul;
+  ULong64_t allowed = 0ul;
   for (int i=0; i<16; i++) {
     allowed |= (1ul << i);
   }
