@@ -198,13 +198,18 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirN
   for (int i=0; i<16; i++) {
     allowedMid |= (1ul << (i+16));
   }
-  UInt_t disallowedMid = ~allowedTop;
+  UInt_t disallowedMid = ~allowedMid;
 
   UInt_t allowedBot = 0ul;
   for (int i=0; i<16; i++) {
     allowedBot |= (1ul << (i+32));
   }
-  UInt_t disallowedBot = ~allowedTop;
+  UInt_t disallowedBot = ~allowedBot;
+
+  cout << "bitMasks:" << endl;
+  cout << std::bitset<64>(disallowedTop) << endl;
+  cout << std::bitset<64>(disallowedMid) << endl;
+  cout << std::bitset<64>(disallowedBot) << endl;
 
   //waveform combiner.  (15 ants, npad=3 is default, filtered, deconvolved,responses)
   UCorrelator::WaveformCombiner *wfcomb = new UCorrelator::WaveformCombiner(combine_nantennas,config->combine_npad,
