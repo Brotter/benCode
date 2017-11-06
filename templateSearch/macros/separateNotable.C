@@ -56,12 +56,64 @@ void separateSingleEvent(int eventNumber, string inFileName="") {
   
   summaryTree->GetEntry(entry);
 
+  outFile->cd();
   outTree->Fill();
+  outTree->Write();
   outFile->Close();
 
   cout << "cool got it" << endl;
   return;
 }
+
+
+void excludeSingleEvent(string inFileName, int eventNumber=15717147) {
+  /*
+    inputs a summaryTree file and excludes a single event, default of the flipped polarity candidate
+
+   */
+
+
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(inFileName.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " entries to mask" << endl;
+
+
+  size_t pos = inFileName.find(".root");
+  string baseName = inFileName.substr(0,pos);
+  string outName = baseName+"_reMasked.root";
+  TFile *outFile = TFile::Open(outName.c_str(),"recreate");
+  TTree *outTree = new TTree("summaryTree","summaryTree");
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  outTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  outTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  outTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  outTree->Branch("gpsEvent",&gps);
+  
+  for (int entry=0; entry<lenEntries; entry++ ) {
+    summaryTree->GetEntry(entry);
+    if (evSum->eventNumber == eventNumber) continue;
+    
+    outFile->cd();
+    outTree->Fill();
+  }
+
+  outTree->Write();
+  outFile->Close();
+
+  cout << "cool all done!" << endl;
+  return;
+}
+
 
 
 
@@ -289,40 +341,6 @@ void separateNotable_hardCodedEvNums() {
 
 
 
-
-void separateNotable_singleEv(int evNum) {
-			      
-  /*
-    Finds the selected event number and saves the AnitaEventSummary and Adu5Pat from it
-   */
-
-
-  TChain *summaryTree = (TChain*)gROOT->ProcessLine(".x loadAll.C");
-
-  AnitaEventSummary *evSum = NULL;
-  summaryTree->SetBranchAddress("eventSummary",&evSum);
-  Adu5Pat *gps = NULL;
-  summaryTree->SetBranchAddress("gpsEvent",&gps);
-
-
-  summaryTree->BuildIndex("eventNumber");
-  int entry = summaryTree->GetEntryNumberWithIndex(evNum);
-  cout << "event number " << evNum << " is entry " << entry << endl;
-  summaryTree->GetEntry(entry);
- 
-
-  stringstream name;
-  name.str("");
-  name << "ev" << evNum << ".root";
-  TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
-  cout << "saving as " << name.str() << endl;
-  outFile->WriteObject(evSum,"eventSummary");
-  outFile->WriteObject(gps,"gpsEvent");
-    
-  outFile->Close();
-
-  return;
-}
 
 
 void saveTrueCandidates(string inFile) {
