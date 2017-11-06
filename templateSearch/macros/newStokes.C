@@ -192,17 +192,19 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirN
   for (int i=0; i<16; i++) {
     allowedTop |= (1ul << i);
   }
+  UInt_t disallowedTop = ~allowedTop;
 
   UInt_t allowedMid = 0ul;
   for (int i=0; i<16; i++) {
     allowedMid |= (1ul << (i+16));
   }
+  UInt_t disallowedMid = ~allowedTop;
 
   UInt_t allowedBot = 0ul;
   for (int i=0; i<16; i++) {
     allowedBot |= (1ul << (i+32));
   }
-
+  UInt_t disallowedBot = ~allowedTop;
 
   //waveform combiner.  (15 ants, npad=3 is default, filtered, deconvolved,responses)
   UCorrelator::WaveformCombiner *wfcomb = new UCorrelator::WaveformCombiner(combine_nantennas,config->combine_npad,
@@ -270,9 +272,9 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirN
     delete stokesAnalysis;
 
     //top antennas
-    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,allowedTop);
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,disallowedTop);
     deconvolved_filtered = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved()); 
-    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical,allowedTop);
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical,disallowedTop);
     deconvolved_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved());     
     stokesAnalysis = new polarimetry::StokesAnalysis(deconvolved_filtered,deconvolved_filtered_xpol);
     reCalcStokes(stokesAnalysis,newTop->I,newTop->Q,newTop->U,newTop->V);
@@ -282,9 +284,9 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirN
     delete stokesAnalysis;
 
     //mid antennas
-    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,allowedMid);
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,disallowedMid);
     deconvolved_filtered = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved()); 
-    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical,allowedMid);
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical,disallowedMid);
     deconvolved_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved());     
     stokesAnalysis = new polarimetry::StokesAnalysis(deconvolved_filtered,deconvolved_filtered_xpol);
     reCalcStokes(stokesAnalysis,newMid->I,newMid->Q,newMid->U,newMid->V);
@@ -294,9 +296,9 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirN
     delete stokesAnalysis;
 
     //bot antennas
-    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,allowedBot);
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,disallowedBot);
     deconvolved_filtered = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved()); 
-    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical,allowedBot);
+    wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical,disallowedBot);
     deconvolved_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved());     
     stokesAnalysis = new polarimetry::StokesAnalysis(deconvolved_filtered,deconvolved_filtered_xpol);
     reCalcStokes(stokesAnalysis,newBot->I,newBot->Q,newBot->U,newBot->V);
