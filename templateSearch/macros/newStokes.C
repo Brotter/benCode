@@ -61,7 +61,7 @@ void reCalcStokes(polarimetry::StokesAnalysis *stokesAnalysis, double &Iout, dou
     i++;
   }
   //  cout << "upperEdge:" << i << " ";
-  i = locMaxI;
+  i = locMaxI-1;
   while ( instI.GetY()[i]/maxI > 0.2) {
     Iout += instI.GetY()[i];
     Qout += instQ.GetY()[i];
@@ -248,6 +248,8 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirN
     }
 
     summaryTree->GetEntry(entry);
+    
+    data->getEvent(evSum->eventNumber);
 
     //filter that waveform
     FilteredAnitaEvent *filtered = new FilteredAnitaEvent(data->useful(), fStrat, data->gps(), data->header());
