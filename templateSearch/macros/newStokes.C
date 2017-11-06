@@ -35,39 +35,48 @@ void reCalcStokes(polarimetry::StokesAnalysis *stokesAnalysis, double &Iout, dou
 
    */
 
-    //cool, lets take the integral of the useful region as well
-    TGraph instI = stokesAnalysis->instI();
-    TGraph instQ = stokesAnalysis->instQ();
-    TGraph instU = stokesAnalysis->instU();
-    TGraph instV = stokesAnalysis->instV();
-    int N = instI.GetN();
 
-    Long64_t locMaxI = TMath::LocMax(N,instI.GetY());
-    double maxI = TMath::MaxElement(N,instI.GetY());
+  Iout = 0;
+  Qout = 0;
+  Uout = 0;
+  Vout = 0;
+
+  //cool, lets take the integral of the useful region as well
+  TGraph instI = stokesAnalysis->instI();
+  TGraph instQ = stokesAnalysis->instQ();
+  TGraph instU = stokesAnalysis->instU();
+  TGraph instV = stokesAnalysis->instV();
+  int N = instI.GetN();
+  
+  Long64_t locMaxI = TMath::LocMax(N,instI.GetY());
+  double maxI = TMath::MaxElement(N,instI.GetY());
+  
+  int i = locMaxI;
+  //  cout << "middle:" << i << " ";
+  while ( instI.GetY()[i]/maxI > 0.2) {
+    Iout += instI.GetY()[i];
+    Qout += instQ.GetY()[i];
+    Uout += instU.GetY()[i];
+    Vout += instV.GetY()[i];
+    i++;
+  }
+  //  cout << "upperEdge:" << i << " ";
+  i = locMaxI;
+  while ( instI.GetY()[i]/maxI > 0.2) {
+    Iout += instI.GetY()[i];
+    Qout += instQ.GetY()[i];
+    Uout += instU.GetY()[i];
+    Vout += instV.GetY()[i];
+    i--;
     
-    int i = locMaxI;
-    while ( instI.GetY()[i]/maxI > 0.2) {
-      Iout += instI.GetY()[i];
-      Qout += instQ.GetY()[i];
-      Uout += instU.GetY()[i];
-      Vout += instV.GetY()[i];
-      i++;
-    }
-    i = locMaxI;
-    while ( instI.GetY()[i]/maxI > 0.2) {
-      Iout += instI.GetY()[i];
-      Qout += instQ.GetY()[i];
-      Uout += instU.GetY()[i];
-      Vout += instV.GetY()[i];
-      i--;
-    }
-
+  }
+  //  cout << "upperEdge:" << i << endl;
 
   return;
 }
 
 
-void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirName="") {
+void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirName=".") {
   /*
 
     Input: Give it a summary tree file name
