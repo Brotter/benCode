@@ -11,10 +11,38 @@
 #include "GeoMagnetic.h"
 
 
+double getGeomagExpected(AnitaEventSummary *evSum, Adu5Pat *gps, bool upgoing=false) {
+  /*
+    For integration into other code:
+    
+    Inputs:
+    evSum - an event summary that gives stokes info and pointing info
+    gps - an Adu5Pat that gives location and heading info
+    
+    Outputs:
+    expected - from GeoMagnetic::getExpected
+    
+    optional:
+    upgoing - maybe you want to see an upgoing shower instead
+    
+  */
+  
+  UsefulAdu5Pat usefulGPS(gps);
+  
+  double phi = TMath::DegToRad() * evSum->peak[0][0].phi;
+  double theta = TMath::DegToRad() * evSum->peak[0][0].theta;
+  
+  double exPol;
+  if (!upgoing) exPol = TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisation(usefulGPS,phi,theta);
+  else          exPol = TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisationUpgoing(usefulGPS,phi,theta,1000);
+  
+  
+  return exPol;
+  
+}
 
 
-
-void findGeoMagnetic2(string inFilename="trueCandidates.root") {
+void findGeoMagnetic2(string inFilename="weakIsolated_oct14.root") {
 /*
   Do both upgoing and direct, and include the direct events as well.
 */
@@ -51,6 +79,7 @@ void findGeoMagnetic2(string inFilename="trueCandidates.root") {
     summaryTree->GetEntry(entry);
     //    if (evSum->eventNumber != 15717147) continue;
 
+
     
 
     name.str("");
@@ -59,6 +88,9 @@ void findGeoMagnetic2(string inFilename="trueCandidates.root") {
     gExVsMeas[entry]->SetName(name.str().c_str());
     gExVsMeas[entry]->SetTitle("Reflected: Geomagnetic Polarization; Expected Polarisation Angle (degrees); Measured Polarisation Angle (degrees)");
     
+    
+
+
     name << "_up";
     gExVsMeasUp[entry] = new TGraphErrors();    
     gExVsMeasUp[entry]->SetName(name.str().c_str());
@@ -104,7 +136,7 @@ void findGeoMagnetic2(string inFilename="trueCandidates.root") {
     hDiff->Fill(measPol-exPol);
     hDiffUp->Fill(measPol-exPolUp);
     gExVsMeas[entry]->SetPoint(gExVsMeas[entry]->GetN(),exPol,measPol);
-    gExVsMeas[entry]->SetPointError(gExVsMeas[entry]->GetN()-1,2,4.5);
+    gExVsMeas[entry]->SetPointError(gExVsMeas[entry]->GetN()-1,2.,6.);
     if (exPolUp > -9999) {
       gExVsMeasUp[entry]->SetPoint(gExVsMeasUp[entry]->GetN(),exPolUp,measPol);
       gExVsMeasUp[entry]->SetPointError(gExVsMeasUp[entry]->GetN()-1,5,4.5);
@@ -115,12 +147,12 @@ void findGeoMagnetic2(string inFilename="trueCandidates.root") {
   }
 
   TF1 *line = new TF1("line","x",-45,45);
-  TF1 *lineP1 = new TF1("line","x+5",-45,45);
-  TF1 *lineM1 = new TF1("line","x-5",-45,45);
+  TF1 *lineP1 = new TF1("line","x+6",-45,45);
+  TF1 *lineM1 = new TF1("line","x-6",-45,45);
   lineP1->SetLineStyle(2);
   lineM1->SetLineStyle(2);
-  TF1 *lineP2 = new TF1("line","x+10",-45,45);
-  TF1 *lineM2 = new TF1("line","x-10",-45,45);
+  TF1 *lineP2 = new TF1("line","x+12",-45,45);
+  TF1 *lineM2 = new TF1("line","x-12",-45,45);
   lineP2->SetLineStyle(3);
   lineM2->SetLineStyle(3);
   lineP2->SetLineWidth(1);
@@ -128,7 +160,7 @@ void findGeoMagnetic2(string inFilename="trueCandidates.root") {
   
 
   TCanvas *c1 = new TCanvas("c1","c1",1000,600);
-  c1->Divide(2);
+  //  c1->Divide(2);
   c1->cd(1);
   gExVsMeas[0]->Draw("ap"); 
   gExVsMeas[0]->GetXaxis()->SetLimits(-30,30);
@@ -141,6 +173,7 @@ void findGeoMagnetic2(string inFilename="trueCandidates.root") {
   for (int i=0; i<lenEntries; i++) {
     gExVsMeas[i]->Draw("psame");
   }
+  /*
   c1->cd(2);
   gExVsMeas[0]->Draw("ap"); 
   gExVsMeas[0]->GetXaxis()->SetLimits(-30,30);
@@ -153,6 +186,7 @@ void findGeoMagnetic2(string inFilename="trueCandidates.root") {
   for (int i=0; i<lenEntries; i++) {
     gExVsMeasUp[i]->Draw("psame");
   }
+  */
   //  for (int i=0; i<arrows.size(); i++) arrows[i]->Draw();
     
   return;
@@ -451,3 +485,15 @@ void findGeoMagneticNoise() {
   //  crab = code = pincing = potato = code again    
     
 
+/*
+  
+  Default
+
+ */
+
+void geomagnetic() {
+  
+  cout << "loaded geomagnetic.C" << endl;
+  return;
+
+}
