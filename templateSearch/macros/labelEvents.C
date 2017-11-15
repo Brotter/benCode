@@ -14,7 +14,7 @@
 
 
 
-void labelEvents(string inFileName = "cutsClust_oct14.root") {
+void labelEvents(string inFileName = "cutsClust_oct14_geo.root") {
   /*
 
     Reads in a file, outputs a file with "_labeled" tacked on before the .root
@@ -22,17 +22,14 @@ void labelEvents(string inFileName = "cutsClust_oct14.root") {
     gotta give it the file with clusterValue included though (from cluster.C)
 
     Current labels added:
-    - Below Horizon CR Candidate
-    - Above Horizon CR Candidate
-    - Inverted Candidate
-
-    - Passing Above Horizon
-    - Failing Above Horizon
-
-    - Dirty Dozen (failing isolated)
-
-    - Failing Clustered
-    - Passing Clustered
+    - "Below Horizon Candidate"
+    - "Above Horizon Candidate"
+    - "Inverted Candidate"
+    - "Dirty Dozen" (aka isolated failing)
+    - "Above Horizon Passing"
+    - "Above Horizon Failing"
+    - "Clustered Failing"
+    - "Clustered Passing"
 
 
    */
@@ -68,6 +65,10 @@ void labelEvents(string inFileName = "cutsClust_oct14.root") {
   double clusterValue;
   summaryTree->SetBranchAddress("clusterValue",&clusterValue);
   outTree->Branch("clusterValue",&clusterValue);
+  double exGeoPol;
+  summaryTree->SetBranchAddress("exGeoPol",&exGeoPol);
+  outTree->Branch("exGeoPol",&exGeoPol);
+ 
   TString *labelString = NULL;
   outTree->Branch("label",&labelString);
   labelString = new TString();
@@ -105,7 +106,7 @@ void labelEvents(string inFileName = "cutsClust_oct14.root") {
       if (fStrongCuts) {
 	//"Above Horizon Candidate" : these two
 	if (evSum->eventNumber == 39599205 || evSum->eventNumber == 27142546) {
-	  labelString->Append("Above Horizon Candidiate");
+	  labelString->Append("Above Horizon Candidate");
 	}
 	//"Above Horizon Passing" : the rest that passed
 	else {
@@ -122,14 +123,14 @@ void labelEvents(string inFileName = "cutsClust_oct14.root") {
     else {
 
 
-      // "Passing Clustered" : clustered, but pass signal cuts (~800)
+      // "Clustered Passing" : clustered, but pass signal cuts (~800)
       if (fClustered && fStrongCuts) {
-	labelString->Append("Passing Clustered");
+	labelString->Append("Clustered Passing");
       }
 
-      // "Failing Clustered" : clustered and weak
+      // "Clustered Failing" : clustered and weak
       if (fClustered && !fStrongCuts) {
-	labelString->Append("Failing Clustered");
+	labelString->Append("Clustered Failing");
       }
 
 
