@@ -104,7 +104,7 @@ TChain *loadPseudoBases(string date = "10.05.17_14h",bool doProof=false) {
 
   /*
 
-    Generating the list of events that cluster with the impulsive events requires the cluster
+    Generating the list of events that geoassociate with the impulsive events requires the cluster
     so this imports them all (once you save them to disk!)
 
   */
