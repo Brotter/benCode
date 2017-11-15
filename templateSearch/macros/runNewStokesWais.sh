@@ -11,7 +11,7 @@
 
 startTime=`date +%m.%d.%y_%Hh%Mm`
 echo ${startTime}
-sharedDir="waisEvents_newStokes/"
+sharedDir="waisEvents_instStokes/"
 mkdir ${sharedDir}
 mkdir ${sharedDir}"/log"
 
