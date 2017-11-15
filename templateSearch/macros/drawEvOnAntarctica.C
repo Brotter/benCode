@@ -679,10 +679,14 @@ void plotBasesWithClusteredEvents() {
 }
 
 
-void plotEventsClusteredWithCandidate(int evNum) {
+
+
+void plotEventsClusteredWithCandidate(int evNum,bool count=false) {
   /*
 
-    Grabs all the hardcoded final stuff and plots it
+    takes in the background file and an event file, and plots the events near it in a TProfile by L value
+
+    if count==true: plots the number of events, not the L value
 
    */
   stringstream name;
@@ -692,7 +696,7 @@ void plotEventsClusteredWithCandidate(int evNum) {
   TChain* summaryTree = new TChain("summaryTree");
   for (int i=0; i<64; i++) {
     name.str("");
-    name << "/Volumes/ANITA3Data/bigAnalysisFiles/cluster/10.19.17_14h17m/clusterBackground_" << i << ".root";
+    name << "/Volumes/ANITA3Data/bigAnalysisFiles/cluster/10.26.17_14h28m/clusterBackground_" << i << ".root";
     summaryTree->Add(name.str().c_str());
   }
   int lenEntries = summaryTree->GetEntries();
@@ -704,16 +708,10 @@ void plotEventsClusteredWithCandidate(int evNum) {
   summaryTree->SetBranchAddress("seedEventNumber",&seedEventNumber);
   summaryTree->SetBranchAddress("clusterValue",&clusterValue);
 
-  TChain *candTree = new TChain("summaryTree");
-  candTree->Add("trueCandidates_oct14.root");
-  cout << candTree->GetEntries() << " candidates found" << endl;
-  AnitaEventSummary *candSum = NULL;
-  candTree->SetBranchAddress("eventSummary",&candSum);
-
-  candTree->BuildIndex("eventNumber");
+  summaryTree->BuildIndex("eventNumber");
   int candEntry = candTree->GetEntryNumberWithIndex(evNum);
   if (candEntry < 0) { cout << "couldn't find entry for that event" << endl; return; }
-  candTree->GetEntry(candEntry);
+  summaryTree->GetEntry(candEntry);
 
   TGraphAntarctica *gEv = new TGraphAntarctica();
   gEv->SetPoint(0,candSum->peak[0][0].longitude,candSum->peak[0][0].latitude);
@@ -736,6 +734,8 @@ void plotEventsClusteredWithCandidate(int evNum) {
     }
 
   }
+
+  
 
   background->Draw("colz");
   background->GetXaxis()->SetRangeUser(gEv->GetX()[0]-8e5,gEv->GetX()[0]+8e5);
@@ -1254,9 +1254,7 @@ void drawPseudoBases(string date="10.06.17_11h") {
 void drawClusterMap(string summaryFile, double threshold=40.) {
   /*
 
-    pulls in a summary file and draws the things that clusters as a histogram onto a map
-
-
+    pulls in a summary file and draws the things that cluster as a histogram onto a map
 
    */
 
@@ -1686,12 +1684,13 @@ void drawCandidatesAndBackground(string candidateFilename, string backgroundFile
   TH2DAntarctica *backMap = new TH2DAntarctica(200,200);
   TChain *backgroundTree = new TChain("summaryTree");
   backgroundTree->Add(backgroundFilename.c_str());
+
+
   AnitaEventSummary *backSum = NULL;
   backgroundTree->SetBranchAddress("eventSummary",&backSum);
   for (int i=0; i<backgroundTree->GetEntries(); i++) {
     if (!i%1000 && i!=0) cout << i << "/" << candidateTree->GetEntries() << endl;
     backgroundTree->GetEntry(i);
-    if (TMath::Abs(backSum->peak[0][0].hwAngle) > 45) continue; //this cut needs to be here
     backMap->Fill(backSum->peak[0][0].longitude,backSum->peak[0][0].latitude);
   }
   

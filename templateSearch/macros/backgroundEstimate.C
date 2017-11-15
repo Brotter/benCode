@@ -7,6 +7,7 @@
  */
 #include "Normalize.C" //makeNormCumulative
 #include "AnitaConventions.h"
+#include "GeoMagnetic.h"
 
 #include "loadAll.C"
 
@@ -82,7 +83,7 @@ void drawBaseDistributionsWithCandidates(bool cumulative=false,bool doCut=false)
   //get base pointed event summaries
   //  TFile *baseFile = TFile::Open("mergeBaseClusters.root");
   //  TTree *baseTree = (TTree*)baseFile->Get("summaryTree");
-  TChain *baseTree = loadWhatever("/home/brotter/anita16/benCode/templateSearch/macros/clusteringOutputs/10.16.17_01h/","backgroundClusterABCD",64,false);
+  TChain *baseTree = loadWhatever("/home/brotter/anita16/benCode/templateSearch/macros/clusteringOutputs/10.16.17_01h/backgroundClusterABCD",64,false);
   //get candidate event summaries
   TFile *candidateFile = TFile::Open("trueCandidates_oct14.root");
   TTree *candidateTree = (TTree*)candidateFile->Get("summaryTree");
@@ -189,7 +190,7 @@ void saveCandidatePValues(bool doCut=false,string fileName="") {
   //get base pointed event summaries
   //  TFile *baseFile = TFile::Open("mergeBaseClusters.root");
   //  TTree *baseTree = (TTree*)baseFile->Get("summaryTree");
-  TChain *baseTree = loadWhatever("/home/brotter/anita16/benCode/templateSearch/macros/clusteringOutputs/10.16.17_01h/","backgroundClusterABCD",64,false);
+  TChain *baseTree = loadWhatever("/home/brotter/anita16/benCode/templateSearch/macros/clusteringOutputs/10.16.17_01h/backgroundClusterABCD",64,false);
 
   //get candidate event summaries
   TFile *candidateFile = TFile::Open("trueCandidates_oct14.root");
@@ -439,7 +440,7 @@ TGraph* numberOfEventsExceedingCandidates() {
   
   //  TFile *backFile = TFile::Open("pseudoBaseCluster.root");
   //  TTree *backTree = (TTree*)backFile->Get("summaryTree");
-    TChain *backTree = loadWhatever("/home/brotter/anita16/benCode/templateSearch/macros/clusteringOutputs/10.16.17_01h/","backgroundClusterABCD",64,false);
+    TChain *backTree = loadWhatever("/home/brotter/anita16/benCode/templateSearch/macros/clusteringOutputs/10.16.17_01h/backgroundClusterABCD",64,false);
   AnitaEventSummary *backEvSum = NULL;
   backTree->SetBranchAddress("eventSummary",&backEvSum);
   AnitaTemplateSummary *backTempSum = NULL;
@@ -579,7 +580,7 @@ void ABCDMethod() {
 
 
 
-void localUnnormalizedLikelihood(bool draw=false) {
+void localUnnormalizedLikelihood(bool draw=false,string date="10.26.17_14h28m") {
   /*
 
     The ABCD method might be stupid.
@@ -591,10 +592,11 @@ void localUnnormalizedLikelihood(bool draw=false) {
 
 
    */
-  stringstream name;
+  stringstream name,name2;
 
-
-  TChain *summaryTree = loadWhatever("/Volumes/ANITA3Data/bigAnalysisFiles/cluster/10.19.17_14h17m/","clusterBackground",64);
+  char* dataDir = getenv("ANITA3_RESULTSDIR");
+  name.str(""); name << dataDir << "/cluster/" << date << "/clusterBackground";
+  TChain *summaryTree = loadWhatever(name.str().c_str(),64);
   int lenEntries = summaryTree->GetEntries();
   if (!lenEntries) { cout << "No events found in that file, qutting." << endl; return; }
   else cout << "Found " << lenEntries << " events" << endl;
@@ -607,27 +609,48 @@ void localUnnormalizedLikelihood(bool draw=false) {
   summaryTree->SetBranchAddress("seedEventNumber",&seedEventNumber);
 
 
-  //a vector to find all the candidates you find
+  //some vectors to store all the candidates you find
+  //  This is just because I want this code to be as configurable as possible and driven by the backgroundCluster output
+  //these should all be in the same order, because I don't want to learn maps
   vector<int> seedCandidates;
-  std::vector<int>::iterator seedIt;  
+  std::vector<int>::iterator seedIt;  //need at least one iterator for the event number
+  vector<TH1D*> productHists;
+  vector<TH1D*> candHists;
+  vector<TF1*> fitFuncs;
+  //lets just make the antarctica maps here too
+  vector<TH2DAntarctica*> backCountMaps;
+  vector<TProfile2DAntarctica*> productMaps;
+  vector<TGraphAntarctica*> candMaps;
 
-  vector<TH1D*> productDists;
+
+  //also a TGraph because they are easy to grab single values from, easier than a TH1F
+  TGraph *candGraph = new TGraph();
+  candGraph->SetName("candGraph");
+
+  //pointer for "current" histograms so it isn't always reallocated
   TH1D* currHist;
+  TH2DAntarctica* currCountMap;
+  TProfile2DAntarctica* currProductMap;
+  TGraphAntarctica *currCandMap;
 
-  vector<TH1D*> candDists;
+  //index of position in vectors
+  int vectIndex;
 
-  int seedEntry;
+  //Loop!
   for (int entry=0; entry<lenEntries; entry++) {
     if (!(entry%10000)) cout << entry << "/" << lenEntries << endl;
     summaryTree->GetEntry(entry);
 
+
+    //things that shouldn't have passed...
     if (TMath::Abs(evSum->peak[0][0].hwAngle) > 45) continue;
     if (evSum->flags.maxBottomToTopRatio[0] > 3) continue;
     if (!evSum->flags.isRF) continue;
+    if (evSum->flags.isPayloadBlast) continue;
 
-
-
+    //find the location in the vectors for that seed candidate, or make a new place for it
     seedIt = find(seedCandidates.begin(), seedCandidates.end(), seedEventNumber);
+    //not found
     if (seedIt == seedCandidates.end()) {
       cout << "New eventNumber:" << seedEventNumber << endl;
       seedCandidates.push_back(seedEventNumber);
@@ -637,65 +660,151 @@ void localUnnormalizedLikelihood(bool draw=false) {
       else if (seedEventNumber == -1) name << "WAIS";
       else if (seedEventNumber == -2) name << "LDB";
       else                            name << "ev_negative" << seedEventNumber;
+
       currHist = new TH1D(name.str().c_str(),name.str().c_str(),1000,-5,5);
-      productDists.push_back(currHist);
+      productHists.push_back(currHist);
+      
+      candGraph->SetPoint(candGraph->GetN(),seedEventNumber,-999);
+
+      name2.str("");
+      name2 << name.str() << "_candidate";
+      currHist = new TH1D(name2.str().c_str(),name2.str().c_str(),1000,-5,5);
+      currHist->SetLineColor(kRed); //red :)
+      candHists.push_back(currHist);
+
+      name2.str("");
+      name2 << name.str() << "_countMap";
+      currCountMap = new TH2DAntarctica(name2.str().c_str(),name2.str().c_str(),1000,1000);
+      backCountMaps.push_back(currCountMap);
+
+
+      name2.str("");
+      name2 << name.str() << "_productMap";
+      currProductMap = new TProfile2DAntarctica(name2.str().c_str(),name2.str().c_str(),1000,1000);
+      productMaps.push_back(currProductMap);
+
+
+      name2.str("");
+      name2 << name.str() << "_candMap";
+      currCandMap = new TGraphAntarctica();
+      currCandMap->SetName(name.str().c_str());
+      candMaps.push_back(currCandMap);
+
+      vectIndex = seedCandidates.size() - 1;
+
     }
+    //already exists in vectors
     else {
-      currHist = productDists[seedIt - seedCandidates.begin()];
+      vectIndex = seedIt - seedCandidates.begin();
     }
+    currHist = productHists[vectIndex];
+
+
     
     double product = 1.0;
-    product *= evSum->peak[0][0].value;
-    product *= evSum->peak[0][0].snr;
+    //    product *= evSum->peak[0][0].value;
+    //    product *= evSum->peak[0][0].snr;
     product *= tempSum->coherent[0][0].cRay[4];
     product *= tempSum->deconvolved[0][0].cRay[4];
-    product *= evSum->coherent_filtered[0][0].peakHilbert;
-    product *= evSum->coherent_filtered[0][0].peakVal;
+    //    product *= evSum->coherent_filtered[0][0].peakHilbert;
+    //    product *= evSum->coherent_filtered[0][0].peakVal; //huh? why are you using this?
     product *= evSum->coherent_filtered[0][0].linearPolFrac();
 
-    currHist->Fill(TMath::Log10(product));
+    currHist->Fill(product);
 
+
+    backCountMaps[vectIndex]->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+    productMaps[vectIndex]->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude,product);
+
+
+    //if this is actually the seed event.  AKA the candidate! Assumes candidate will always seed itself
     if (seedEventNumber == evSum->eventNumber) {
       cout << "Found ev" << evSum->eventNumber << " with product: " << product << endl;
       name.str("");
       if (seedEventNumber > 0) name << "cand" << seedEventNumber;
-      TH1D *candHist = new TH1D(name.str().c_str(),name.str().c_str(),1000,-5,5);
-      candHist->Fill(TMath::Log10(product));
-      candHist->SetLineColor(kRed);
-      candDists.push_back(candHist);
+      candHists[vectIndex]->Fill(TMath::Log10(product));
+      candGraph->SetPoint(vectIndex,evSum->eventNumber,TMath::Log10(product));
+      candMaps[vectIndex]->SetPoint(0,evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+      candMaps[vectIndex]->SetMarkerStyle(41);
+
     }
 
   }
-  
-  TFile *outFile = TFile::Open("localBackgroundProducts.root","recreate");
-  for (int i=0;i<productDists.size();i++) {
+
+
+      
+  //write out all that stuff to a root file!
+  //need to do this before the fit for whatever reason, otherwise it segfaults
+  TFile *outFile = TFile::Open("localUnnormalizedLikelihood.root","recreate");
+  for (int i=0;i<productHists.size();i++) {
     cout << "eventNumber:" << seedCandidates[i] << endl;
-    productDists[i]->Write();
+    productHists[i]->Write();
+    candHists[i]->Write();
   }
-  for (int i=0;i<candDists.size();i++) {
-    candDists[i]->Write();
-  }
-
-
+  candGraph->Write();
   outFile->Close();
 
+  /* Fitting and finding the final background estimate number (number of sigma outside of log normal fit */
+  ofstream outTxtFile("localUnnormalizedLikelihood.txt");
+  outTxtFile << "eventNumber candProduct distAmp distMean distSigma background" << endl;
+  for (int i=0; i<productHists.size(); i++) {
+    int eventNumber = candGraph->GetX()[i];
+
+    name.str(""); name << "gausFit_" << eventNumber;
+    TF1 *gausFit = new TF1(name.str().c_str(),"gaus(0)",-5,5);
+    productHists[i]->Fit(gausFit);
+    fitFuncs.push_back(gausFit);
+
+    //gaussian has three parameters: [0]*exp(-0.5*((x-[1])/[2])**2)
+    double amplitude = gausFit->GetParameter(0);//amplitude
+    double mean = gausFit->GetParameter(1);//mean
+    double sigma = gausFit->GetParameter(2);//sigma
+    
+    double candProduct = candGraph->GetY()[i];
+    double background = amplitude*exp(-0.5*pow((candProduct-mean)/sigma,2));
+
+    outTxtFile << eventNumber << " " << candProduct << " " << amplitude << " " << mean << " " << sigma << " " << background << endl;
+  }
+  outTxtFile.close();
+
+
+  /* Drawing the plots so you can see them */
   if (draw) {
-    for (int i=0;i<productDists.size();i++) {
-      name.str(""); name << "c" << i;
-      TCanvas *c1 = new TCanvas(name.str().c_str(),"",500,500);
+    for (int i=0;i<productHists.size();i++) {
+      name.str(""); name << "localUnnormalizedLikelihood_" << i;
+      TCanvas *c1 = new TCanvas(name.str().c_str(),"",1000,500);
       c1->SetLogy();
       cout << "eventNumber:" << seedCandidates[i] << endl;
-      productDists[i]->Draw();
-      
+      productHists[i]->Draw();
+      fitFuncs[i]->Draw("same");
+      candHists[i]->Draw("same");
+      name << ".png";
+      c1->SaveAs(name.str().c_str());
+
+
+      /*
+      TCanvas *cMap = new TCanvas("antarcticaMap","",1000,1000);
+      backCountMaps[i]->Draw("colz");
+      backCountMaps[i]->GetXaxis()->SetRangeUser(candMaps[i]->GetX()[0]-8e5,candMaps[i]->GetX()[0]+8e5);
+      backCountMaps[i]->GetYaxis()->SetRangeUser(candMaps[i]->GetY()[0]-4e5,candMaps[i]->GetY()[0]+4e5);
+      candMaps[i]->Draw("same");
+      name.str(""); name << "localUnnormalizedLikelihood_antMap_" << i << ".png";
+      c1->SaveAs(name.str().c_str());
+      */
     }
   }
 
+  
+  
 
+  
+  cout << "Okay bye that was fun :D" << endl;
+  return;
 }
 
 
 
-void saveLocalDistributions(string date="10.16.17_01h") {
+void saveLocalDistributions(string date="10.26.17_14h28m") {
   /*
 
     Saves the 2d histograms for cut parameters of events near each candidate, with the candidate highlighted
@@ -706,8 +815,8 @@ void saveLocalDistributions(string date="10.16.17_01h") {
   gStyle->SetOptStat(0);
 
   char* dataDir = getenv("ANITA3_RESULTSDIR");
-  name.str(""); name << dataDir << "/cluster/" << date << "/";
-  TChain *summaryTree = loadWhatever(name.str(),"clusterBackground",64,false);
+  name.str(""); name << dataDir << "/cluster/" << date << "/clusterBackground";
+  TChain *summaryTree = loadWhatever(name.str(),64,false);
 
   AnitaEventSummary *evSum = NULL;
   AnitaTemplateSummary *tempSum = NULL;
@@ -716,7 +825,7 @@ void saveLocalDistributions(string date="10.16.17_01h") {
   summaryTree->BuildIndex("eventNumber");
 
   //to get the event numbers
-  TFile *candTreeFile = TFile::Open("/home/brotter/anita16/benCode/templateSearch/macros/trueCandidates_oct14.root");
+  TFile *candTreeFile = TFile::Open("/home/brotter/anita16/benCode/templateSearch/macros/weakIsolated_oct14.root");
   TTree *candTree = (TTree*)candTreeFile->Get("summaryTree");
   AnitaEventSummary *candSum = NULL;
   candTree->SetBranchAddress("eventSummary",&candSum);
@@ -793,3 +902,139 @@ void saveLocalDistributions(string date="10.16.17_01h") {
 
   return;
 }
+
+
+
+double getGeomagJP(AnitaEventSummary *evSum, Adu5Pat *gps, bool upgoing=false,double &measPol, double &expPol) {
+  /*
+    Determines the "JP" value for the geomagnetic
+    Plateaus at 1 for some sigma value (2.5 default) and then falls off as 1/sigma past that
+
+    opt:
+    measPol & expPol: 
+
+   */
+
+  //constants
+  const double expSigma = 2.0; //degrees (should be variable...)
+  const double measSigma = 5.0; //degrees (from WAIS calibration)
+  const double sigmaPlateau = 2.5; //how far away before you stop just being 1
+
+  //expected
+  UsefulAdu5Pat usefulGPS(gps);
+  double phi = TMath::DegToRad() * evSum->peak[0][0].phi;
+  double theta = TMath::DegToRad() * evSum->peak[0][0].theta;  
+  double expPol;
+  if (!upgoing) expPol = TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisation(usefulGPS,phi,theta);
+  else          expPol = TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisationUpgoing(usefulGPS,phi,theta,1000);
+  
+  //measured
+  double measPol = evSum->coherent_filtered[0][0].linearPolAngle();
+
+  double totSigma = TMath::Sqrt(pow(expPol/expSigma
+
+  double outJP;
+  if ((polDiff/geoSigma) < 2.5) {
+    outJP = 1.0;
+  }
+  else {
+      outJP = sigmaPlateau / (polDiff/geoSigma); //the plateau value keeps it from being discontinuous at that point
+  }
+
+  cout << "             " << measPol << " vs " << expPol << " = " << polDiff/geoSigma << " | " << outJP << endl;
+
+
+
+  return outJP;
+  
+}
+
+
+
+void JPStatisticBackground(string inSigName,string inBackName) {
+  /*
+
+    reads in a signal file and a background file, then calculates and plots the JP statistic
+
+    inSigName: "signal" file name, which is just plotted in red on top of the background
+    inBackName: "background" file name, which is fit and plotted in black
+   */
+
+
+  TChain *sigTree = new TChain("summaryTree","summaryTree");
+  sigTree->Add(inSigName.c_str());
+  cout << "found " << sigTree->GetEntries() << " signal entries" << endl;  
+
+  TChain *backTree = new TChain("summaryTree","summaryTree");
+  backTree->Add(inBackName.c_str());
+  int lenEntries = backTree->GetEntries();
+  cout << "found " << lenEntries << " background entries" << endl;
+
+
+  AnitaEventSummary *evSum = NULL;
+  backTree->SetBranchAddress("eventSummary",&evSum);
+  AnitaTemplateSummary *tempSum = NULL;
+  backTree->SetBranchAddress("template",&tempSum);
+  Adu5Pat *gps = NULL;
+  backTree->SetBranchAddress("gpsEvent",&gps);
+
+
+  TH1D *hTempCoher_back = new TH1D("hTempCoher_back","Template Correlation (coher) background;correlation;count",1000,0,1);
+  TH1D *hTempDecon_back = new TH1D("hTempDecon_back","Template Correlation (decon) background;correlation;count",1000,0,1);
+
+  TH2D *h2Geomag_back = new TH2D("h2Geomag_back","Geomagnetic Expected vs Measured;expected plane (degree);measured plane (degrees)",91,-45,45,91,-45,45);
+  TH1D *hGeomag_back = new TH1D("hGeomag_back","Geomagnetic JP value (1/sigma);Geomag JP value; count",100,0,1);
+
+  TH1D *jp_back = new TH1D("jp_back","JP Statistic (Background)",1000,0,1.1);
+
+  cout << "Starting Loop: "<< endl;
+  for (int entry=0; entry<lenEntries; entry++) {
+    //    if (!(entry%10)) {cout << entry << "/" << lenEntries << endl; fflush(stdout); }
+    backTree->GetEntry(entry);
+
+    cout << evSum->eventNumber << ":" << endl;
+
+    double geoMeas,geoExp;
+    double geomagJP = getGeomagJP(evSum,gps,false,&geoMeas,&geoExp);
+
+    h2Geomag_back->Fill(geoMeas,geoExp);
+
+    double product = 1.0;
+    product *= tempSum->coherent[0][0].cRay[4];
+    product *= tempSum->deconvolved[0][0].cRay[4];
+    product *= geomagJP;
+
+    cout << tempSum->coherent[0][0].cRay[4] << " " << tempSum->deconvolved[0][0].cRay[4] << " " << geomagJP << " " << product << endl;
+
+    hTempCoher_back->Fill(tempSum->coherent[0][0].cRay[4]);
+    hTempDecon_back->Fill(tempSum->deconvolved[0][0].cRay[4]);
+    hGeomag_back->Fill(geomagJP);
+
+    jp_back->Fill(product);
+
+  }
+    
+
+  TFile *outFile = TFile::Open("JPout2.root","recreate");
+  hTempCoher_back->Write();
+  hTempDecon_back->Write();
+  h2Geomag_back->Write();
+  hGeomag_back->Write();
+  jp_back->Write();
+  outFile->Close();
+
+
+
+  return;
+}   
+
+
+
+
+
+
+
+
+
+
+

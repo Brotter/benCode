@@ -42,7 +42,273 @@ double getGeomagExpected(AnitaEventSummary *evSum, Adu5Pat *gps, bool upgoing=fa
 }
 
 
-void findGeoMagnetic2(string inFilename="weakIsolated_oct14.root") {
+
+void saveGeoMagnetic(string inFileName="cutsClust_oct14.root") {
+  /*
+
+    Read in a summaryTree file, then add an expGeoPol field to it
+
+    Outputs the same filename with "_geo" appended before the .root
+
+   */
+
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(inFileName.c_str());
+
+  int lenEntries = summaryTree->GetEntries();
+  cout << " Found " << lenEntries << " events" << endl;
+
+
+  size_t pos = inFileName.find(".root");
+  string baseName = inFileName.substr(0,pos);
+  stringstream outFileName;
+  outFileName << baseName << "_geo.root";
+
+  TFile *outFile = TFile::Open(outFileName.str().c_str(),"recreate");
+  TTree *outTree = new TTree("summaryTree","summaryTree");
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  outTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  outTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  outTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  outTree->Branch("gpsEvent",&gps);
+  double clusterValue;
+  summaryTree->SetBranchAddress("clusterValue",&clusterValue);
+  outTree->Branch("clusterValue",&clusterValue);
+  double exGeoPol;
+  outTree->Branch("exGeoPol",&exGeoPol);
+
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!(entry%100)) cout << entry << "/" << lenEntries << endl;
+
+    summaryTree->GetEntry(entry);
+
+    UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
+    double phi = TMath::DegToRad() * evSum->peak[0][0].phi;
+    double theta = TMath::DegToRad() * evSum->peak[0][0].theta;
+    exGeoPol = TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisation(*usefulGPS,phi,theta);
+
+    outTree->Fill();
+
+    delete usefulGPS;
+
+  }
+    
+  outFile->cd();
+  outTree->Write();
+  outFile->Close();
+
+  return;
+
+}
+
+
+void plotGeoMagneticLabeled(string inFilename="cutsClust_oct14_geo_labeled.root") {
+/*
+
+  Take in the 5997 events that passed my "impulsivity" cuts, then make the geomagnetic graphs, appropriately labeled, for them
+
+  needs to have a "_geo" and a "_labeled"
+
+*/
+  stringstream name;
+
+  //  GeoMagnetic::setDebug(true);
+
+  TFile *inFile = TFile::Open(inFilename.c_str());
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " entries in " << inFilename << endl;
+
+  AnitaEventSummary *evSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  TString *labelString = NULL;
+  summaryTree->SetBranchAddress("label",&labelString);
+  double exGeoPol;
+  summaryTree->SetBranchAddress("exGeoPol",&exGeoPol);
+
+
+  //the collection of TGraphErrors for the candidates
+  vector<TGraphErrors*> vCandidateGeoMap;
+
+  //the collection of TGraphErrors for the candidates and the dirty dozen
+  vector<TGraphErrors*> vStrongGeoMap;
+
+
+
+
+  //A histogram for the measured values for strong events
+  TH1D *hStrongMeas = new TH1D("hStrongMeas","Measured Polarization Angle: Strong events;degrees;count",46,-45,45);
+  TH1D *hStrongExpe = new TH1D("hStrongExpe","Expected Polarization Angle: Strong events;degrees;count",46,-45,45);
+  TH1D *hStrongDiff = new TH1D("hStrongDiff","Difference between Measured and Expected : Strong events;degrees;count",91,-45,45);
+  TH2D *h2Strong = new TH2D("h2Strong","Strong Events; Expected Polarization Angle (degrees);Measured Polarization Angle (degrees)",
+			    91,-45,45, 46,-45,45);
+
+  //A histogram for the measured values for all impulsive events
+  TH1D *hImpulsMeas = new TH1D("hImpulsMeas","Measured Polarization Angle: Impulsive events;degrees;count",46,-45,45);
+  TH1D *hImpulsExpe = new TH1D("hImpulsExpe","Expected Polarization Angle: Impulsive events;degrees;count",46,-45,45);
+  TH1D *hImpulsDiff = new TH1D("hImpulsDiff","Difference between Measured and Expected : Impulsive events;degrees;count",91,-45,45);
+  TH2D *h2Impuls = new TH2D("h2Impuls","Impuls Events;Expected Polarization Angle (degrees); Measured Polarization Angle (degrees)",
+			    91,-45,45, 46,-45,45);
+
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!(entry%10)) cout << entry << "/" << lenEntries << endl;
+
+    summaryTree->GetEntry(entry);
+
+
+    UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
+
+    double phi = TMath::DegToRad() * evSum->peak[0][0].phi;
+    double theta = TMath::DegToRad() * evSum->peak[0][0].theta;
+
+    double measPol = evSum->coherent_filtered[0][0].linearPolAngle();
+
+    //candidates
+    if (strstr(labelString->Data(),"Below Horizon Candidate") || strstr(labelString->Data(),"Above Horizon Candidate")) {
+      TGraphErrors *geCurr = new TGraphErrors();
+      geCurr->SetPoint(0,exGeoPol,measPol);
+      geCurr->SetPointError(0,2.,6.);
+      if (strstr(labelString->Data(),"Below Horizon Candidate")) { geCurr->SetMarkerColor(kBlue);geCurr->SetLineColor(kBlue); }
+      if (strstr(labelString->Data(),"Above Horizon Candidate")) { geCurr->SetMarkerColor(kRed); geCurr->SetLineColor(kRed); }
+      string sName = "ev"+to_string(evSum->eventNumber);
+      geCurr->SetName(sName.c_str());
+      geCurr->SetTitle(labelString->Data());
+
+      geCurr->GetXaxis()->SetRangeUser(-30,30);
+      geCurr->GetYaxis()->SetRangeUser(-30,30);
+
+      vCandidateGeoMap.push_back(geCurr);
+      vStrongGeoMap.push_back(geCurr);
+    }
+
+    //dirty dozen
+    if (strstr(labelString->Data(),"Dirty Dozen")) {
+      TGraphErrors *geCurr = new TGraphErrors();
+      geCurr->SetPoint(0,exGeoPol,measPol);
+      geCurr->SetPointError(0,2.,6.);
+      string sName = "ev"+to_string(evSum->eventNumber);
+      geCurr->SetName(sName.c_str());
+      geCurr->SetTitle(labelString->Data());
+
+      geCurr->GetXaxis()->SetRangeUser(-30,30);
+      geCurr->GetYaxis()->SetRangeUser(-30,30);
+
+      vStrongGeoMap.push_back(geCurr);
+    }
+      
+
+    //strong non-candidates (clustered or above horizon)
+    if (strstr(labelString->Data(),"Above Horizon Passing") || strstr(labelString->Data(),"Clustered Passing")) {
+      hStrongMeas->Fill(measPol);
+      hStrongExpe->Fill(exGeoPol);
+      hStrongDiff->Fill(measPol-exGeoPol);
+      h2Strong->Fill(exGeoPol,measPol);
+
+    }
+
+
+    //all impulsive non-candidates (clustered or above horizon)
+    if (strstr(labelString->Data(),"Above Horizon Failing") || strstr(labelString->Data(),"Clustered Failing")) {
+      hImpulsMeas->Fill(measPol);
+      hImpulsExpe->Fill(exGeoPol);
+      hImpulsDiff->Fill(measPol-exGeoPol);
+      h2Impuls->Fill(exGeoPol,measPol);      
+
+    }
+
+    delete usefulGPS;
+  }
+
+  cout << "Number of Candidates " << vCandidateGeoMap.size() << endl;
+  cout << "Number of Isolated Events" << vStrongGeoMap.size() << endl;
+
+
+
+  TF1 *line = new TF1("line","x",-45,45);
+  TF1 *lineP1 = new TF1("line","x+6",-45,45);
+  TF1 *lineM1 = new TF1("line","x-6",-45,45);
+  lineP1->SetLineStyle(2);
+  lineM1->SetLineStyle(2);
+  TF1 *lineP2 = new TF1("line","x+12",-45,45);
+  TF1 *lineM2 = new TF1("line","x-12",-45,45);
+  lineP2->SetLineStyle(3);
+  lineM2->SetLineStyle(3);
+  lineP2->SetLineWidth(1);
+  lineM2->SetLineWidth(1);
+
+  TCanvas *cCands = new TCanvas("cCands","cCands",1000,5000);
+
+  line->Draw();
+  for (int i=0; i<vCandidateGeoMap.size(); i++) {
+    vCandidateGeoMap[i]->Draw("psame");
+
+  }
+
+
+  TCanvas *cDD = new TCanvas("cDD","cDD",1000,5000);
+  line->Draw();
+  for (int i=0; i<vStrongGeoMap.size(); i++) {
+    vStrongGeoMap[i]->Draw("psame");
+
+  }
+
+  TCanvas *cStrong = new TCanvas("cStrong","cStrong",1000,5000);
+  cStrong->Divide(2,2);
+  cStrong->cd(1);
+  h2Strong->Draw("colz");
+  cStrong->cd(2);
+  hStrongMeas->Draw();
+  cStrong->cd(3);
+  hStrongExpe->Draw();
+  cStrong->cd(4);
+  hStrongDiff->Draw();
+
+  TCanvas *cImpuls = new TCanvas("cImpuls","cImpuls",1000,5000);
+  cImpuls->Divide(2,2);
+  cImpuls->cd(1);
+  h2Impuls->Draw("colz");
+  cImpuls->cd(2);
+  hImpulsMeas->Draw();
+  cImpuls->cd(3);
+  hImpulsExpe->Draw();
+  cImpuls->cd(4);
+  hImpulsDiff->Draw();
+  
+    
+  TFile *outRootFile = TFile::Open("findGeomagneticLabeled.root","recreate");
+  hStrongMeas->Write();
+  hImpulsMeas->Write();
+  hStrongExpe->Write();
+  hImpulsExpe->Write();
+  hStrongDiff->Write();
+  hImpulsDiff->Write(); 
+  for (int i=0; i<vStrongGeoMap.size(); i++) {
+    vStrongGeoMap[i]->Write();
+  }
+  for (int i=0; i<vCandidateGeoMap.size(); i++) {
+    vCandidateGeoMap[i]->Write();
+  }
+  outRootFile->Close();
+
+
+  return;
+}
+
+
+void findGeoMagnetic2(string inFilename="cuts_oct14.root") {
 /*
   Do both upgoing and direct, and include the direct events as well.
 */
@@ -311,7 +577,7 @@ TGraph* findGeoMagneticAngle() {
 
   GeoMagnetic::setDebug(true);
 
-  TFile *inFile = TFile::Open("candidates.root");
+  TFile *inFile = TFile::Open("trueCandidates_oct14_reMasked.root");
   TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
   AnitaEventSummary *evSum = NULL;
   Adu5Pat *gps = NULL;
@@ -334,38 +600,25 @@ TGraph* findGeoMagneticAngle() {
 
 
     cout << "--------------------------------------------------" << endl;
-    //quality cuts
-    if (TMath::Abs(evSum->peak[0][0].hwAngle) > 45 || evSum->flags.maxBottomToTopRatio[0] > 6) {
-      cout << "ev" << evSum->eventNumber << " cut due to hw or blast" << endl;
-      continue;
-    }
-
-    UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
-
-    double phi = TMath::DegToRad() * evSum->peak[0][0].phi;
-    double theta = TMath::DegToRad() * evSum->peak[0][0].theta;
-
     cout << "EventNumber: " << evSum->eventNumber << endl;
     cout << "Phi: " << evSum->peak[0][0].phi << " Theta: " << evSum->peak[0][0].theta << endl;
 
-    double exPol = -1 * TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisation(*usefulGPS,phi,theta);
-
-    /*exPol = TMath::Abs(exPol);
-    if (exPol > 90) exPol = 180-exPol;
-    exPol = TMath::Abs(exPol);
-    if (exPol > 45) exPol = 90-exPol;
-    exPol = TMath::Abs(exPol);*/
+    UsefulAdu5Pat *usefulGPS = new UsefulAdu5Pat(gps);
+    double phi = TMath::DegToRad() * evSum->peak[0][0].phi;
+    double theta = TMath::DegToRad() * evSum->peak[0][0].theta;
+    double exPol = TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisation(*usefulGPS,phi,theta);
+    delete usefulGPS;
 
     double measPol = evSum->coherent_filtered[0][0].linearPolAngle();
     
-    cout << "eventNumber: " << evSum->eventNumber << " exPol: " << exPol << " measPol: " << measPol << endl;
+    cout << "End: ev" << evSum->eventNumber << " exPol: " << exPol << " measPol: " << measPol << endl;
 
     hMeas->Fill(measPol);
     hExp->Fill(exPol);
     hDiff->Fill(measPol-exPol);
     gExVsMeas->SetPoint(gExVsMeas->GetN(),exPol,measPol);
-    gExVsMeas->SetPointError(gExVsMeas->GetN()-1,0.1,4.5);
-    delete usefulGPS;
+    gExVsMeas->SetPointError(gExVsMeas->GetN()-1,2,4.5);
+
   }
 
   TF1 *line = new TF1("line","x",-45,45);

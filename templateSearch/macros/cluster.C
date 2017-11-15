@@ -1204,7 +1204,7 @@ void clusterBackground(double threshold,string inFileName,string outFileName,
   for (int entry=startEntry; entry<stopEntry; entry++) {
     //printing stuff
     int printEntry = entry-startEntry;
-    if (printEntry%10000 == 0 && printEntry>0) {
+    if (printEntry%1000 == 0 && printEntry>0) {
       int timeElapsed = watch.RealTime();
       totalTimeSec += timeElapsed;
       double rate = float(printEntry)/totalTimeSec;
