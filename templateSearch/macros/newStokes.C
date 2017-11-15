@@ -22,10 +22,18 @@
   I want to re-calculate the stokes parameters because they are surely broken
 
 
+  10GS/s
+  smoothing (2ns, 500MHz LP) - peter found most power between 300 and 450MHz
+  dedispersed
+
+  
+
+
   This might do it :)
 
  */
 
+#include "loadAll.C"
 
 
 void reCalcStokes(polarimetry::StokesAnalysis *stokesAnalysis, double &Iout, double &Qout, double &Uout, double &Vout) {
@@ -76,22 +84,36 @@ void reCalcStokes(polarimetry::StokesAnalysis *stokesAnalysis, double &Iout, dou
 }
 
 
-void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirName=".") {
+void newStokes(string inFileName,int numSplits=1, int splitNum=0, bool copyAll=true,string outDirName=".") {
   /*
+    
+    Generate from instantaneous stokes 20%-height integral
 
-    Input: Give it a summary tree file name
+
+    Input: Give it a summary tree file name (_ALL_ will do all ~3M quality events)
     Output: It will output a new one with a "_newStokes" at the end that has recalculated values
 
     opt:
     numSplits: number of splits to divide the data up into in case you want to cluster run it
     splitNum: number of the split this specific instance will run (starting at zero)
+    copyAll: copy the whole summaryTree analysis file?  or just make a "AnitaEventSummary::WaveformSummary *newStokes" friendable branch
     outDirName: gives a directory (that exists already!) to dump the files in, otherwise it will dump it in the local directory
    */
 
   stringstream name;
 
-  TChain *summaryTree = new TChain("summaryTree","summaryTree");
-  summaryTree->Add(inFileName.c_str());
+  TChain *summaryTree;
+
+  if (inFileName=="_ALL"){
+    //good events that have been fixed once (template)
+    summaryTree = loadReKey(false);
+  }
+  
+  else {
+    summaryTree = new TChain("summaryTree","summaryTree");
+    summaryTree->Add(inFileName.c_str());
+  }
+
   int totEntries = summaryTree->GetEntries();
   if (!totEntries) {
     cout << "No entries in that tree!" << endl;
@@ -143,24 +165,26 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirN
   AnitaNoiseSummary *noiseSum = NULL;
   Adu5Pat *gps = NULL;
   summaryTree->SetBranchAddress("eventSummary",&evSum);
-  outTree->Branch("eventSummary",&evSum);
   summaryTree->SetBranchAddress("template",&templateSummary);
-  outTree->Branch("template",&templateSummary);
   summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
-  outTree->Branch("noiseSummary",&noiseSum);
   summaryTree->SetBranchAddress("gpsEvent",&gps);
-  outTree->Branch("gpsEvent",&gps);
 
+  if (copyAll) {
+    outTree->Branch("eventSummary",&evSum);
+    outTree->Branch("template",&templateSummary);
+    outTree->Branch("noiseSummary",&noiseSum);
+    outTree->Branch("gpsEvent",&gps);
+  }
 
   //new stuff
   AnitaEventSummary::WaveformInfo *newTop = new AnitaEventSummary::WaveformInfo();
   AnitaEventSummary::WaveformInfo *newMid = new AnitaEventSummary::WaveformInfo();
   AnitaEventSummary::WaveformInfo *newBot = new AnitaEventSummary::WaveformInfo();
   AnitaEventSummary::WaveformInfo *newAll = new AnitaEventSummary::WaveformInfo();
-  outTree->Branch("newStokesTop",&newTop);
-  outTree->Branch("newStokesMid",&newMid);
-  outTree->Branch("newStokesBot",&newBot);
-  outTree->Branch("newStokesAll",&newAll);
+  //  outTree->Branch("newStokesTop",&newTop);
+  //  outTree->Branch("newStokesMid",&newMid);
+  //  outTree->Branch("newStokesBot",&newBot);
+  outTree->Branch("newStokes",&newAll);
   
 
   
@@ -281,6 +305,7 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirN
     delete deconvolved_filtered_xpol;
     delete stokesAnalysis;
 
+    /*
     //top antennas
     wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,disallowedTop);
     deconvolved_filtered = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved()); 
@@ -292,6 +317,7 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirN
     delete deconvolved_filtered;
     delete deconvolved_filtered_xpol;
     delete stokesAnalysis;
+
 
     //mid antennas
     wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,disallowedMid);
@@ -305,6 +331,7 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirN
     delete deconvolved_filtered_xpol;
     delete stokesAnalysis;
 
+    
     //bot antennas
     wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kHorizontal,disallowedBot);
     deconvolved_filtered = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved()); 
@@ -312,10 +339,12 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, string outDirN
     deconvolved_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved());     
     stokesAnalysis = new polarimetry::StokesAnalysis(deconvolved_filtered,deconvolved_filtered_xpol);
     reCalcStokes(stokesAnalysis,newBot->I,newBot->Q,newBot->U,newBot->V);
-
+    
     delete deconvolved_filtered;
     delete deconvolved_filtered_xpol;
     delete stokesAnalysis;
+    */
+
 
     outFile->cd();
     outTree->Fill();
