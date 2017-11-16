@@ -61,7 +61,7 @@ void reCalcStokes(polarimetry::StokesAnalysis *stokesAnalysis, double &Iout, dou
   
   int i = locMaxI;
   //  cout << "middle:" << i << " ";
-  while ( instI.GetY()[i]/maxI > 0.2) {
+  while ( instI.GetY()[i]/maxI > 0.25) {
     Iout += instI.GetY()[i];
     Qout += instQ.GetY()[i];
     Uout += instU.GetY()[i];
@@ -70,7 +70,7 @@ void reCalcStokes(polarimetry::StokesAnalysis *stokesAnalysis, double &Iout, dou
   }
   //  cout << "upperEdge:" << i << " ";
   i = locMaxI-1;
-  while ( instI.GetY()[i]/maxI > 0.2) {
+  while ( instI.GetY()[i]/maxI > 0.25) {
     Iout += instI.GetY()[i];
     Qout += instQ.GetY()[i];
     Uout += instU.GetY()[i];
@@ -104,7 +104,7 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, bool copyAll=t
 
   TChain *summaryTree;
 
-  if (inFileName=="_ALL"){
+  if (inFileName=="_ALL_"){
     //good events that have been fixed once (template)
     summaryTree = loadReKey(false);
   }
@@ -207,9 +207,24 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, bool copyAll=t
   AnitaResponse::ResponseManager *responses = new AnitaResponse::ResponseManager(UCorrelator::AnalysisConfig::getResponseString(config->response_option),config->response_npad, config->deconvolution_method);
 
 
+  //waveform combiner.  (15 ants, npad=3 is default, filtered, deconvolved,responses)
+  UCorrelator::WaveformCombiner *wfcomb = new UCorrelator::WaveformCombiner(combine_nantennas,config->combine_npad,
+									    true,true,responses);
+  UCorrelator::WaveformCombiner *wfcomb_filtered = new UCorrelator::WaveformCombiner(combine_nantennas,config->combine_npad,
+										     false,true,responses);
+  wfcomb->setDelayToCenter(config->delay_to_center);
+  wfcomb_filtered->setDelayToCenter(config->delay_to_center);
+
+  wfcomb->setGroupDelayFlag(config->enable_group_delay); 
+  wfcomb_filtered->setGroupDelayFlag(config->enable_group_delay); 
+
+
+
   //  filtering strat
   FilterStrategy *fStrat = UCorrelator::getStrategyWithKey("sinsub_10_3_ad_2");
 
+  SimplePassBandFilter *lpFilt = new SimplePassBandFilter(0.2,0.5);
+  fStrat->addOperation(lpFilt);
 
   //lets save each ring's polarimetry separately, so make some masks
   ULong64_t allowedTop = 0ul;
@@ -237,17 +252,6 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, bool copyAll=t
   cout << std::bitset<64>(allowedMid) << endl;
   cout << std::bitset<64>(disallowedBot) << endl;
   cout << std::bitset<64>(allowedBot) << endl;
-
-  //waveform combiner.  (15 ants, npad=3 is default, filtered, deconvolved,responses)
-  UCorrelator::WaveformCombiner *wfcomb = new UCorrelator::WaveformCombiner(combine_nantennas,config->combine_npad,
-									    true,true,responses);
-  UCorrelator::WaveformCombiner *wfcomb_filtered = new UCorrelator::WaveformCombiner(combine_nantennas,config->combine_npad,
-										     false,true,responses);
-  wfcomb->setDelayToCenter(config->delay_to_center);
-  wfcomb_filtered->setDelayToCenter(config->delay_to_center);
-
-  wfcomb->setGroupDelayFlag(config->enable_group_delay); 
-  wfcomb_filtered->setGroupDelayFlag(config->enable_group_delay); 
 
 
 
@@ -298,6 +302,7 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, bool copyAll=t
     deconvolved_filtered = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved()); 
     wfcomb_filtered->combine(evSum->peak[pol][0].phi, evSum->peak[pol][0].theta, filtered, AnitaPol::kVertical);
     deconvolved_filtered_xpol = new AnalysisWaveform(*wfcomb_filtered->getDeconvolved());     
+
     stokesAnalysis = new polarimetry::StokesAnalysis(deconvolved_filtered,deconvolved_filtered_xpol);
     reCalcStokes(stokesAnalysis,newAll->I,newAll->Q,newAll->U,newAll->V);
 
