@@ -19,5 +19,5 @@ mkdir ${sharedDir}"/log"
 numCores=64
 for localCore in `seq 0 64`; do
     echo "Starting "${localCore}" to "${sharedDir}
-    root -b newStokes.C\(\"_ALL_\",64,${localCore},false,\"${sharedDir}\"\)  1> ${sharedDir}/log/${localCore}.log 2>&1 &
+    root -b newStokes.C\(\"_ALL_\",\"${sharedDir}\",64,${localCore},false\)  1> ${sharedDir}/log/${localCore}.log 2>&1 &
 done

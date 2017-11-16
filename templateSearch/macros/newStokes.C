@@ -84,7 +84,7 @@ void reCalcStokes(polarimetry::StokesAnalysis *stokesAnalysis, double &Iout, dou
 }
 
 
-void newStokes(string inFileName,int numSplits=1, int splitNum=0, bool copyAll=true,string outDirName=".") {
+void newStokes(string inFileName,string outBaseName="", int numSplits=1, int splitNum=0, bool copyAll=true) {
   /*
     
     Generate from instantaneous stokes 20%-height integral
@@ -97,7 +97,7 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, bool copyAll=t
     numSplits: number of splits to divide the data up into in case you want to cluster run it
     splitNum: number of the split this specific instance will run (starting at zero)
     copyAll: copy the whole summaryTree analysis file?  or just make a "AnitaEventSummary::WaveformSummary *newStokes" friendable branch
-    outDirName: gives a directory (that exists already!) to dump the files in, otherwise it will dump it in the local directory
+    outBaseName: The output file name base, which will have a "_#.root" if you are splitting
    */
 
   stringstream name;
@@ -148,8 +148,9 @@ void newStokes(string inFileName,int numSplits=1, int splitNum=0, bool copyAll=t
   name.str("");
   size_t pos = inFileName.find(".root");
   string baseName = inFileName.substr(0,pos);
-  name << outDirName << "/" << baseName << "_newStokes";
-  if (numSplits > 1) name << "_" << splitNum;
+  if (outBaseName=="") { name << baseName << "_newStokes"; }
+  name << outBaseName;
+  if (numSplits > 1) { name << "_" << splitNum; }
   name << ".root";
   cout << "Using output file " << name.str() << endl;
   TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
