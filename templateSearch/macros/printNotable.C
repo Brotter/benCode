@@ -6,13 +6,11 @@
 #include "AnitaEventSummary.h"
 
 
-void printNotable(string fileNameBase="cutsClust_oct14_geo_labeled",double clusterThreshold=40) {
+void printNotable(string inFileName) {
 
   stringstream name;
-  name.str("");
-  name << fileNameBase << ".root";
 
-  TFile *inFile = TFile::Open(name.str().c_str());
+  TFile *inFile = TFile::Open(inFileName.c_str());
   TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
 
   int lenEntries = summaryTree->GetEntries();
@@ -25,16 +23,19 @@ void printNotable(string fileNameBase="cutsClust_oct14_geo_labeled",double clust
   double clusterValue;
   summaryTree->SetBranchAddress("clusterValue",&clusterValue);
   clusterValue = 999;
-  TString *labelString = NULL;
-  summaryTree->SetBranchAddress("label",&labelString);
+  //  TString *labelString = NULL;
+  //  summaryTree->SetBranchAddress("label",&labelString);
+  AnitaEventSummary::WaveformInfo *newStokes = NULL;
+  summaryTree->SetBranchAddress("newStokes",&newStokes);
 
 
-  name.str("");
-  name << fileNameBase << "_values.csv";
-  ofstream outfile(name.str());
+  size_t pos = inFileName.find(".root");
+  string baseName = inFileName.substr(0,pos);
+  string outFileName = baseName+"_value.csv";
+  ofstream outfile(outFileName);
   
   //  outfile << "candidateNum eventNumber realTime sourceLat sourceLon sourceAlt anitaLat anitaLon anitaAlt elevation trueAz coherTemplateCorr deconvTemplateCorr mapPeak mapSNR mapTheta cohLinPolFrac deconvLinPolFrac cohTotPolFrac deconvTotPolFrac cohHilbPeak deconvHilbPeak" << endl;
-  outfile << "candidateNum eventNumber realTime sourceLat sourceLon sourceAlt anitaLat anitaLon anitaAlt elevation trueAz" << endl;
+  outfile << "candidateNum eventNumber realTime sourceLat sourceLon sourceAlt anitaLat anitaLon anitaAlt elevation trueAz newPolPlane" << endl;
   int candNum=0;
   for (int i=0; i<lenEntries; i++) {
     summaryTree->GetEntry(i);
@@ -42,7 +43,7 @@ void printNotable(string fileNameBase="cutsClust_oct14_geo_labeled",double clust
     //    if ( (clusterThreshold>0 && (clusterValue > clusterThreshold)) || 
     //	  (evSum->eventNumber==27142546 || evSum->eventNumber==39599205) ) {
 
-    if (!(strstr(labelString->Data(),"Clustered Passing"))) continue;
+    //    if (!(strstr(labelString->Data(),"Clustered Passing"))) continue;
     
 
     AnitaEventSummary::WaveformInfo cohrnt = evSum->coherent_filtered[0][0];
@@ -56,6 +57,7 @@ void printNotable(string fileNameBase="cutsClust_oct14_geo_labeled",double clust
     outfile << peak.latitude << " " << peak.longitude << " " << peak.altitude << " ";
     outfile << anita.latitude << " " << anita.longitude << " " << anita.altitude << " ";
     outfile << peak.theta << " " << FFTtools::wrap(anita.heading-peak.phi,360,0)+180 << " "; //true azimuth. 0-360 CW from north
+    outfile << newStokes->linearPolAngle() << " ";
     /*
     outfile << tempSum->coherent[0][0].cRay[4] << " " << tempSum->deconvolved[0][0].cRay[4] << " ";
     outfile << peak.value << " " << peak.snr << " " << peak.theta << " ";

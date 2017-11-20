@@ -52,6 +52,14 @@ void separateSingleEvent(int eventNumber, string inFileName="") {
   outTree->Branch("noiseSummary",&noiseSum);
   summaryTree->SetBranchAddress("gpsEvent",&gps);
   outTree->Branch("gpsEvent",&gps);
+  TString *labelString = NULL;
+  summaryTree->SetBranchAddress("label",&labelString);
+  outTree->Branch("label",&labelString);
+  double clusterValue;
+  summaryTree->SetBranchAddress("clusterValue",&clusterValue);
+  outTree->Branch("clusterValue",&clusterValue);
+
+
   
   
   summaryTree->GetEntry(entry);
@@ -86,6 +94,7 @@ void excludeSingleEvent(string inFileName, int eventNumber=15717147) {
   TFile *outFile = TFile::Open(outName.c_str(),"recreate");
   TTree *outTree = new TTree("summaryTree","summaryTree");
 
+
   AnitaEventSummary *evSum = NULL;
   AnitaTemplateSummary *tempSum = NULL;
   AnitaNoiseSummary *noiseSum = NULL;
@@ -115,7 +124,217 @@ void excludeSingleEvent(string inFileName, int eventNumber=15717147) {
 }
 
 
+void saveGeoAssociatedEvents(int eventNumber) {
+  /*
 
+    save events that have a seedEventNumber that matches the input eventNumber
+
+    The saved events are "geoassociated" with that event, and will be used to do the JP stuff
+
+    Reads in the full labeled file (from labelEvents.C), friends the full dataset (reKey)
+    then saves everything it can in a new file
+
+   */
+
+
+  TChain *summaryTree = loadReKey(false);
+  int lenReKey = summaryTree->GetEntries();
+  cout << "Found " << lenReKey << " total events in reKey" << endl;
+
+  TChain *labeledTree = new TChain("summaryTree","summaryTree");
+  labeledTree->Add("labelEvents_All.root");
+  int lenLabeled = labeledTree->GetEntries();
+  cout << "Found " << lenLabeled << " labeled events" << endl;
+
+  if (lenLabeled != lenReKey) {
+    cout << " Those aren't the same number of events!  Figure that out first" << endl;
+    return;
+  }
+
+
+  stringstream name;
+  name << "geoAssociated_ev" << eventNumber << ".root";
+  TFile *outFile = TFile::Open(name.str().c_str(),"recreate");
+  TTree *outTree = new TTree("summaryTree","summaryTree");
+
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  outTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  outTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  outTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  outTree->Branch("gpsEvent",&gps);
+
+  double backClusterValue;
+  labeledTree->SetBranchAddress("backClusterValue",&backClusterValue);
+  outTree->Branch("backClusterValue",&backClusterValue);
+  double impClusterValue;
+  labeledTree->SetBranchAddress("impClusterValue",&impClusterValue);
+  outTree->Branch("impClusterValue",&impClusterValue);
+
+  int seedEventNumber;
+  labeledTree->SetBranchAddress("seedEventNumber",&seedEventNumber);
+  outTree->Branch("seedEventNumber",&seedEventNumber);
+
+  bool fInBackgroundFile,fInClusterFile;
+  labeledTree->SetBranchAddress("fInBackgroundFile",&fInBackgroundFile);
+  labeledTree->SetBranchAddress("fInClusterFile",&fInClusterFile);
+  outTree->Branch("fInBackgroundFile",&fInBackgroundFile);
+  outTree->Branch("fInClusterFile",&fInClusterFile);
+
+  // label!
+  TString *labelString = NULL;
+  labeledTree->SetBranchAddress("label",&labelString);
+  outTree->Branch("label",&labelString);
+
+  //one more bool to let you know if it is the seed event
+  bool fSeedEvent;
+  outTree->Branch("fSeedEvent",&fSeedEvent);
+
+
+  int lenEntries = lenLabeled;
+  TStopwatch watch;
+  watch.Start(kTRUE);
+  int totalTimeSec = 0;
+  int savedCount = 0;
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (entry%10000 == 0 && entry>0) {
+      int timeElapsed = watch.RealTime();
+      totalTimeSec += timeElapsed;
+      double rate = float(entry)/totalTimeSec;
+      double remaining = (float(lenEntries-entry)/rate)/60.;
+      watch.Start();
+      cout << entry << "/" << lenEntries << " (" << savedCount << ") ";
+      cout << 10000./timeElapsed << "Hz <" << rate << "> " << remaining << " minutes left, ";
+      cout << totalTimeSec/60. << " minutes elapsed" << endl;
+    }
+    
+    labeledTree->GetEntry(entry);
+
+    //check if this event geoAssociates with the seed
+    if (eventNumber == seedEventNumber) {
+      summaryTree->GetEntry(entry);
+
+      //mark if it is the seed entry
+      if (evSum->eventNumber == eventNumber) {
+	fSeedEvent = true; }
+      else { fSeedEvent = false; }
+
+      outTree->Fill();
+      savedCount++;
+    }
+  }
+
+    outFile->cd();
+    outTree->Write();
+    outFile->Close();
+
+    cout << "Done!" << endl;
+
+    return;
+}
+
+
+void saveMultipleGeoAssociated(string filename = "trueCandidates_oct14_reMasked.root") {
+
+  
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(filename.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " events to save geoAssociated events for" << endl;
+  
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  
+  string name;
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    cout << "saveMultipleGeoAssociated(): Doing " << evSum->eventNumber << "..." << endl;
+    saveGeoAssociatedEvents(evSum->eventNumber);
+  }
+
+  return;
+}
+
+void saveSingleLabel(string inFileName="",string inLabel="") {
+
+  if (inLabel=="") {
+    cout << " Current labels added:"              << endl;
+    cout <<  "Below Horizon Candidate"            << endl;
+    cout <<  "Above Horizon Candidate"		  << endl;
+    cout <<  "Inverted Candidate"		  << endl;
+    cout <<  "Dirty Dozen (aka isolated failing)" << endl;
+    cout <<  "Above Horizon Passing"		  << endl;
+    cout <<  "Above Horizon Failing"		  << endl;
+    cout <<  "Clustered Failing"		  << endl;
+    cout <<  "Clustered Passing"                  << endl;
+    return;
+  }
+
+  
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(inFileName.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " to look through" << endl;
+  cout << "Saving " << inLabel << endl;
+
+
+
+  string outFileName = inLabel + ".root";
+  TFile *outFile = TFile::Open(outFileName.c_str(),"recreate");
+  TTree *outTree = new TTree("summaryTree","summaryTree");
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  outTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  outTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  outTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  outTree->Branch("gpsEvent",&gps);
+  TString *labelString = NULL;
+  summaryTree->SetBranchAddress("label",&labelString);
+  outTree->Branch("label",&labelString);
+  double clusterValue;
+  summaryTree->SetBranchAddress("clusterValue",&clusterValue);
+  outTree->Branch("clusterValue",&clusterValue);
+
+
+  int savedEvs = 0;
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!(entry%1000)) cout << entry << "/" << lenEntries << " (" << savedEvs << ")" << endl;
+
+    summaryTree->GetEntry(entry);
+
+    if (!strstr(labelString->Data(),inLabel.c_str())) { continue; }
+    else {
+      outTree->Fill();
+      savedEvs++;
+    }
+
+  }
+
+  cout << "Found " << savedEvs << " events to save" << endl;
+
+  outFile->cd();
+  outTree->Write();
+  outFile->Close();
+  
+  cout << "Saved! Bye!" << endl;
+
+  return;
+
+}
 
 
 void separateNotable_fromScratch() {
@@ -1035,6 +1254,85 @@ void separateWAIS() {
 
 }
 
+
+void separateLDB(bool good=true) {
+  /*
+
+    splits out the LDB events
+
+    if (good): only do the 15 minutes of seavey runs (eventNumber > 9688e3 && eventNumber < 9760e3)
+
+   */
+
+
+  TChain *summaryTree = loadReKey(false);
+
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " in full set" << endl;
+
+  TFile *outFile;
+  if (good) outFile = TFile::Open("ldbEvents_good.root","recreate");
+  else      outFile = TFile::Open("ldbEvents.root","recreate");
+  TTree *outTree = new TTree("summaryTree","summaryTree");
+
+  AnitaEventSummary *evSum = NULL;
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  outTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  outTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  outTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  outTree->Branch("gpsEvent",&gps);
+
+  int startEntry,stopEntry;
+  if (good) { startEntry = 300000; stopEntry = 340000; } //from running it once
+  else {startEntry = 0; stopEntry = lenEntries; }
+
+  TStopwatch watch;
+  watch.Start(kTRUE);
+  int totalTimeSec = 0;
+  int savedCount = 0;
+  for (int entry=startEntry; entry<stopEntry; entry++) {
+    if (entry%10000 == 0 && entry>0) {
+      int timeElapsed = watch.RealTime();
+      totalTimeSec += timeElapsed;
+      double rate = float(entry)/totalTimeSec;
+      double remaining = (float(lenEntries-entry)/rate)/60.;
+      watch.Start();
+      cout << entry << "/" << lenEntries << " (" << savedCount << ") ";
+      cout << 10000./timeElapsed << "Hz <" << rate << "> " << remaining << " minutes left, ";
+      cout << totalTimeSec/60. << " minutes elapsed" << endl;
+    }
+    summaryTree->GetEntry(entry);
+
+    int eventNumber = evSum->eventNumber;
+
+    //needs to be an ldb pulse
+    if (evSum->flags.pulser == 2) {
+
+      //if you want the good pulses, its these run numbers
+      if (good && (evSum->eventNumber < 9688e3 || evSum->eventNumber > 9760e3)) { continue; }
+      
+      //otherwise you're good!  save it.
+      outFile->cd();
+      outTree->Fill();
+      savedCount++;
+    }
+  }
+
+  cout << "Found " << savedCount << " entries, Saving..." << endl;
+
+  outFile->cd();
+  outTree->Write();
+  outFile->Close();
+
+  cout << "Done!" << endl;
+
+}
 
 
 void separateNotable() {

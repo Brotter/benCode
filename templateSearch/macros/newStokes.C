@@ -190,7 +190,8 @@ void newStokes(string inFileName,string outBaseName="", int numSplits=1, int spl
 
   
   //  need all the full root data too.  Start at 130, no decimation, and no blinding strat
-  AnitaDataset *data = new AnitaDataset(130,false);
+  summaryTree->GetEntry(0);
+  AnitaDataset *data = new AnitaDataset(evSum->run,false);
 
   //  some config stuff
   UCorrelator::AnalysisConfig *config = new UCorrelator::AnalysisConfig();

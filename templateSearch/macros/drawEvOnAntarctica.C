@@ -709,12 +709,12 @@ void plotEventsClusteredWithCandidate(int evNum,bool count=false) {
   summaryTree->SetBranchAddress("clusterValue",&clusterValue);
 
   summaryTree->BuildIndex("eventNumber");
-  int candEntry = candTree->GetEntryNumberWithIndex(evNum);
+  int candEntry = summaryTree->GetEntryNumberWithIndex(evNum);
   if (candEntry < 0) { cout << "couldn't find entry for that event" << endl; return; }
   summaryTree->GetEntry(candEntry);
 
   TGraphAntarctica *gEv = new TGraphAntarctica();
-  gEv->SetPoint(0,candSum->peak[0][0].longitude,candSum->peak[0][0].latitude);
+  gEv->SetPoint(0,evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
 
   cout << gEv->GetX()[0]-8e5 << " " << gEv->GetX()[0]+8e5 << endl;
   cout << gEv->GetY()[0]-4e5 << " " << gEv->GetY()[0]+4e5 << endl;
@@ -1518,6 +1518,104 @@ void drawCandidatesOnQualityEvents(string filename) {
 }
 
 
+  
+void drawGeoAssociated(string filename,bool save=false,int bins=1000) {
+/*
+
+  */
+  
+  TH2DAntarctica *antMap = new TH2DAntarctica(bins,bins);
+
+  TGraphAntarctica *gEv = new TGraphAntarctica();
+  gEv->SetMarkerStyle(41);
+  gEv->SetMarkerSize(3);
+  gEv->SetMarkerColor(kRed);
+
+
+  TGraphAntarctica *anitaLoc = new TGraphAntarctica();
+  anitaLoc->SetMarkerColor(kRed);
+  anitaLoc->SetMarkerStyle(22);
+  anitaLoc->SetMarkerSize(1);
+  
+  TGraphAntarctica *anitaPath = new TGraphAntarctica();
+  anitaPath->SetMarkerColor(kGray);
+  anitaPath->SetMarkerSize(0.3);
+
+  TFile *inFile = TFile::Open(filename.c_str());
+  TTree *summaryTree = (TTree*)inFile->Get("summaryTree");
+    
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  bool fSeedEvent;
+  summaryTree->SetBranchAddress("fSeedEvent",&fSeedEvent);
+
+
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " entries" << endl;
+  
+  if (lenEntries == 0) {
+    cout << " No Associated Entries in " << filename << endl;
+    return;
+  }
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!(entry%10000)) cout << entry << "/" << lenEntries << endl;
+    summaryTree->GetEntry(entry);
+
+    anitaPath->SetPoint(anitaPath->GetN(),evSum->anitaLocation.longitude,evSum->anitaLocation.latitude);
+    if (!fSeedEvent) {
+      antMap->Fill(evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+    }
+    else {
+      gEv->SetPoint(0,evSum->peak[0][0].longitude,evSum->peak[0][0].latitude);
+      anitaLoc->SetPoint(0,evSum->anitaLocation.longitude,evSum->anitaLocation.latitude);
+    }
+    
+  }
+
+  TCanvas *c1 = new TCanvas("c1","c1",1200,1200);
+  antMap->Draw("colz");
+  antMap->GetXaxis()->SetRangeUser(gEv->GetX()[0]-8e5,gEv->GetX()[0]+8e5);
+  antMap->GetYaxis()->SetRangeUser(gEv->GetY()[0]-4e5,gEv->GetY()[0]+4e5);
+  gEv->Draw("psame");
+  anitaPath->Draw("psame");
+  anitaLoc->Draw("psame");
+
+  if (save) {
+    size_t pos = filename.find(".root");
+    string baseName = filename.substr(0,pos);
+    string saveName = baseName + ".png";
+    c1->SaveAs(saveName.c_str());
+  }
+    
+  delete c1;
+
+  return;
+}
+
+
+void drawMultipleGeoAssociatedMaps(string filename = "trueCandidates_oct14_reMasked.root") {
+  /*
+    Draws multiple geoAssociated graphs, probably from the canididate liste
+   */
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(filename.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " events to make canvases for" << endl;
+  
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  
+  string name;
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    name = "geoAssociated_ev" + to_string(evSum->eventNumber) + ".root";
+    drawGeoAssociated(name,true);
+  }
+
+  return;
+}
 
 
 void drawTH2DFromFile(string filename,int bins=1000) {
