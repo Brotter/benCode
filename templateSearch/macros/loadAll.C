@@ -58,8 +58,44 @@ TChain *loadReKey(bool doProof = true) {
   return summaryTree;
 
 }
+
+TChain *loadLabeled() {
+  TChain *reKey = loadReKey(false);
+
+  TChain *labeled = new TChain("summaryTree","summaryTree");
+  labeled->Add("labelEvents_All.root");
+  
+  reKey->AddFriend(labeled);
+
+  return reKey;
+}
   
 
+TChain *loadGeoAssociated() {
+  TChain *outTree = new TChain("summaryTree","summaryTree");
+  outTree->Add("geoAssociated/geoAssociated_ev9097075_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev11116669_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev11989349_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev16952229_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev19459851_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev23695286_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev27142546_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev32907848_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev33484995_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev39599205_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev41529195_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev58592863_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev62273732_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev66313844_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev68298837_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev70013898_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev73726742_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev75277769_geoMag.root");
+  outTree->Add("geoAssociated/geoAssociated_ev83877990_geoMag.root");
+
+  cout << "Found " << outTree->GetEntries() << " entries" << endl;
+  return outTree;
+}
 
 TChain* loadAll(string date,bool doProof = true){
   //crab

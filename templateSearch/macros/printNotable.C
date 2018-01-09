@@ -5,7 +5,6 @@
  */
 #include "AnitaEventSummary.h"
 
-
 void printNotable(string inFileName) {
 
   stringstream name;
@@ -74,4 +73,30 @@ void printNotable(string inFileName) {
   outfile.close();
 
 
+}
+
+
+void printGeoAssociatedSets() {
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add("trueCandidates_oct14_remasked.root");
+  int lenEntries = summaryTree->GetEntries();
+
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+
+    string filename = "geoAssociated/geoAssociated_ev" + to_string(evSum->eventNumber) + "_newStokes.root";
+    cout << filename << endl;
+
+    printNotable(filename);
+  }
+
+  return;
+}
+
+void printNotable() {
+  cout << "loaded printNotable.C" << endl;
+  return;
 }

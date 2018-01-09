@@ -36,6 +36,131 @@
 #include "loadAll.C"
 
 
+void linkNewStokes(string inFileName) {
+  /*
+
+    These take awhile to calculate, and I already did it for all of them, so lets just link them together
+
+   */
+
+  //forgot to add the event number doh
+  TChain *fullData = loadReKey(false);
+  cout << "fullData->GetEntries(): " << fullData->GetEntries() << endl;
+  fullData->BuildIndex("eventNumber");
+
+  TChain *newTree = loadWhatever("instStokes/_ALL__newStokes",64,false);
+  int lenNew = newTree->GetEntries();
+  cout << "newTree->GetEntries: " << lenNew << endl;
+
+
+
+  size_t pos = inFileName.find(".root");
+  string baseName = inFileName.substr(0,pos);
+  string outName = baseName+"_newStokes.root";
+  TFile *outFile = TFile::Open(outName.c_str(),"recreate");
+  TTree *outTree = new TTree("summaryTree","summaryTree");
+
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(inFileName.c_str());
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  int lenEntries = summaryTree->GetEntries();
+
+  cout << "Re-saving " << lenEntries << " entries" << endl;
+
+  AnitaEventSummary::WaveformInfo *newStokes = NULL;
+  newTree->SetBranchAddress("newStokes",&newStokes);
+  outTree->Branch("newStokes",&newStokes);
+
+
+  AnitaTemplateSummary *tempSum = NULL;
+  AnitaNoiseSummary *noiseSum = NULL;
+  Adu5Pat *gps = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  outTree->Branch("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
+  outTree->Branch("template",&tempSum);
+  summaryTree->SetBranchAddress("noiseSummary",&noiseSum);
+  outTree->Branch("noiseSummary",&noiseSum);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+  outTree->Branch("gpsEvent",&gps);
+  TString *labelString = NULL;
+  summaryTree->SetBranchAddress("label",&labelString);
+  outTree->Branch("label",&labelString);
+  
+  double backClusterValue;
+  summaryTree->SetBranchAddress("backClusterValue",&backClusterValue);
+  outTree->Branch("backClusterValue",&backClusterValue);
+  double impClusterValue;
+  summaryTree->SetBranchAddress("impClusterValue",&impClusterValue);
+  outTree->Branch("impClusterValue",&impClusterValue);
+
+  int seedEventNumber;
+  summaryTree->SetBranchAddress("seedEventNumber",&seedEventNumber);
+  outTree->Branch("seedEventNumber",&seedEventNumber);
+
+  bool fInBackgroundFile,fInClusterFile;
+  summaryTree->SetBranchAddress("fInBackgroundFile",&fInBackgroundFile);
+  summaryTree->SetBranchAddress("fInClusterFile",&fInClusterFile);
+  outTree->Branch("fInBackgroundFile",&fInBackgroundFile);
+  outTree->Branch("fInClusterFile",&fInClusterFile);
+
+  //one more bool to let you know if it is the seed event
+  bool fSeedEvent;
+  summaryTree->SetBranchAddress("fSeedEvent",&fSeedEvent);
+  outTree->Branch("fSeedEvent",&fSeedEvent);
+
+
+
+  
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    int eventNumber = evSum->eventNumber;
+    
+    int index = fullData->GetEntryNumberWithIndex(eventNumber);
+    if (index <= 0) {
+      cout << "coudln't find newStokes for ev" << eventNumber << endl;
+      continue;
+    }
+    newTree->GetEntry(index);
+
+    outTree->Fill();
+    
+  }
+
+  outFile->cd();
+  outTree->Write();
+  outFile->Close();
+  
+  return;
+}
+    
+
+
+void saveMultipleGeoAssociated(string filename = "trueCandidates_oct14_reMasked.root") {
+
+  
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(filename.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " events to save geoAssociated events for" << endl;
+  
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  
+  string name;
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    cout << "saveMultipleGeoAssociated(): Doing " << evSum->eventNumber << "..." << endl;
+    string currFile = "geoAssociated/geoAssociated_ev" + to_string(evSum->eventNumber) + ".root";
+    linkNewStokes(currFile);
+  }
+  
+  return;
+}
+
+
+
 void reCalcStokes(polarimetry::StokesAnalysis *stokesAnalysis, double &Iout, double &Qout, double &Uout, double &Vout) {
   /*
 

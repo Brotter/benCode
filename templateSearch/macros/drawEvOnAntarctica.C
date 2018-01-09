@@ -1818,9 +1818,147 @@ void TGraphFromFileWithCut(string fileName) {
   }
   cout << "counter:" << counter << endl;
   gMap->Draw("p");
+
+  return;
+}
+
+
+void drawMapForEachLabel(bool save=false) {
+  /*
+    Read in all the events and the label file and draw them on the continent!
+
+    Labels To Draw (from labelEvents.C):
+    - "Below Horizon Candidate" (isolated passing)
+    - "Inverted Candidate"
+    - "Dirty Dozen" (aka isolated failing)
+    - "The Wasteland" : not clustered, not impulsive.  Nothing.
+
+    - "Clustered Passing" : clustered with another "impulsive" event
+    - "Clustered Failing"
+    - "Clustered Not Impulsive" : failing impulsivity cuts, but close to something impulsive
+
+   */
+  TChain *reKey = loadReKey(false);
+
+
+  
+  TChain *labelTree = new TChain("summaryTree","summaryTree");
+  labelTree->Add("labelEvents_All.root");
+  int lenEntries = labelTree->GetEntries();
+  cout << "Found " << lenEntries << " in labelTree" << endl;
+
+  TString *label = NULL;
+  labelTree->SetBranchAddress("label",&label);
+  AnitaEventSummary *evSum = NULL;
+  reKey->SetBranchAddress("eventSummary",&evSum);
+
+  labelTree->AddFriend(reKey);
+
+
+
+  //below horizon candidates
+  TGraphAntarctica *belowHorzCands = new TGraphAntarctica();
+
+  //inverted candidate
+  TGraphAntarctica *invertCand = new TGraphAntarctica();
+
+  //dirty dozen
+  TGraphAntarctica *dirtyDoz = new TGraphAntarctica();
+
+  //wasteland
+  TH2DAntarctica *wasteland = new TH2DAntarctica();
+
+  //clustered passing
+  TH2DAntarctica *clusteredPass = new TH2DAntarctica();
+
+  //clustered fail
+  TH2DAntarctica *clusteredFail = new TH2DAntarctica();
+
+  //clustered no impulse
+  TH2DAntarctica *clusteredNonImp = new TH2DAntarctica();
+
+  int skipped=0;
+  for (int entry=0; entry<lenEntries; entry++) {
+    if (!(entry%1000)) cout << entry << " / " << lenEntries << " (" << skipped << ")" << endl;
+
+    labelTree->GetEntry(entry);
+
+    double latitude = evSum->peak[0][0].latitude;
+    double longitude = evSum->peak[0][0].longitude;
+
+    if (strstr(label->Data(),"Below Horizon Candidate")) {
+      belowHorzCands->SetPoint(belowHorzCands->GetN(),longitude,latitude);
+    }
+    else if (strstr(label->Data(),"Inverted Candidate")) {
+      invertCand->SetPoint(invertCand->GetN(),longitude,latitude);
+    }
+    else if (strstr(label->Data(),"Dirty Dozen")) {
+      dirtyDoz->SetPoint(dirtyDoz->GetN(),longitude,latitude);
+    }
+    else if (strstr(label->Data(),"The Wasteland")) {
+      wasteland->Fill(longitude,latitude);
+    }
+    else if (strstr(label->Data(),"Clustered Passing")) {
+      clusteredPass->Fill(longitude,latitude);
+    }
+    else if (strstr(label->Data(),"Clustered Failing")) {
+      clusteredFail->Fill(longitude,latitude);
+    }
+    else if (strstr(label->Data(),"Clustered Not Impulsive")) {
+      clusteredNonImp->Fill(longitude,latitude);
+    }
+    else {
+      skipped++;
+    }
+  }
+
+  TCanvas *c1 = new TCanvas("c1","c1",1000,1000);
+  //below horizon candidates
+  belowHorzCands->SetMarkerStyle(41);
+  belowHorzCands->SetMarkerColor(kRed);
+  belowHorzCands->Draw("p");
+  //inverted candidate
+  invertCand->SetMarkerStyle(41);
+  invertCand->SetMarkerColor(kBlue);
+  invertCand->Draw("psame");
+  if (save) c1->SaveAs("belowHorizonCandsMap.png");
+
+  //dirty dozen
+  c1->Clear();
+  dirtyDoz->SetMarkerStyle(41);
+  dirtyDoz->Draw("p");
+  if (save) c1->SaveAs("dirtyDozenMap.png");
+
+  //wasteland
+  c1->Clear();
+  c1->SetLogz();
+  wasteland->Draw("colz");
+  if (save) c1->SaveAs("wastelandMap.png");
+
+  //clustered passing
+  c1->Clear();
+  c1->SetLogz();
+  clusteredPass->Draw("colz");
+  if (save) c1->SaveAs("clusteredPassingMap.png");
+
+  //clustered fail
+  c1->Clear();
+  c1->SetLogz();
+  clusteredFail->Draw("colz");
+  if (save) c1->SaveAs("clusteredFailingMap.png");
+
+  //clustered no impulse
+  c1->Clear();
+  c1->SetLogz();
+  clusteredNonImp->Draw("colz");
+  if (save) c1->SaveAs("clusteredNonImpMap.png");
+
+  return;
 }
 
 
 void drawEvOnAntarctica() {
   cout << "loaded drawEvOnAntarctica.C" << endl;
 }
+
+

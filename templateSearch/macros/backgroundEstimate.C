@@ -905,7 +905,9 @@ void saveLocalDistributions(string date="10.26.17_14h28m") {
 
 
 
-double getGeomagJP(AnitaEventSummary *evSum, Adu5Pat *gps, bool upgoing=false,double &measPol, double &expPol) {
+
+
+double getGeomagJP(double measPol, double expPol) {
   /*
     Determines the "JP" value for the geomagnetic
     Plateaus at 1 for some sigma value (2.5 default) and then falls off as 1/sigma past that
@@ -920,29 +922,16 @@ double getGeomagJP(AnitaEventSummary *evSum, Adu5Pat *gps, bool upgoing=false,do
   const double measSigma = 5.0; //degrees (from WAIS calibration)
   const double sigmaPlateau = 2.5; //how far away before you stop just being 1
 
-  //expected
-  UsefulAdu5Pat usefulGPS(gps);
-  double phi = TMath::DegToRad() * evSum->peak[0][0].phi;
-  double theta = TMath::DegToRad() * evSum->peak[0][0].theta;  
-  double expPol;
-  if (!upgoing) expPol = TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisation(usefulGPS,phi,theta);
-  else          expPol = TMath::RadToDeg() * GeoMagnetic::getExpectedPolarisationUpgoing(usefulGPS,phi,theta,1000);
-  
-  //measured
-  double measPol = evSum->coherent_filtered[0][0].linearPolAngle();
+  double totSigma = TMath::Sqrt(pow(expSigma,2)+pow(measSigma,2));
 
-  double totSigma = TMath::Sqrt(pow(expPol/expSigma
-
+  double polDiff = TMath::Abs(measPol-expPol);
   double outJP;
-  if ((polDiff/geoSigma) < 2.5) {
+  if ((polDiff/totSigma) < 2.5) {
     outJP = 1.0;
   }
   else {
-      outJP = sigmaPlateau / (polDiff/geoSigma); //the plateau value keeps it from being discontinuous at that point
+      outJP = sigmaPlateau / (polDiff/totSigma); //the plateau value keeps it from being discontinuous at that point
   }
-
-  cout << "             " << measPol << " vs " << expPol << " = " << polDiff/geoSigma << " | " << outJP << endl;
-
 
 
   return outJP;
@@ -951,7 +940,7 @@ double getGeomagJP(AnitaEventSummary *evSum, Adu5Pat *gps, bool upgoing=false,do
 
 
 
-void JPStatisticBackground(string inSigName,string inBackName) {
+void JPStatisticBackground(string inFileName) {
   /*
 
     reads in a signal file and a background file, then calculates and plots the JP statistic
@@ -961,22 +950,39 @@ void JPStatisticBackground(string inSigName,string inBackName) {
    */
 
 
-  TChain *sigTree = new TChain("summaryTree","summaryTree");
-  sigTree->Add(inSigName.c_str());
-  cout << "found " << sigTree->GetEntries() << " signal entries" << endl;  
+  TChain *summaryTree;
+  if (inFileName == "all") {
+  TChain *summaryTree = loadGeoAssociated();
+  }
+  else {
+    summaryTree = new TChain("summaryTree","summaryTree");
+    summaryTree->Add(inFileName.c_str());
+  }
 
-  TChain *backTree = new TChain("summaryTree","summaryTree");
-  backTree->Add(inBackName.c_str());
-  int lenEntries = backTree->GetEntries();
-  cout << "found " << lenEntries << " background entries" << endl;
+  int lenEntries = summaryTree->GetEntries();
+  cout << "found " << lenEntries << " signal entries" << endl;  
 
 
   AnitaEventSummary *evSum = NULL;
-  backTree->SetBranchAddress("eventSummary",&evSum);
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
   AnitaTemplateSummary *tempSum = NULL;
-  backTree->SetBranchAddress("template",&tempSum);
+  summaryTree->SetBranchAddress("template",&tempSum);
   Adu5Pat *gps = NULL;
-  backTree->SetBranchAddress("gpsEvent",&gps);
+  summaryTree->SetBranchAddress("gpsEvent",&gps);
+
+  bool fSeedEvent;
+  summaryTree->SetBranchAddress("fSeedEvent",&fSeedEvent);
+
+  //the new stokes has to be copied too
+  AnitaEventSummary::WaveformInfo *newStokes = NULL;
+  summaryTree->SetBranchAddress("newStokes",&newStokes);
+
+  //and the geomag stuff
+  double geoMagExp;
+  summaryTree->SetBranchAddress("geoMagExp",&geoMagExp);
+
+
+
 
 
   TH1D *hTempCoher_back = new TH1D("hTempCoher_back","Template Correlation (coher) background;correlation;count",1000,0,1);
@@ -986,47 +992,297 @@ void JPStatisticBackground(string inSigName,string inBackName) {
   TH1D *hGeomag_back = new TH1D("hGeomag_back","Geomagnetic JP value (1/sigma);Geomag JP value; count",100,0,1);
 
   TH1D *jp_back = new TH1D("jp_back","JP Statistic (Background)",1000,0,1.1);
+  TH1D *jpLog_back = new TH1D("jpLog_back","JP Statistic (Background)",1000,-5,0);
+
+
+  TH1D *hTempCoher_sig = new TH1D("hTempCoher_sig","Template Correlation (coher) candidate;correlation;count",1000,0,1);
+  TH1D *hTempDecon_sig = new TH1D("hTempDecon_sig","Template Correlation (decon) candidate;correlation;count",1000,0,1);
+
+  TH2D *h2Geomag_sig = new TH2D("h2Geomag_sig","Geomagnetic Expected vs Measured;expected plane (degree);measured plane (degrees)",91,-45,45,91,-45,45);
+  TH1D *hGeomag_sig = new TH1D("hGeomag_sig","Geomagnetic JP value (1/sigma) Candidate;Geomag JP value; count",100,0,1);
+
+  TH1D *jp_sig = new TH1D("jp_sig","JP Statistic (Candidate)",1000,0,1.1);
+  TH1D *jpLog_sig = new TH1D("jpLog_sig","JP Statistic (Candidate)",1000,-5,0);
+
 
   cout << "Starting Loop: "<< endl;
   for (int entry=0; entry<lenEntries; entry++) {
     //    if (!(entry%10)) {cout << entry << "/" << lenEntries << endl; fflush(stdout); }
-    backTree->GetEntry(entry);
+    summaryTree->GetEntry(entry);
 
-    cout << evSum->eventNumber << ":" << endl;
+    //    cout << evSum->eventNumber << ":" << endl;
 
-    double geoMeas,geoExp;
-    double geomagJP = getGeomagJP(evSum,gps,false,&geoMeas,&geoExp);
-
-    h2Geomag_back->Fill(geoMeas,geoExp);
+    double geoMeas = newStokes->linearPolAngle();
+    double geoExp = geoMagExp;
+    double geomagJP = getGeomagJP(geoMeas,geoExp);
 
     double product = 1.0;
     product *= tempSum->coherent[0][0].cRay[4];
     product *= tempSum->deconvolved[0][0].cRay[4];
-    product *= geomagJP;
+    product *= pow(geomagJP,2);
 
-    cout << tempSum->coherent[0][0].cRay[4] << " " << tempSum->deconvolved[0][0].cRay[4] << " " << geomagJP << " " << product << endl;
+    //    cout << tempSum->coherent[0][0].cRay[4] << " " << tempSum->deconvolved[0][0].cRay[4] << " " << geomagJP << " " << product << endl;
 
-    hTempCoher_back->Fill(tempSum->coherent[0][0].cRay[4]);
-    hTempDecon_back->Fill(tempSum->deconvolved[0][0].cRay[4]);
-    hGeomag_back->Fill(geomagJP);
-
-    jp_back->Fill(product);
+    if (!fSeedEvent) {
+      h2Geomag_back->Fill(geoMeas,geoExp);
+      hTempCoher_back->Fill(tempSum->coherent[0][0].cRay[4]);
+      hTempDecon_back->Fill(tempSum->deconvolved[0][0].cRay[4]);
+      hGeomag_back->Fill(geomagJP);
+      jp_back->Fill(product);
+      jpLog_back->Fill(TMath::Log10(product));
+    }
+    else {
+      h2Geomag_sig->Fill(geoMeas,geoExp);
+      hTempCoher_sig->Fill(tempSum->coherent[0][0].cRay[4]);
+      hTempDecon_sig->Fill(tempSum->deconvolved[0][0].cRay[4]);
+      hGeomag_sig->Fill(geomagJP);
+      jp_sig->Fill(product);
+      jpLog_sig->Fill(TMath::Log10(product));
+    }
 
   }
     
-
-  TFile *outFile = TFile::Open("JPout2.root","recreate");
+  string outName;
+  if (inFileName == "all") {
+    outName = "allCandiates_JP.root";
+  }
+  else {
+    size_t pos = inFileName.find(".root");
+    string baseName = inFileName.substr(0,pos);
+    outName = baseName+"_JP.root";
+  }
+  TFile *outFile = TFile::Open(outName.c_str(),"recreate");
   hTempCoher_back->Write();
   hTempDecon_back->Write();
   h2Geomag_back->Write();
   hGeomag_back->Write();
   jp_back->Write();
+  jpLog_back->Write();
+
+  hTempCoher_sig->Write();
+  hTempDecon_sig->Write();
+  h2Geomag_sig->Write();
+  hGeomag_sig->Write();
+  jp_sig->Write();
+  jpLog_sig->Write();
+
   outFile->Close();
 
 
 
   return;
 }   
+
+
+
+
+
+
+
+void multipleCandidateJP(string filename = "trueCandidates_oct14_reMasked.root") {
+
+  
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(filename.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " events to save geoAssociated events for" << endl;
+  
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  
+  string name;
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    cout << "multipleCanidateJP(): Doing " << evSum->eventNumber << "..." << endl;
+    string filename = "geoAssociated/geoAssociated_ev" + to_string(evSum->eventNumber) + "_geomag.root";
+    JPStatisticBackground(filename);
+  }
+  
+  return;
+}
+
+
+
+
+void saveJPPlots(string filename = "trueCandidates_oct14_reMasked.root") {
+
+  
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(filename.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " events to save geoAssociated events for" << endl;
+  
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  
+  TCanvas *c1 = new TCanvas("c1","c1",1000,500);
+  c1->SetLogy();
+  string name;
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    cout << "multipleCanidateJP(): Doing " << evSum->eventNumber << "..." << endl;
+    string filename = "geoAssociated/geoAssociated_ev" + to_string(evSum->eventNumber) + "_geomag_JP.root";
+    TFile *inFile = TFile::Open(filename.c_str());
+    TH1D *hBack = (TH1D*)inFile->Get("jp_back");
+    TH1D *hSig = (TH1D*)inFile->Get("jp_sig");
+    c1->cd();
+    string title = "JP Statistic ev" + to_string(evSum->eventNumber) + ";JP Value; Count";
+    hBack->SetTitle(title.c_str());
+    hBack->Draw();
+    hSig->SetLineColor(kRed);
+    hSig->Draw("same");
+    title = "JP_ev" + to_string(evSum->eventNumber) + ".png";
+    c1->SaveAs(title.c_str());
+    
+  }
+  
+  return;
+}
+
+
+
+void fitAndReturnLikelihood(string inFileName) {
+  
+  size_t pos = inFileName.find(".root");
+  string baseName = inFileName.substr(0,pos);
+  string outName = baseName+"_JPlikelihood.txt";
+  ofstream outFile(outName.c_str(),ofstream::out);
+
+  TCanvas *c1 = new TCanvas("c1","c1",1000,500);
+  c1->SetLogy();
+  string name;
+
+  TLine *cutLine = new TLine(-0.35305,1e-3,-0.35305,3e3);
+  cutLine->SetLineStyle(2);
+  cutLine->SetLineColor(kRed);
+
+
+  
+  TFile *inFile = TFile::Open(inFileName.c_str());
+  TH1D *hBack = (TH1D*)inFile->Get("jp_back");
+  hBack->RebinX(4);//down to 250
+  hBack->GetXaxis()->SetRangeUser(-3,0);
+  hBack->GetYaxis()->SetRangeUser(1e-3,3e3);
+  hBack->SetStats(0);
+  TH1D *hSig = (TH1D*)inFile->Get("jp_sig");
+  c1->cd();
+  string title = "JP Statistic;JP Value; Count";
+  hBack->SetTitle(title.c_str());
+  double hBackMode = hBack->GetBinCenter(hBack->GetMaximumBin());
+  hBack->Draw();
+  hBack->Fit("expo","","",0.15,1);
+  TF1 *gausFit = hBack->GetFunction("expo");
+  gausFit->SetLineColor(kGreen);
+  double constant = gausFit->GetParameter(0);
+  double mean = gausFit->GetParameter(1);
+  
+  double candVal = hSig->GetBinCenter(hSig->GetMaximumBin());
+  
+
+
+  //  TF1 *unLog = new TF1("unLog","([0]/(x*[2]))*exp(-1*pow(log(x-[1]),2)/(2*pow([2],2)))",0.2,1);
+  //  TF1 f1 = new TF1("logNormal","[2]*ROOT::Math::lognormal_pdf(x,[0],[1])",0.04,1);
+
+
+  //  TCanvas *c2 = new TCanvas("c2","c2",1000,500);
+  //  TH1D *hBackUnLog = (TH1D*)inFile->Get("jp_back");
+  //  hBackUnLog->Draw("");
+  //  unLog->Draw("same");
+
+
+  //  ROOT::Math::WrappedTF1 wf1(*gausFit);
+  //  ROOT::Math::GaussIntegrator ig;
+  //  ig.SetFunction(wf1);
+  //  ig.SetRelTolerance(0.001);
+  
+  //  double cutLineValue = TMath::Log10(0.666*0.666);
+  
+  //  cout << ig.Integral(cutLineValue,10) << " " << ig.Integral(candVal,10) << endl;
+  
+  //  double pCandVal = -constant*TMath::Sqrt(TMath::PiOver2()) * sigma * (1 + TMath::Erf((mean-candVal)/(TMath::Sqrt(2)*sigma)));
+  //  double pBackground = -constant*TMath::Sqrt(TMath::PiOver2()) * sigma * (1 + TMath::Erf((mean-cutLineValue)/(TMath::Sqrt(2)*sigma)));
+  
+  //  outFile << constant << " " << mean << " " << sigma << " " << cutLineValue << " " << pBackground << " " << candVal << " " << pCandVal << endl;
+  //  cout << constant << " " << mean << " " << sigma << " " << cutLineValue << " " << pBackground << " " << candVal << " " << pCandVal << endl;
+  
+  c1->cd();
+  gausFit->SetRange(0.1,1);
+  cutLine->Draw("same");
+  hSig->SetLineColor(kRed);
+  hSig->Draw("same");
+  title = "JPLog.png";
+  c1->SaveAs(title.c_str());
+  
+  
+  outFile.close();
+
+  return;
+}
+
+
+void fitAndReturnLikelihoodMultiple(string filename ="trueCandidates_oct14_reMasked.root") {
+  
+  return;
+}
+
+
+void mergeAllCandidates(string filename ="trueCandidates_oct14_reMasked.root") {
+
+  
+  TChain *summaryTree = new TChain("summaryTree","summaryTree");
+  summaryTree->Add(filename.c_str());
+  int lenEntries = summaryTree->GetEntries();
+  cout << "Found " << lenEntries << " events to save geoAssociated events for" << endl;
+  
+  AnitaEventSummary *evSum = NULL;
+  summaryTree->SetBranchAddress("eventSummary",&evSum);
+  
+  ofstream outFile("JPlikelihood.txt",ofstream::out);
+
+  TCanvas *c1 = new TCanvas("c1","c1",1000,500);
+  c1->SetLogy();
+  string name;
+  for (int entry=0; entry<lenEntries; entry++) {
+    summaryTree->GetEntry(entry);
+    if (evSum->eventNumber == 39599205) continue;
+    cout << "multipleCanidateJP(): Doing " << evSum->eventNumber << "..." << endl;
+    string filename = "geoAssociated/geoAssociated_ev" + to_string(evSum->eventNumber) + "_geomag_JP.root";
+    TFile *inFile = TFile::Open(filename.c_str());
+    TH1D *hBack = (TH1D*)inFile->Get("jp_back");
+    hBack->SetStats(0);
+    TH1D *hSig = (TH1D*)inFile->Get("jp_sig");
+    c1->cd();
+    string title = "JP Statistic ev" + to_string(evSum->eventNumber) + ";Log10(JP Value); Count";
+    hBack->SetTitle(title.c_str());
+    hBack->GetXaxis()->SetRangeUser(0.1,0.40);
+    hBack->Draw();
+    hBack->Fit("expo");
+    hBack->GetXaxis()->SetRangeUser(0.0,1.0);
+    hBack->Draw();
+
+    hBack->GetFunction("expo")->SetLineColor(kGreen);
+    double constant = hBack->GetFunction("expo")->GetParameter(0);
+    double mean = hBack->GetFunction("expo")->GetParameter(1);
+
+    outFile << evSum->eventNumber << " " << constant << " " << mean << endl;
+
+    hSig->SetLineColor(kRed);
+    hSig->Draw("same");
+    title = "JPLog_ev" + to_string(evSum->eventNumber) + ".png";
+    c1->SaveAs(title.c_str());
+    
+  }
+  
+  outFile.close();
+
+  return;
+}
+
+
+
+
+
+
 
 
 

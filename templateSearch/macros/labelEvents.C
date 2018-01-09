@@ -41,8 +41,9 @@ void labelEvents() {
     - int seedEventNumber : the event number that it clusters with (-1=wais, -2=ldb, -999= not clustered)
     - double clusterValue : distance from nearest impulsive event ( -999 if not clustered )
     - "The Wasteland" : not clustered, not impulsive.  Nothing.
-    
-    
+
+    - bool fMajorBase : whether it comes from within 3 sigma of a "major" base.  All pulsers should have this flag
+          (sigma= 0.75:0.3 | phi:theta)
    */
 
   //input tree, reKey is the last set of "quality" data
@@ -100,6 +101,9 @@ void labelEvents() {
   bool fInBackgroundFile,fInClusterFile;
   outTree->Branch("fInBackgroundFile",&fInBackgroundFile);
   outTree->Branch("fInClusterFile",&fInClusterFile);
+  
+  bool fMajorBase;
+  outTree->Branch("fMajorBase",&fMajorBase);
   
   //this file is disconnected, so add the event number
   int eventNumber;
@@ -159,6 +163,17 @@ void labelEvents() {
 
 
     // Some basic info for splitting them up: 
+
+    //is it from a major base? (sigma= 0.75:0.3 | phi:theta)
+    fMajorBase = false;
+    if ( (TMath::Sqrt( pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->wais.phi,360,0))/0.75,2) + 
+		       pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->wais.theta,360,0))/0.3,2) ) < 3.0 
+	  && evSum->wais.distance < 1000e3 ) ||
+	 (TMath::Sqrt( pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->ldb.phi,360,0))/0.75,2) + 
+		       pow(TMath::Abs(FFTtools::wrap(evSum->peak[0][0].phi - evSum->ldb.theta,360,0))/0.3,2) ) < 3.0 
+	  && evSum->ldb.distance < 1000e3 ) ) {
+      fMajorBase = true;
+    }
 
     //is it geoexcluded? (L < 40 from nearest impulsive event)
     // if it is impulsive or more, then check the cluster file

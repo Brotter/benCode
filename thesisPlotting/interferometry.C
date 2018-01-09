@@ -3,15 +3,46 @@
   using Correlator.cc and setting a bunch of disallowed antennas to make example maps
 
  */
-#include "AnitaDataset.h"
-#include "Analyzer.h"
-#include "AntennaPositions.h"
+
+#include "AnitaEventSummary.h"
 #include "UCFilters.h"
 
-void interferometry() {
+TH2* interferometry(int eventNumber=15717147) {
 
   AnitaDataset *data = new AnitaDataset(342);
-  data->getEvent(58023977);
+  data->getEvent(eventNumber);
+
+  FilterStrategy *fStrat = UCorrelator::getStrategyWithKey("sinsub_10_3_ad_2");
+
+  FilteredAnitaEvent *filtered = new FilteredAnitaEvent(data->useful(), fStrat, data->gps(), data->header());
+
+
+  UCorrelator::Correlator *corr = new UCorrelator::Correlator(360,0,360,71,-50,20);
+
+  corr->compute(filtered,AnitaPol::kHorizontal);
+  TH2D *histTot = new TH2D(*corr->getHist());
+  
+  int x,y,z;
+  int maxBin = histTot->GetMaximumBin();
+  histTot->GetBinXYZ(maxBin,x,y,z);
+  cout << x << endl;
+  TH2 *histRot = UCorrelator::rotateHistogram(histTot,x+180);
+  histRot->SetName("rotatedMap");
+  
+  TCanvas *c1 = new TCanvas("c1","c1",1000,600);
+  histRot->Draw("colz");
+
+  
+
+  return histRot;
+
+}
+  
+
+void interferometry_example(int eventNumber=15717147) {
+
+  AnitaDataset *data = new AnitaDataset(342);
+  data->getEvent(eventNumber);
 
   FilterStrategy *fStrat = UCorrelator::getStrategyWithKey("sinsub_10_3_ad_2");
 
